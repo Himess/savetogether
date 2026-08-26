@@ -101,6 +101,17 @@ interface IGhostKeySession {
         euint64 sent
     );
 
+    /// @notice A recipient was added to a live session.
+    /// @param sessionKey The session key.
+    /// @param to The newly allowed recipient.
+    event RecipientAdded(address indexed sessionKey, address indexed to);
+
+    /// @notice A recipient was removed from a live session.
+    /// @param sessionKey The session key.
+    /// @param to The removed recipient.
+    /// @param by The owner or the session key.
+    event RecipientRemoved(address indexed sessionKey, address indexed to, address indexed by);
+
     /// @notice A token budget was topped up by the owner.
     /// @param sessionKey The session key.
     /// @param token      The token whose budget grew.
@@ -151,11 +162,59 @@ interface IGhostKeySession {
     /// @notice The same token appeared twice in `tokens`.
     /// @param token The duplicated token.
     error DuplicateToken(address token);
+    /// @notice The session key did not sign its consent to be opened by this owner.
+    error InvalidSessionKeySignature();
+    /// @notice More tokens than {GhostKeySession-MAX_TOKENS}.
+    /// @param count The rejected count.
+    error TooManyTokens(uint256 count);
+    /// @notice More recipients than {GhostKeySession-MAX_RECIPIENTS}.
+    /// @param count The rejected count.
+    error TooManyRecipients(uint256 count);
+    /// @notice The recipient is already on the allowlist.
+    /// @param to The recipient.
+    error RecipientAlreadyAllowed(address to);
+    /// @notice The recipient is not on the allowlist, so it cannot be removed.
+    /// @param to The recipient.
+    error RecipientNotInSession(address to);
 
     /// @notice Opens a session. Caller becomes the owner.
+    /// @dev The session key must consent by signature, which is what stops anyone from
+    ///      front-running the call with the same key and permanently burning it.
     /// @param params The session parameters.
     /// @param inputProof One proof covering every entry of `params.budgets`.
-    function openSession(SessionParams calldata params, bytes calldata inputProof) external;
+    /// @param sessionKeySignature EIP-712 signature by `params.sessionKey` over the digest
+    ///        from {openSessionDigest}, binding the key to this owner.
+    function openSession(
+        SessionParams calldata params,
+        bytes calldata inputProof,
+        bytes calldata sessionKeySignature
+    ) external;
+
+    /// @notice The EIP-712 digest a session key must sign to be opened by `owner`.
+    /// @dev `chainId` and `verifyingContract` are bound through the EIP-712 domain
+    ///      separator rather than the struct, so a signature is useless on another chain
+    ///      or another deployment. No nonce is needed: a key is single-use.
+    /// @param owner The account that will open the session.
+    /// @param sessionKey The session key granting consent.
+    /// @param expiry The session expiry being consented to.
+    /// @param maxTxCount The send cap being consented to.
+    /// @return The digest to sign.
+    function openSessionDigest(
+        address owner,
+        address sessionKey,
+        uint48 expiry,
+        uint24 maxTxCount
+    ) external view returns (bytes32);
+
+    /// @notice Adds a recipient to a live session's allowlist. Owner only.
+    /// @param sessionKey The session key.
+    /// @param to The recipient to allow.
+    function addRecipient(address sessionKey, address to) external;
+
+    /// @notice Removes a recipient. Callable by the owner or by the session key.
+    /// @param sessionKey The session key.
+    /// @param to The recipient to remove.
+    function removeRecipient(address sessionKey, address to) external;
 
     /// @notice Spends from the session budget. Never reverts on a budget or balance failure.
     /// @param token The ERC-7984 token to spend.

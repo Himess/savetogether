@@ -6,6 +6,8 @@ import {ZamaConfig, ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.
 import {IACL} from "@fhevm/solidity/lib/Impl.sol";
 import {FHESafeMath} from "@openzeppelin/confidential-contracts/utils/FHESafeMath.sol";
 import {IERC7984} from "@openzeppelin/confidential-contracts/interfaces/IERC7984.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IGhostKeySession} from "./interfaces/IGhostKeySession.sol";
 
@@ -50,21 +52,69 @@ interface IACLPausable {
  *      TERMINOLOGY. `session client` and `model` are distinguished throughout. See
  *      {IGhostKeySession}. The word "agent" is never used alone.
  */
-contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, ReentrancyGuard {
+contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, EIP712, ReentrancyGuard {
+    /// @notice Maximum tokens fundable in one session.
+    /// @dev Bounds {tokensOf}, which returns the whole array, so an oversized session
+    ///      cannot make its own views uncallable. Well above any realistic session:
+    ///      a wallet holding 32 distinct confidential tokens is not the target user.
+    uint256 public constant MAX_TOKENS = 32;
+
+    /// @notice Maximum recipients on a session allowlist.
+    /// @dev Same reasoning as {MAX_TOKENS}, bounding {recipientsOf}. Enforced in
+    ///      {addRecipient} as well as {openSession}, so the cap cannot be walked past.
+    uint256 public constant MAX_RECIPIENTS = 128;
+
+    /// @dev EIP-712 type hash for the session key's consent to be opened by an owner.
+    ///      `chainId` and `verifyingContract` are NOT struct fields: they live in the
+    ///      EIP-712 domain separator, which is the standard place for them and is what
+    ///      makes a signature unusable on another chain or another deployment.
+    bytes32 private constant _OPEN_TYPEHASH = keccak256(
+        "OpenSession(address owner,address sessionKey,uint48 expiry,uint24 maxTxCount)"
+    );
+
     mapping(address sessionKey => Session session) private _sessions;
     mapping(address sessionKey => mapping(address token => euint64 remaining)) private _remaining;
-    mapping(address sessionKey => mapping(address to => bool allowed)) private _allowed;
+    /// @dev One-based index into {_recipients}. Zero means "not on the allowlist", which
+    ///      doubles as the membership test, so no separate bool mapping is needed.
+    mapping(address sessionKey => mapping(address to => uint256 indexPlusOne))
+        private _recipientIndex;
     mapping(address sessionKey => address[] recipients) private _recipients;
     mapping(address sessionKey => address[] tokens) private _tokens;
 
-    /// @inheritdoc IGhostKeySession
+    /// @notice Deploys the module.
+    constructor() EIP712("GhostKeySession", "1") {}
+
+    /**
+     * @inheritdoc IGhostKeySession
+     *
+     * @dev FRONT-RUNNING. The session key travels in mempool calldata. Without proof of
+     *      the key's consent, anyone could watch a pending `openSession`, resubmit the
+     *      same key with more gas, take ownership, and make the honest call revert with
+     *      {SessionKeyAlreadyUsed} — permanently burning that key, since the single-use
+     *      invariant never clears `owner`. No funds would be at risk, but every session
+     *      open would be grievable for the price of gas.
+     *
+     *      The `sessionKeySignature` closes it. The session client generates the key
+     *      locally, so signing costs nothing, and the signature binds the key to ONE
+     *      owner. An attacker cannot reuse a captured signature, because the signed
+     *      `owner` is checked against `msg.sender`; and cannot forge their own, because
+     *      that needs the session key's private key. One `ecrecover`.
+     *
+     *      No nonce is required: a key is single-use, so a replayed signature meets
+     *      {SessionKeyAlreadyUsed} on the second attempt.
+     */
     function openSession(
         SessionParams calldata params,
-        bytes calldata inputProof
+        bytes calldata inputProof,
+        bytes calldata sessionKeySignature
     ) external override {
         if (params.sessionKey == address(0)) revert ZeroAddress();
         if (params.tokens.length != params.budgets.length) revert ArrayLengthMismatch();
         if (params.tokens.length == 0 || params.recipients.length == 0) revert EmptySessionScope();
+        if (params.tokens.length > MAX_TOKENS) revert TooManyTokens(params.tokens.length);
+        if (params.recipients.length > MAX_RECIPIENTS) {
+            revert TooManyRecipients(params.recipients.length);
+        }
         if (params.expiry <= block.timestamp) revert InvalidExpiry();
 
         // A session key is consumed permanently at first use, not merely while live.
@@ -72,6 +122,16 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, ReentrancyGuar
         // key be reopened would silently carry a stale delegation into the new session.
         if (_sessions[params.sessionKey].owner != address(0)) {
             revert SessionKeyAlreadyUsed(params.sessionKey);
+        }
+
+        bytes32 digest = openSessionDigest(
+            msg.sender,
+            params.sessionKey,
+            params.expiry,
+            params.maxTxCount
+        );
+        if (ECDSA.recover(digest, sessionKeySignature) != params.sessionKey) {
+            revert InvalidSessionKeySignature();
         }
 
         _sessions[params.sessionKey] = Session({
@@ -101,12 +161,7 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, ReentrancyGuar
         }
 
         for (uint256 i = 0; i < params.recipients.length; ++i) {
-            address to = params.recipients[i];
-            if (to == address(0)) revert ZeroAddress();
-            if (!_allowed[params.sessionKey][to]) {
-                _allowed[params.sessionKey][to] = true;
-                _recipients[params.sessionKey].push(to);
-            }
+            _addRecipient(params.sessionKey, params.recipients[i]);
         }
 
         emit SessionOpened(
@@ -143,7 +198,7 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, ReentrancyGuar
      *      encrypted zero. `FHE.select` and `FHE.add` mint a fresh handle on every path
      *      regardless of the encrypted condition, so `remaining` is always written with a
      *      changed value and the same-value SSTORE discount never applies anywhere. Same
-     *      operations, same storage writes, same event topics.
+     *      operations, same storage writes, same event topics, same gas.
      */
     function send(
         address token,
@@ -158,7 +213,7 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, ReentrancyGuar
         if (s.expiry == 0) revert SessionIsClosed(msg.sender);
         if (s.expiry <= block.timestamp) revert SessionExpired(msg.sender);
         if (s.maxTxCount != 0 && s.txCount >= s.maxTxCount) revert TxCountExhausted(msg.sender);
-        if (!_allowed[msg.sender][to]) revert RecipientNotAllowed(msg.sender, to);
+        if (_recipientIndex[msg.sender][to] == 0) revert RecipientNotAllowed(msg.sender, to);
 
         euint64 budget = _remaining[msg.sender][token];
         if (!FHE.isInitialized(budget)) revert TokenNotInSession(msg.sender, token);
@@ -181,16 +236,12 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, ReentrancyGuar
         // Reconcile in the SAME transaction. `sent` is granted to this module with
         // `allowTransient`, so its access dies when the transaction ends. Deferring this
         // to a later transaction is not a design option; it is impossible.
-        //   over budget      -> amount 0,         sent 0 -> refund 0,         budget unchanged
-        //   balance short    -> amount requested, sent 0 -> refund requested, budget restored
-        //   success          -> amount requested, sent = amount -> refund 0,  budget decremented
+        //   over budget   -> amount 0,         sent 0 -> refund 0,         budget unchanged
+        //   balance short -> amount requested, sent 0 -> refund requested, budget restored
+        //   success       -> amount requested, sent = amount -> refund 0,  budget decremented
         euint64 refund = FHE.sub(amount, sent);
         euint64 newRemaining = FHE.add(clamped, refund);
         _remaining[msg.sender][token] = newRemaining;
-
-        FHE.allowThis(newRemaining);
-        FHE.allow(newRemaining, owner_);
-        FHE.allow(newRemaining, msg.sender);
 
         // Transient access is sufficient to issue a persistent grant: ACL.allow gates on
         // isAllowed, and isAllowed is `allowedTransient || persistAllowed`. This is what
@@ -199,8 +250,11 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, ReentrancyGuar
         // allowThis is required as well as the per-account grants: userDecrypt authorises
         // against BOTH the requesting account and the contract the handle is read through,
         // and this module holds only transient access to `within` and `sent`.
+        FHE.allowThis(newRemaining);
         FHE.allowThis(within);
         FHE.allowThis(sent);
+        FHE.allow(newRemaining, owner_);
+        FHE.allow(newRemaining, msg.sender);
         FHE.allow(within, owner_);
         FHE.allow(within, msg.sender);
         FHE.allow(sent, owner_);
@@ -220,6 +274,8 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, ReentrancyGuar
         if (s.owner == address(0)) revert NoSuchSession(sessionKey);
         if (s.owner != msg.sender) revert NotSessionOwner(sessionKey);
         if (s.expiry == 0) revert SessionIsClosed(sessionKey);
+        // Topping up a lapsed session would leave the owner believing the session works.
+        if (s.expiry <= block.timestamp) revert SessionExpired(sessionKey);
 
         euint64 current = _remaining[sessionKey][token];
         if (!FHE.isInitialized(current)) revert TokenNotInSession(sessionKey, token);
@@ -236,6 +292,58 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, ReentrancyGuar
         FHE.allow(updated, sessionKey);
 
         emit BudgetIncreased(sessionKey, token);
+    }
+
+    /**
+     * @inheritdoc IGhostKeySession
+     *
+     * @dev Owner only. This grants no authority the owner does not already hold — they
+     *      could close the session and open a new one with a wider allowlist. What it
+     *      avoids is burning the session key, re-delegating on the ACL and re-signing the
+     *      budget batch every time a new recipient comes up mid-conversation, which is
+     *      what "authorize once, talk all day" actually requires.
+     */
+    function addRecipient(address sessionKey, address to) external override {
+        Session storage s = _sessions[sessionKey];
+        if (s.owner == address(0)) revert NoSuchSession(sessionKey);
+        if (s.owner != msg.sender) revert NotSessionOwner(sessionKey);
+        if (s.expiry == 0) revert SessionIsClosed(sessionKey);
+        if (s.expiry <= block.timestamp) revert SessionExpired(sessionKey);
+        if (_recipientIndex[sessionKey][to] != 0) revert RecipientAlreadyAllowed(to);
+
+        _addRecipient(sessionKey, to);
+        emit RecipientAdded(sessionKey, to);
+    }
+
+    /**
+     * @inheritdoc IGhostKeySession
+     *
+     * @dev Owner OR session key. The session client must be able to narrow its own scope
+     *      defensively — on detecting something wrong it should not have to choose between
+     *      carrying on and tearing the whole session down.
+     */
+    function removeRecipient(address sessionKey, address to) external override {
+        Session storage s = _sessions[sessionKey];
+        if (s.owner == address(0)) revert NoSuchSession(sessionKey);
+        if (msg.sender != s.owner && msg.sender != sessionKey) {
+            revert NotOwnerOrSessionKey(sessionKey);
+        }
+
+        uint256 idx = _recipientIndex[sessionKey][to];
+        if (idx == 0) revert RecipientNotInSession(to);
+
+        // Swap-and-pop, keeping the index map consistent for the element that moves.
+        address[] storage list = _recipients[sessionKey];
+        uint256 last = list.length;
+        if (idx != last) {
+            address moved = list[last - 1];
+            list[idx - 1] = moved;
+            _recipientIndex[sessionKey][moved] = idx;
+        }
+        list.pop();
+        _recipientIndex[sessionKey][to] = 0;
+
+        emit RecipientRemoved(sessionKey, to, msg.sender);
     }
 
     /**
@@ -262,6 +370,19 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, ReentrancyGuar
     }
 
     /// @inheritdoc IGhostKeySession
+    function openSessionDigest(
+        address owner,
+        address sessionKey,
+        uint48 expiry,
+        uint24 maxTxCount
+    ) public view override returns (bytes32) {
+        return
+            _hashTypedDataV4(
+                keccak256(abi.encode(_OPEN_TYPEHASH, owner, sessionKey, expiry, maxTxCount))
+            );
+    }
+
+    /// @inheritdoc IGhostKeySession
     function sessionOf(address sessionKey) external view override returns (Session memory) {
         return _sessions[sessionKey];
     }
@@ -279,7 +400,7 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, ReentrancyGuar
         address sessionKey,
         address to
     ) external view override returns (bool) {
-        return _allowed[sessionKey][to];
+        return _recipientIndex[sessionKey][to] != 0;
     }
 
     /// @inheritdoc IGhostKeySession
@@ -292,7 +413,14 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, ReentrancyGuar
         return _tokens[sessionKey];
     }
 
-    /// @inheritdoc IGhostKeySession
+    /**
+     * @inheritdoc IGhostKeySession
+     *
+     * @dev The ACL address is resolved through `ZamaConfig.getEthereumCoprocessorConfig`,
+     *      which despite its name dispatches on chainid across Ethereum mainnet, Sepolia
+     *      and the local chain. It is the very function `ZamaEthereumConfig`'s constructor
+     *      uses, so this view cannot disagree with the config the contract runs on.
+     */
     function protocolStatus(
         address sessionKey
     ) external view override returns (bool aclPaused, bool keyDenied, bool moduleDenied) {
@@ -300,5 +428,20 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, ReentrancyGuar
         aclPaused = IACLPausable(acl).paused();
         keyDenied = IACL(acl).isAccountDenied(sessionKey);
         moduleDenied = IACL(acl).isAccountDenied(address(this));
+    }
+
+    /// @notice Appends a recipient if absent.
+    /// @dev Enforces {MAX_RECIPIENTS} on every path, so the cap cannot be walked past
+    ///      by adding recipients one at a time after {openSession}.
+    /// @param sessionKey The session key.
+    /// @param to The recipient to allow.
+    function _addRecipient(address sessionKey, address to) private {
+        if (to == address(0)) revert ZeroAddress();
+        if (_recipientIndex[sessionKey][to] != 0) return;
+
+        address[] storage list = _recipients[sessionKey];
+        if (list.length >= MAX_RECIPIENTS) revert TooManyRecipients(list.length + 1);
+        list.push(to);
+        _recipientIndex[sessionKey][to] = list.length;
     }
 }

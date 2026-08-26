@@ -12,6 +12,7 @@
     "no-inline-assembly": "off",
     "not-rely-on-time": "off",
     "function-max-lines": ["error", 80],
-    "gas-strict-inequalities": "off"
+    "gas-strict-inequalities": "off",
+    "gas-small-strings": "off"
   }
 }

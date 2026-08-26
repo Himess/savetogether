@@ -19,6 +19,17 @@ function requireSigner(list: HardhatEthersSigner[], i: number): HardhatEthersSig
   return s;
 }
 
+/**
+ * Intrinsic calldata cost under EIP-2028: 4 gas per zero byte, 16 per non-zero byte.
+ * Subtracting it from gasUsed isolates what the contract actually executed.
+ */
+function calldataGas(data: string): { zeros: number; gas: number } {
+  const bytes = ethers.getBytes(data);
+  let zeros = 0;
+  for (const b of bytes) if (b === 0) zeros++;
+  return { zeros, gas: zeros * 4 + (bytes.length - zeros) * 16 };
+}
+
 async function future(seconds = 7 * DAY): Promise<number> {
   const block = await ethers.provider.getBlock("latest");
   return (block?.timestamp ?? Math.floor(Date.now() / 1000)) + seconds;
@@ -57,6 +68,37 @@ describe("GhostKeySession", () => {
     token2Addr = await token2.getAddress();
   });
 
+  /**
+   * The session key's EIP-712 consent. chainId and verifyingContract live in the domain,
+   * which is what makes a signature useless on another chain or another deployment.
+   */
+  async function signOpen(
+    key: HardhatEthersSigner,
+    ownerAddr: string,
+    expiry: number,
+    maxTxCount: number,
+    overrides?: { chainId?: bigint; verifyingContract?: string },
+  ): Promise<string> {
+    const net = await ethers.provider.getNetwork();
+    return key.signTypedData(
+      {
+        name: "GhostKeySession",
+        version: "1",
+        chainId: overrides?.chainId ?? net.chainId,
+        verifyingContract: overrides?.verifyingContract ?? moduleAddr,
+      },
+      {
+        OpenSession: [
+          { name: "owner", type: "address" },
+          { name: "sessionKey", type: "address" },
+          { name: "expiry", type: "uint48" },
+          { name: "maxTxCount", type: "uint24" },
+        ],
+      },
+      { owner: ownerAddr, sessionKey: key.address, expiry, maxTxCount },
+    );
+  }
+
   /** Funds a holder, makes the module their operator, and opens a single-token session. */
   async function openBasicSession(
     holder: HardhatEthersSigner,
@@ -71,17 +113,22 @@ describe("GhostKeySession", () => {
       .add64(opts.budget)
       .encrypt();
 
+    const expiry = await future();
+    const maxTxCount = opts.maxTxCount ?? 0;
+    const sig = await signOpen(key, holder.address, expiry, maxTxCount);
+
     await (
       await module.connect(holder).openSession(
         {
           sessionKey: key.address,
-          expiry: await future(),
-          maxTxCount: opts.maxTxCount ?? 0,
+          expiry,
+          maxTxCount,
           tokens: [tokenAddr],
           budgets: [enc.handles[0]!],
           recipients: opts.recipients ?? [recipient.address],
         },
         enc.inputProof,
+        sig,
       )
     ).wait();
   }
@@ -109,14 +156,27 @@ describe("GhostKeySession", () => {
   //
   // A successful transfer, a budget-rejected transfer and a balance-rejected
   // transfer must be indistinguishable to an observer: no revert, identical
-  // event topics, and — because FHE.select and FHE.add mint a fresh handle on
-  // every path — identical gas.
+  // event shape, and identical cost.
+  //
+  // The assertion is on EXECUTION gas, i.e. gasUsed minus intrinsic calldata
+  // cost. That is the sharper claim and the correct one. Total gasUsed also
+  // includes 4 gas per zero calldata byte and 16 per non-zero, and the caller's
+  // encrypted amount and input proof are fresh ciphertext whose zero-byte count
+  // varies at random. That variation is generated before the contract runs and
+  // cannot depend on whether the budget will be exceeded, so it carries no
+  // information about the outcome — but it does perturb total gas by multiples
+  // of 12, which would make a total-gas assertion flap for the wrong reason.
+  //
+  // What must be exactly equal is everything the contract does. It is: FHE.select
+  // and FHE.add mint a fresh handle on every path regardless of the encrypted
+  // condition, so `remaining` is always written with a changed value and the
+  // same-value SSTORE discount never applies anywhere.
   //
   // The three paths use separate owners, separate session keys and a recipient
   // warmed beforehand, so every storage slot each path touches is cold in the
-  // same way. Any gas difference would be an information leak.
+  // same way. Any execution-gas difference would be an information leak.
   // -------------------------------------------------------------------------
-  it("1. is indistinguishable: success, over-budget and insufficient-balance cost the same gas", async () => {
+  it("1. is indistinguishable: all three paths execute for exactly the same gas", async () => {
     const signers = await ethers.getSigners();
     const holders = [5, 6, 7].map((i) => requireSigner(signers, i));
     const keys = [8, 9, 10].map((i) => requireSigner(signers, i));
@@ -140,17 +200,30 @@ describe("GhostKeySession", () => {
       });
     }
 
-    const results: { label: string; gas: bigint; topics: string[]; dataLen: number }[] = [];
+    const results: {
+      label: string;
+      gas: bigint;
+      cd: number;
+      zeros: number;
+      exec: bigint;
+      topics: string[];
+      dataLen: number;
+    }[] = [];
     for (let i = 0; i < 3; i++) {
       const enc = await encFor(moduleAddr, keys[i]!.address, 500n);
       const tx = await module
         .connect(keys[i]!)
         .send(tokenAddr, recipient.address, enc.handles[0]!, enc.inputProof);
       const receipt = await tx.wait();
+      const sentTx = await ethers.provider.getTransaction(tx.hash);
+      const cd = calldataGas(sentTx!.data);
       const log = receipt!.logs.find((l) => l.address.toLowerCase() === moduleAddr.toLowerCase())!;
       results.push({
         label: setups[i]!.label,
         gas: receipt!.gasUsed,
+        cd: cd.gas,
+        zeros: cd.zeros,
+        exec: receipt!.gasUsed - BigInt(cd.gas),
         topics: [...log.topics],
         dataLen: log.data.length,
       });
@@ -162,7 +235,14 @@ describe("GhostKeySession", () => {
     expect(await readRemaining(keys[2]!.address, tokenAddr, holders[2]!)).to.equal(1000n); // restored
 
     console.log("\n    indistinguishability:");
-    for (const r of results) console.log(`      ${r.label.padEnd(16)} gas ${r.gas}`);
+    console.log("      path             total gas   calldata gas   zero bytes   EXECUTION gas");
+    for (const r of results) {
+      console.log(
+        `      ${r.label.padEnd(15)} ${String(r.gas).padStart(9)} ` +
+          `${String(r.cd).padStart(14)} ${String(r.zeros).padStart(12)} ` +
+          `${String(r.exec).padStart(15)}`,
+      );
+    }
 
     // Same event shape. topics[1] is the indexed session key, which necessarily differs
     // between the three paths; everything an observer could use to classify the outcome —
@@ -175,9 +255,16 @@ describe("GhostKeySession", () => {
       expect(r.dataLen).to.equal(results[0]!.dataLen);
     }
 
-    // Same gas, exactly.
-    expect(results[1]!.gas).to.equal(results[0]!.gas);
-    expect(results[2]!.gas).to.equal(results[0]!.gas);
+    // Everything the contract executes costs exactly the same on all three paths.
+    expect(results[1]!.exec).to.equal(results[0]!.exec);
+    expect(results[2]!.exec).to.equal(results[0]!.exec);
+
+    // And the residual difference in total gas is fully explained by calldata
+    // entropy — assert the attribution closes, so a future execution-side leak
+    // cannot hide behind "it's just calldata".
+    for (const r of results) {
+      expect(r.gas - BigInt(r.cd)).to.equal(results[0]!.exec);
+    }
   });
 
   // -------------------------------------------------------------------------
@@ -291,17 +378,19 @@ describe("GhostKeySession", () => {
       .encrypt();
     expect(enc.handles.length).to.equal(2);
 
+    const expiry5 = await future();
     await (
       await module.connect(owner).openSession(
         {
           sessionKey: sessionKey.address,
-          expiry: await future(),
+          expiry: expiry5,
           maxTxCount: 0,
           tokens: [tokenAddr, token2Addr],
           budgets: [enc.handles[0]!, enc.handles[1]!],
           recipients: [recipient.address],
         },
         enc.inputProof,
+        await signOpen(sessionKey, owner.address, expiry5, 0),
       )
     ).wait();
 
@@ -413,17 +502,19 @@ describe("GhostKeySession", () => {
     await (await module.connect(owner).closeSession(sessionKey.address)).wait();
 
     const enc = await fhevm.createEncryptedInput(moduleAddr, owner.address).add64(1000n).encrypt();
+    const expiry8c = await future();
     await expect(
       module.connect(owner).openSession(
         {
           sessionKey: sessionKey.address,
-          expiry: await future(),
+          expiry: expiry8c,
           maxTxCount: 0,
           tokens: [tokenAddr],
           budgets: [enc.handles[0]!],
           recipients: [recipient.address],
         },
         enc.inputProof,
+        await signOpen(sessionKey, owner.address, expiry8c, 0),
       ),
     ).to.be.revertedWithCustomError(module, "SessionKeyAlreadyUsed");
   });
@@ -513,5 +604,249 @@ describe("GhostKeySession", () => {
     const remaining = await readRemaining(sessionKey.address, tokenAddr, owner);
     expect(received).to.be.lessThanOrEqual(INITIAL);
     expect(received + remaining).to.equal(INITIAL);
+  });
+
+  // -------------------------------------------------------------------------
+  // B1. The session key must consent. Without this, anyone watching the mempool
+  //     could resubmit the same key with more gas, take ownership, and make the
+  //     honest call revert with SessionKeyAlreadyUsed — permanently burning the
+  //     key, since the single-use invariant never clears `owner`.
+  // -------------------------------------------------------------------------
+  describe("B1. session key consent", () => {
+    let openExpiry: number;
+
+    beforeEach(async () => {
+      openExpiry = await future();
+    });
+
+    async function attemptOpen(
+      opener: HardhatEthersSigner,
+      key: HardhatEthersSigner,
+      signature: string,
+    ) {
+      await (await token.connect(deployer).mintPlain(opener.address, 10_000n)).wait();
+      await (await token.connect(opener).setOperator(moduleAddr, await future())).wait();
+      const enc = await fhevm
+        .createEncryptedInput(moduleAddr, opener.address)
+        .add64(1000n)
+        .encrypt();
+      return module.connect(opener).openSession(
+        {
+          sessionKey: key.address,
+          expiry: openExpiry,
+          maxTxCount: 0,
+          tokens: [tokenAddr],
+          budgets: [enc.handles[0]!],
+          recipients: [recipient.address],
+        },
+        enc.inputProof,
+        signature,
+      );
+    }
+
+    it("B1a. opens with a valid signature", async () => {
+      const sig = await signOpen(sessionKey, owner.address, openExpiry, 0);
+      await expect(attemptOpen(owner, sessionKey, sig)).to.emit(module, "SessionOpened");
+    });
+
+    it("B1b. a front-runner cannot steal the key: the signature names one owner", async () => {
+      // The attacker sees the honest call in the mempool and replays its calldata,
+      // signature included, from their own address.
+      const honestSig = await signOpen(sessionKey, owner.address, openExpiry, 0);
+      await expect(attemptOpen(outsider, sessionKey, honestSig)).to.be.revertedWithCustomError(
+        module,
+        "InvalidSessionKeySignature",
+      );
+      // ...and the key is still unused, so the honest open still succeeds.
+      await expect(attemptOpen(owner, sessionKey, honestSig)).to.emit(module, "SessionOpened");
+    });
+
+    it("B1c. rejects a signature from the wrong signer", async () => {
+      const sig = await signOpen(outsider, owner.address, openExpiry, 0);
+      await expect(attemptOpen(owner, sessionKey, sig)).to.be.revertedWithCustomError(
+        module,
+        "InvalidSessionKeySignature",
+      );
+    });
+
+    it("B1d. rejects a signature bound to a different chainId", async () => {
+      const sig = await signOpen(sessionKey, owner.address, openExpiry, 0, { chainId: 1n });
+      await expect(attemptOpen(owner, sessionKey, sig)).to.be.revertedWithCustomError(
+        module,
+        "InvalidSessionKeySignature",
+      );
+    });
+
+    it("B1e. rejects a signature bound to a different deployment", async () => {
+      const other = await (await ethers.getContractFactory("GhostKeySession")).deploy();
+      const sig = await signOpen(sessionKey, owner.address, openExpiry, 0, {
+        verifyingContract: await other.getAddress(),
+      });
+      await expect(attemptOpen(owner, sessionKey, sig)).to.be.revertedWithCustomError(
+        module,
+        "InvalidSessionKeySignature",
+      );
+    });
+
+    it("B1f. the on-chain digest matches what the client signs", async () => {
+      const digest = await module.openSessionDigest(
+        owner.address,
+        sessionKey.address,
+        openExpiry,
+        0,
+      );
+      const sig = await signOpen(sessionKey, owner.address, openExpiry, 0);
+      expect(ethers.recoverAddress(digest, sig)).to.equal(sessionKey.address);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // B2. protocolStatus had no test at all, which is why nobody could be sure it
+  //     resolved the ACL correctly. It does: getEthereumCoprocessorConfig
+  //     dispatches on chainid, and it is the same function the inherited
+  //     ZamaEthereumConfig constructor uses.
+  // -------------------------------------------------------------------------
+  it("B2. protocolStatus resolves the ACL on this chain and reports sane values", async () => {
+    const [aclPaused, keyDenied, moduleDenied] = await module.protocolStatus(sessionKey.address);
+    expect(aclPaused).to.equal(false);
+    expect(keyDenied).to.equal(false);
+    expect(moduleDenied).to.equal(false);
+  });
+
+  // -------------------------------------------------------------------------
+  // B3. Recipients must be changeable mid-session, or "authorize once, talk all
+  //     day" costs a new key, a new delegation and a new batch signature every
+  //     time a new payee comes up.
+  // -------------------------------------------------------------------------
+  describe("B3. recipient management", () => {
+    beforeEach(async () => {
+      await openBasicSession(owner, sessionKey, { balance: 10_000n, budget: 1000n });
+    });
+
+    it("B3a. the owner adds a recipient and the session can then send to it", async () => {
+      let enc = await encFor(moduleAddr, sessionKey.address, 100n);
+      await expect(
+        module
+          .connect(sessionKey)
+          .send(tokenAddr, outsider.address, enc.handles[0]!, enc.inputProof),
+      ).to.be.revertedWithCustomError(module, "RecipientNotAllowed");
+
+      await expect(module.connect(owner).addRecipient(sessionKey.address, outsider.address))
+        .to.emit(module, "RecipientAdded")
+        .withArgs(sessionKey.address, outsider.address);
+
+      enc = await encFor(moduleAddr, sessionKey.address, 100n);
+      await (
+        await module
+          .connect(sessionKey)
+          .send(tokenAddr, outsider.address, enc.handles[0]!, enc.inputProof)
+      ).wait();
+      expect(await readBalance(outsider.address, outsider)).to.equal(100n);
+    });
+
+    it("B3b. a non-owner cannot add a recipient", async () => {
+      await expect(
+        module.connect(outsider).addRecipient(sessionKey.address, outsider.address),
+      ).to.be.revertedWithCustomError(module, "NotSessionOwner");
+      await expect(
+        module.connect(sessionKey).addRecipient(sessionKey.address, outsider.address),
+      ).to.be.revertedWithCustomError(module, "NotSessionOwner");
+    });
+
+    it("B3c. the session key can remove but not add — it may narrow its own scope", async () => {
+      await expect(
+        module.connect(sessionKey).removeRecipient(sessionKey.address, recipient.address),
+      )
+        .to.emit(module, "RecipientRemoved")
+        .withArgs(sessionKey.address, recipient.address, sessionKey.address);
+      expect(await module.isRecipientAllowed(sessionKey.address, recipient.address)).to.equal(
+        false,
+      );
+    });
+
+    it("B3d. removal blocks a subsequent send", async () => {
+      await (
+        await module.connect(owner).removeRecipient(sessionKey.address, recipient.address)
+      ).wait();
+      const enc = await encFor(moduleAddr, sessionKey.address, 100n);
+      await expect(
+        module
+          .connect(sessionKey)
+          .send(tokenAddr, recipient.address, enc.handles[0]!, enc.inputProof),
+      ).to.be.revertedWithCustomError(module, "RecipientNotAllowed");
+    });
+
+    it("B3e. enumeration stays correct across add, remove and re-add", async () => {
+      const a = outsider.address;
+      const b = deployer.address;
+      await (await module.connect(owner).addRecipient(sessionKey.address, a)).wait();
+      await (await module.connect(owner).addRecipient(sessionKey.address, b)).wait();
+      expect(await module.recipientsOf(sessionKey.address)).to.deep.equal([
+        recipient.address,
+        a,
+        b,
+      ]);
+
+      // Remove the middle element: swap-and-pop moves the last into its slot.
+      await (await module.connect(owner).removeRecipient(sessionKey.address, a)).wait();
+      expect(await module.recipientsOf(sessionKey.address)).to.deep.equal([recipient.address, b]);
+      expect(await module.isRecipientAllowed(sessionKey.address, a)).to.equal(false);
+      expect(await module.isRecipientAllowed(sessionKey.address, b)).to.equal(true);
+
+      // Removing the moved element must still work, i.e. its index was fixed up.
+      await (await module.connect(owner).removeRecipient(sessionKey.address, b)).wait();
+      expect(await module.recipientsOf(sessionKey.address)).to.deep.equal([recipient.address]);
+
+      await (await module.connect(owner).addRecipient(sessionKey.address, a)).wait();
+      expect(await module.recipientsOf(sessionKey.address)).to.deep.equal([recipient.address, a]);
+    });
+
+    it("B3f. rejects a duplicate add and a removal of an absent recipient", async () => {
+      await expect(
+        module.connect(owner).addRecipient(sessionKey.address, recipient.address),
+      ).to.be.revertedWithCustomError(module, "RecipientAlreadyAllowed");
+      await expect(
+        module.connect(owner).removeRecipient(sessionKey.address, outsider.address),
+      ).to.be.revertedWithCustomError(module, "RecipientNotInSession");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // B4. Minor guards
+  // -------------------------------------------------------------------------
+  it("B4a. refuses to top up an expired session", async () => {
+    await openBasicSession(owner, sessionKey, { balance: 10_000n, budget: 1000n });
+    await ethers.provider.send("evm_increaseTime", [8 * DAY]);
+    await ethers.provider.send("evm_mine", []);
+
+    const enc = await fhevm.createEncryptedInput(moduleAddr, owner.address).add64(500n).encrypt();
+    await expect(
+      module
+        .connect(owner)
+        .increaseBudget(sessionKey.address, tokenAddr, enc.handles[0]!, enc.inputProof),
+    ).to.be.revertedWithCustomError(module, "SessionExpired");
+  });
+
+  it("B4b. caps the allowlist so the session cannot make its own views uncallable", async () => {
+    const cap = Number(await module.MAX_RECIPIENTS());
+    const many = Array.from({ length: cap + 1 }, (_, i) =>
+      ethers.getAddress("0x" + (i + 1).toString(16).padStart(40, "0")),
+    );
+    const enc = await fhevm.createEncryptedInput(moduleAddr, owner.address).add64(1n).encrypt();
+    const expiry = await future();
+    await expect(
+      module.connect(owner).openSession(
+        {
+          sessionKey: sessionKey.address,
+          expiry,
+          maxTxCount: 0,
+          tokens: [tokenAddr],
+          budgets: [enc.handles[0]!],
+          recipients: many,
+        },
+        enc.inputProof,
+        await signOpen(sessionKey, owner.address, expiry, 0),
+      ),
+    ).to.be.revertedWithCustomError(module, "TooManyRecipients");
   });
 });
