@@ -1,0 +1,96 @@
+{
+  "token": "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639",
+  "runs": 5,
+  "rpc": "alchemy",
+  "samples": [
+    {
+      "encrypt + proof + register": 12507,
+      "submit -> mined": 8830,
+      "settle + first decrypt": 5195,
+      "poll attempts": 1,
+      "decrypt (warm)": 2486,
+      "settlement (derived)": 2709,
+      "END TO END": 29099
+    },
+    {
+      "encrypt + proof + register": 12458,
+      "submit -> mined": 3471,
+      "settle + first decrypt": 4775,
+      "poll attempts": 1,
+      "decrypt (warm)": 2430,
+      "settlement (derived)": 2345,
+      "END TO END": 23212
+    },
+    {
+      "encrypt + proof + register": 12214,
+      "submit -> mined": 16703,
+      "settle + first decrypt": 5574,
+      "poll attempts": 1,
+      "decrypt (warm)": 2798,
+      "settlement (derived)": 2776,
+      "END TO END": 37370
+    },
+    {
+      "encrypt + proof + register": 12547,
+      "submit -> mined": 15519,
+      "settle + first decrypt": 4970,
+      "poll attempts": 1,
+      "decrypt (warm)": 2451,
+      "settlement (derived)": 2519,
+      "END TO END": 35571
+    },
+    {
+      "encrypt + proof + register": 12360,
+      "submit -> mined": 4255,
+      "settle + first decrypt": 4695,
+      "poll attempts": 1,
+      "decrypt (warm)": 2412,
+      "settlement (derived)": 2283,
+      "END TO END": 23799
+    }
+  ],
+  "summary": [
+    {
+      "label": "encrypt + proof + register",
+      "min": 12214,
+      "median": 12458,
+      "max": 12547,
+      "n": 5
+    },
+    {
+      "label": "submit -> mined",
+      "min": 3471,
+      "median": 8830,
+      "max": 16703,
+      "n": 5
+    },
+    {
+      "label": "settle + first decrypt",
+      "min": 4695,
+      "median": 4970,
+      "max": 5574,
+      "n": 5
+    },
+    {
+      "label": "settlement (derived)",
+      "min": 2283,
+      "median": 2519,
+      "max": 2776,
+      "n": 5
+    },
+    {
+      "label": "decrypt (warm)",
+      "min": 2412,
+      "median": 2451,
+      "max": 2798,
+      "n": 5
+    },
+    {
+      "label": "END TO END",
+      "min": 23212,
+      "median": 29099,
+      "max": 37370,
+      "n": 5
+    }
+  ]
+}

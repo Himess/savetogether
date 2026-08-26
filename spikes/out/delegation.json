@@ -1,0 +1,52 @@
+{
+  "delegator": "0xF505e2E71df58D7244189072008f25f6b6aaE5ae",
+  "delegate": "0x9806E422444989E2F9EFB28f6491F682069c626f",
+  "token": "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639",
+  "acl": "0xf0Ffdc93b7E186bC2f8CB3dAA75D86d1930A433D",
+  "handle": "0x8ea53303ffc9179db51b96a8d7b480c2fa64e25183ff0000000000aa36a70500",
+  "expiry": "1788365706",
+  "delegatedValue": "61116149001",
+  "ownValue": "61116149001",
+  "steps": [
+    {
+      "step": "handle exists",
+      "ok": true,
+      "detail": "0x8ea53303ffc9179db51b96a8d7b480c2fa64e25183ff0000000000aa36a70500"
+    },
+    {
+      "step": "no delegation before test",
+      "ok": true,
+      "detail": "expiry=0"
+    },
+    {
+      "step": "REFUSED without delegation",
+      "ok": true,
+      "detail": "Response body does not match the expected schema\n\nstatus: 400\nurl: https://relayer.testnet.zama.org/v2/delegated-user-decrypt\nmeth"
+    },
+    {
+      "step": "delegateForUserDecryption sent",
+      "ok": true,
+      "detail": "block 11571970 gas 55635"
+    },
+    {
+      "step": "ACL records the delegation",
+      "ok": true,
+      "detail": "expiry=1788365706 (expected 1788365706)"
+    },
+    {
+      "step": "DELEGATE DECRYPTED",
+      "ok": true,
+      "detail": "value=61116149001"
+    },
+    {
+      "step": "holder's own userDecrypt",
+      "ok": true,
+      "detail": "value=61116149001"
+    },
+    {
+      "step": "values agree",
+      "ok": true,
+      "detail": "delegate=61116149001 holder=61116149001"
+    }
+  ]
+}

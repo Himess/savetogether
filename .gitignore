@@ -10,6 +10,5 @@ types/
 dist/
 coverage/
 coverage.json
-spikes/out/
 *.log
 .DS_Store
