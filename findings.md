@@ -370,3 +370,45 @@ Pinned, as installed and used for every measurement above.
 **Version delta noted:** GhostLend runs `@openzeppelin/confidential-contracts` 0.5.1; GhostKey installs 0.5.3. All A1–A4 and A7 evidence above is read from 0.5.3.
 
 **Plugin gap:** `@fhevm/hardhat-plugin` exposes `initializeCLIApi`, `createEncryptedInput`, `userDecryptEuint`, and `publicDecrypt`, but **no delegation helper** — grep for `delegat` in its `dist/` returns nothing. All delegated decryption must go through the raw relayer SDK, as `delegation.ts` does.
+
+---
+
+## 8. Addendum — two ACL facts verified during the step-2 design pass
+
+Neither question was asked in step 1, and the step-2 contract shape depends on both. Recorded here so `findings.md` stays the single source of truth.
+
+### 8.1 Transient access is sufficient to issue a persistent grant
+
+`@fhevm/host-contracts@0.10.0`, `ACL.sol:441-443` and `:191-201`:
+
+```solidity
+function isAllowed(bytes32 handle, address account) public view virtual returns (bool) {
+  return allowedTransient(handle, account) || persistAllowed(handle, account);
+}
+
+function allow(bytes32 handle, address account) public virtual whenNotPaused {
+  if (isAccountDenied(msg.sender)) revert SenderDenied(msg.sender);
+  if (!isAllowed(handle, msg.sender)) revert SenderNotAllowed(msg.sender);
+  $.persistedAllowedPairs[handle][account] = true;
+  emit Allowed(msg.sender, account, handle);
+}
+```
+
+`allow()` gates on `isAllowed`, which accepts transient. So a module holding only transient access to a handle — which is all `ERC7984.sol:144` ever grants for `transferred` — can still make that handle persistently decryptable before the transaction ends.
+
+Two consequences recorded at the same time:
+
+- `allow()` is `whenNotPaused` and reverts `SenderDenied` for a deny-listed caller. A function that "never reverts" on a budget or balance failure can still revert for these protocol reasons. The public claim must be narrowed accordingly.
+- **Granting the two reader accounts is not sufficient.** `userDecrypt` authorises against both the requesting account _and_ the contract the handle is read through, so the module must also grant itself with `FHE.allowThis`. Omitting it compiles, passes every budget test, and leaves the emitted handles permanently undecryptable. Found by test, not by reading. See `docs/step2-notes.md` §2.
+
+### 8.2 Computed handles are auto-granted to the computing contract
+
+`FHEVMExecutor.sol` calls `acl.allowTransient(result, msg.sender)` after each operation (`:677`, `:701`, `:726`, `:818`, `:841`). A contract therefore holds transient access to every handle it computes, with no explicit grant.
+
+This closes the grant chain for a clamped transfer: the module computes `amount` and is auto-granted; it grants the token transiently so the token can compute on it; the token's `require(FHE.isAllowed(amount, msg.sender))` passes on that transient grant; the token returns `sent` with `allowTransient` back to the module; the module computes the refund and the new budget, auto-granted again, then issues persistent grants per §8.1.
+
+Corroboration that this is real rather than inferred: `ERC7984._update` relies on it — `transferred = FHE.select(...)` at `:306` followed by `FHE.allowThis(transferred)` at `:321` with no grant in between, in production code.
+
+### 8.3 Consequence for the step-1 HCU estimate
+
+The ~955,000 HCU figure in §2 (A8) was computed for a clamp-and-transfer flow with no refund path. The implemented `send` adds `select` + `sub` + `add`, bringing the real figure to **1,334,064 HCU** — still only 6.7% of the 20,000,000 ceiling. The per-op costs in §2 are unchanged and correct; only the operation count was understated. `FHE.allowThis` and `FHE.allow` are ACL writes, not FHE operations, and cost EVM gas but no HCU.
