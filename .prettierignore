@@ -1,0 +1,8 @@
+node_modules
+artifacts
+cache
+fhevmTemp
+types
+dist
+coverage
+pnpm-lock.yaml

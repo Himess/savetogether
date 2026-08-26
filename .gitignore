@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.*
+!.env.example
+secrets.json
+artifacts/
+cache/
+fhevmTemp/
+types/
+dist/
+coverage/
+coverage.json
+spikes/out/
+*.log
+.DS_Store
