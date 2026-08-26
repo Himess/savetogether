@@ -40,6 +40,8 @@ The attribution is now computed inline and printed, and the test asserts two thi
 
 **What the measurement covers.** These figures come from `@fhevm/hardhat-plugin` mock mode. The ACL and the FHEVM executor really are deployed to the local chain and really execute — `ZamaConfig._getLocalConfig` exists precisely because chainid 31337 has its own host contracts — so the ACL storage writes and executor calls are real EVM work. What is mocked is the FHE computation itself. The equality argument is about the operation sequence rather than the cost of any single operation, so mock mode is the right place to assert it. **Confirming the same equality on Sepolia remains an open item for step 5.**
 
+**Sepolia, 2026-08-27.** The confirmation run happened, before any SDK code. Full report in `docs/step3-gate.md`. Summary: across 22 live transactions the FHE operation sequence and the HCU consumption are **identical** on every path — and HCU came out at exactly the 1,334,064 analytic estimate below. Execution gas is **not** constant: it takes two values four gas apart. That variance is intra-path — ten sends on one fixed path produced both values — and a trace localises it to a single `HCULimit.checkHCUForFheGe` call, outside GhostKeySession, the token and the ACL, all three of which are bit-identical between the two values. It is uncorrelated with the outcome and no change to this contract could remove it. The gate criterion is under review; see `step3-gate.md` §5.
+
 Test 1's setup is deliberately symmetric: three separate owners, three separate session keys, and a recipient warmed beforehand so `_balances[to]` is initialized on every path. Every storage slot each path touches is cold in the same way.
 
 ---

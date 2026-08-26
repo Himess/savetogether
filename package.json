@@ -22,7 +22,8 @@
     "prettier:check": "prettier --check \"**/*.{js,json,md,sol,ts,yml}\"",
     "prettier:write": "prettier --write \"**/*.{js,json,md,sol,ts,yml}\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "clean": "rimraf ./fhevmTemp ./artifacts ./cache ./types ./dist"
+    "clean": "rimraf ./fhevmTemp ./artifacts ./cache ./types ./dist",
+    "spike:sepolia-gate": "hardhat run spikes/sepolia-equality.ts --network sepolia"
   },
   "dependencies": {
     "@fhevm/solidity": "0.11.1",

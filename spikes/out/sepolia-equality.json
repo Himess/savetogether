@@ -1,0 +1,121 @@
+{
+  "network": "sepolia",
+  "module": "0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6",
+  "token": "0xCFf87b42b916f7aA0F61CD060C9f48772F303D37",
+  "rounds": 10,
+  "distinctExecutionGas": ["891572", "891568"],
+  "distinctOpSequences": ["FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2"],
+  "distinctHCU": [1334064],
+  "rows": [
+    {
+      "round": 1,
+      "label": "short-balance",
+      "total": "896732",
+      "cd": 5160,
+      "zeros": 130,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xe36762da89a072965eb45c49524247ae5523f8c05a834a3c0c27211c9442de4c"
+    },
+    {
+      "round": 2,
+      "label": "short-balance",
+      "total": "896752",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x792d431910ba53e47a05e251d8fab196ec204331bc926e0976470f97e994d3c9"
+    },
+    {
+      "round": 3,
+      "label": "short-balance",
+      "total": "896764",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x112201c7c47c2f4d275b1ddcaaec91134264f735861c10dd45276fae129f743b"
+    },
+    {
+      "round": 4,
+      "label": "short-balance",
+      "total": "896768",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x2a2554c1c53c6fab95cc91e44cc719bfbe698a4b5034d2543b5296839fcadb4f"
+    },
+    {
+      "round": 5,
+      "label": "short-balance",
+      "total": "896752",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xbbf8ee041dcbd9433826c9746b809736aadfb39c3269ecbd65d17b4030c21dd7"
+    },
+    {
+      "round": 6,
+      "label": "short-balance",
+      "total": "896720",
+      "cd": 5148,
+      "zeros": 131,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x723582f151b3a4143db57d2d4939e6a713a3f2399279126fd0bc47579149bb39"
+    },
+    {
+      "round": 7,
+      "label": "short-balance",
+      "total": "896768",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xb8f377a8341138aea49569050cff06846dab7c95355475a848a595292c5d9d84"
+    },
+    {
+      "round": 8,
+      "label": "short-balance",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xfced508accc8957254ecfc0f6af45e040fc86a1a64e225d8c399a6e45a0c1df5"
+    },
+    {
+      "round": 9,
+      "label": "short-balance",
+      "total": "896740",
+      "cd": 5172,
+      "zeros": 129,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x37c5830f044b31ec696a809ace2fcc1c2f58775fa8000c7a5eb3e8a51ff3fe5c"
+    },
+    {
+      "round": 10,
+      "label": "short-balance",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xf74ac16abc6bb715b30ea0169095f27eb6eb1cc3e4ca8df4fac914239b23b96c"
+    }
+  ]
+}
