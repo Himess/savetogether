@@ -8,11 +8,11 @@ Contract frozen at `882a2c7`. Sources of truth: `findings.md`, `docs/step2-notes
 
 ## Status
 
-| task                     | state                                                  |
-| ------------------------ | ------------------------------------------------------ |
-| 0 — close the gate       | **PASSED** — 60 live Sepolia transactions, 20 per path |
-| 1 — packages/sdk         | **17/17 passing against live Sepolia**, 9 minutes      |
-| 2 — mcp-server + console | built, typechecked, 21 unit tests passing              |
+| task                     | state                                               |
+| ------------------------ | --------------------------------------------------- |
+| 0 — close the gate       | **PASSED** at n=180 — 60 per path, chi-square 0.374 |
+| 1 — packages/sdk         | **17/17 passing against live Sepolia**, 9 minutes   |
+| 2 — mcp-server + console | built, typechecked, 21 unit tests passing           |
 
 ---
 
