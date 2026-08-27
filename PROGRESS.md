@@ -11,7 +11,7 @@ Contract frozen at `882a2c7`. Sources of truth: `findings.md`, `docs/step2-notes
 | task                     | state                                                  |
 | ------------------------ | ------------------------------------------------------ |
 | 0 — close the gate       | **PASSED** — 60 live Sepolia transactions, 20 per path |
-| 1 — packages/sdk         | built, typechecked, Sepolia integration suite written  |
+| 1 — packages/sdk         | **17/17 passing against live Sepolia**, 9 minutes      |
 | 2 — mcp-server + console | built, typechecked, 21 unit tests passing              |
 
 ---
@@ -37,6 +37,20 @@ Two things had to be built to get here that were not in the brief:
 
 - **A single-path control**, because proving gas is not a _deterministic_ function of the path is not the same as proving it is _independent_ of it. Ten sends on one fixed path produced both values; the three-path distribution run is what actually closes it.
 - **Transient-failure retry.** The first 60-sample run died on sample 5 with `UND_ERR_CONNECT_TIMEOUT` from the Zama relayer. Not a defect in anything under test, but a harness that dies produces no measurement — and, more to the point, a session client that dies on one relayer timeout is unusable. `withRetry` in `spikes/_shared.ts` retries transport failures only; a revert or a failed assertion still surfaces immediately.
+
+---
+
+## Task 1 — the SDK against live Sepolia
+
+**17 of 17 passing**, 9 minutes of real transactions. Both privacy tiers end to end.
+
+Proof warming, measured inside the suite rather than asserted:
+
+    proof 12.1s, submit+settle 32.5s
+
+That is the step-1 measurement reproduced through the SDK's own API — the proof is the slow half and it completes before a transaction exists, which is the whole reason `prepare()` is in the surface.
+
+Covered live: one-authorisation open on both tiers; a send with the budget decremented exactly; an over-budget send reported as such with the budget untouched and no revert; a zero amount refused before the chain; an off-allowlist recipient refused; the spend-only tier having no `balance()` at runtime as well as compile time; the owner widening the allowlist mid-session and the session then using it; the session key narrowing its own scope; closing and readiness going false; delegated decryption of the holder's balance with the session key's own signature; `ref(budget).half()` and `.cap()` resolving without the caller seeing a number; `AmountRef` staying opaque under interpolation and JSON against a real handle; and a lapsed operator grant surfacing as `OperatorNotGrantedError` rather than an opaque revert.
 
 ---
 
@@ -186,7 +200,6 @@ None met §2. These were the closest.
 
 ## Remaining for step 5
 
-- Sepolia integration run for `packages/sdk` — written, executing.
 - End-to-end MCP run against a live chat client, which needs a human at the console by construction.
 - `--dev-unlock` demo recording.
 - The console has no control for `maxTxCount` (G3).
