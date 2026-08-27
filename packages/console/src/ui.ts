@@ -5,9 +5,11 @@
  * must not happen in chat: unlocking the vault, confirming a reveal, and typing
  * an amount the user does not want in the transcript.
  *
- * The signature counter is the most important element on the page. It is the
- * product's central claim rendered as a number, and it is the thing a viewer
- * checks first.
+ * The unlock counter is the most important element on the page — the product's
+ * central claim rendered as a number, and the thing a viewer checks first. So it
+ * counts what the claim is actually about. With both keys on this machine the
+ * vault SIGNS three transactions per session; what happens once is the unlock.
+ * A counter reading "signatures: 1" would be false.
  */
 export function consoleHtml(token: string): string {
   return `<!doctype html>
@@ -77,7 +79,7 @@ export function consoleHtml(token: string): string {
 
   <div class="card counter">
     <span class="n" id="sigCount">0</span>
-    <span class="label">Signatures this session</span>
+    <span class="label">Vault unlocks this session</span>
     <div class="note" id="sigNote">no session open</div>
   </div>
 
@@ -88,6 +90,22 @@ export function consoleHtml(token: string): string {
     <div class="row"><span class="k">transfers</span><span class="v" id="txcount">—</span></div>
     <div class="row"><span class="k">allowlist</span><span class="v" id="allow">—</span></div>
     <div class="row"><span class="k">balance visible to session</span><span class="v" id="tier">—</span></div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="border:0;padding-bottom:2px">
+      <span class="k">transfer cap for the next session</span>
+    </div>
+    <p class="sub" style="margin:0 0 12px;font-size:12px">
+      Caps how many transfers a session can make. It also caps how many observations
+      an outsider can gather about it &mdash; the residual timing channel needs
+      roughly 120 to become measurable at all.
+    </p>
+    <input id="capInput" type="number" min="0" step="1" inputmode="numeric">
+    <div class="actions">
+      <button id="capSave">Save</button>
+      <span class="idle" id="capNote" style="padding:9px 0"></span>
+    </div>
   </div>
 
   <div id="pending"></div>
@@ -120,9 +138,9 @@ async function post(path, body) {
 }
 
 function renderStatus(s) {
-  $("sigCount").textContent = s.signatures ?? 0;
+  $("sigCount").textContent = s.vaultUnlocks ?? 0;
   $("sigNote").textContent = s.session
-    ? "one vault unlock authorised this whole session"
+    ? "the vault signed three transactions after this, then locked again"
     : "no session open";
   $("vault").textContent = s.vault ?? "—";
   $("skey").textContent = s.sessionKey ?? "—";
@@ -133,6 +151,12 @@ function renderStatus(s) {
   $("allow").textContent = (s.recipients && s.recipients.length)
     ? s.recipients.map((a) => a.slice(0, 8) + "…").join(", ") : "—";
   $("tier").textContent = s.session ? (s.tier === "balance-visible" ? "yes" : "no") : "—";
+}
+
+function renderSettings(cfg) {
+  const input = $("capInput");
+  if (document.activeElement !== input) input.value = cfg.maxTxCount ?? 0;
+  $("capNote").textContent = (cfg.maxTxCount === 0) ? "uncapped" : "";
 }
 
 function renderPending(list) {
@@ -182,6 +206,13 @@ document.addEventListener("click", async (e) => {
   refresh();
 });
 
+$("capSave").addEventListener("click", async () => {
+  const value = Number($("capInput").value);
+  const r = await post("/api/settings", { maxTxCount: value });
+  $("capNote").textContent = r.ok ? "saved" : (r.reason || "rejected");
+  setTimeout(refresh, 800);
+});
+
 $("revoke").addEventListener("click", async () => {
   if (!confirm("Close the session and revoke everything it can do?")) return;
   await post("/api/revoke");
@@ -192,6 +223,7 @@ async function refresh() {
   try {
     const s = await (await fetch("/api/state", { headers: { "x-ghostkey-token": TOKEN } })).json();
     renderStatus(s.status);
+    renderSettings(s.settings || {});
     renderPending(s.pending);
   } catch { /* the server is gone; the page will recover on the next tick */ }
 }

@@ -63,7 +63,7 @@ Token symbols come from local config, not from the chain, so the names the user 
 
 One page on 127.0.0.1, ephemeral port, behind a one-time token minted at startup and printed to stderr. Runs inside the MCP process rather than as a second daemon, so there is no IPC to get wrong and nothing to start separately.
 
-The largest element is the signature counter. It is the product's central claim rendered as a number, and it reads what actually happened — `ownerAuthorisations` from the SDK — rather than a hardcoded 1. `add_recipient` and `wrap` increment it, because they genuinely need the vault.
+The largest element is the unlock counter, and it counts **vault unlocks, not signatures**. With both keys local the vault signs three transactions after one unlock — `setOperator`, `openSession`, and `delegateForUserDecryption` on the balance-visible tier — so a counter labelled "signatures" would have been false. It reads `ownerAuthorisations` from the SDK rather than a hardcoded 1. `add_recipient` and `wrap` increment it, because they genuinely need the vault.
 
 Three failure modes were designed rather than defaulted:
 
@@ -77,7 +77,7 @@ Three failure modes were designed rather than defaulted:
 
 Detail in [`PROGRESS.md`](../PROGRESS.md).
 
-- **G2 — `wrap` needs the vault.** §5.3 lists it beside the session-key tools, but `ERC7984ERC20Wrapper.wrap(address,uint256)` takes a plaintext amount and moves a public balance the owner holds. It is `approve` plus `wrap`, signed by the vault, and it increments the signature counter.
+- **G2 — `wrap` needs the vault.** §5.3 lists it beside the session-key tools, but `ERC7984ERC20Wrapper.wrap(address,uint256)` takes a plaintext amount and moves a public balance the owner holds. It is `approve` plus `wrap`, signed by the vault, and it increments the unlock counter.
 - **G3 — the transfer cap is not a tool argument.** §5.3's `open_session` has five parameters and no `maxTxCount`. Left as specified; `session_status` reports the cap, and `leakage.md` §3 explains why setting one is worth doing — it bounds an observer's sample count. Belongs on the console.
 - **G4 — biometric unlock is not implemented.** §2 above.
 - **D5 — the low-level MCP `Server`, not `McpServer.registerTool`.** `registerTool` infers each handler's argument type from a zod shape, and that mapped type exhausts TypeScript's instantiation budget on any schema containing an **array**, and the compiler's heap on a nested `z.object`. Six workarounds failed. The schemas are now hand-written JSON Schema validated with zod explicitly — more code, and the exact JSON the model sees lives in one place next to the prose explaining it. A test asserts the schema and the validator agree, which is the hazard that swap introduces.

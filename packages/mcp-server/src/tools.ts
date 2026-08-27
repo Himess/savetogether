@@ -64,7 +64,7 @@ export interface ToolResult {
 interface Live {
   session: Session;
   tier: "spend-only" | "balance-visible";
-  signatures: number;
+  vaultUnlocks: number;
   /** Refs handed to the model, keyed by an opaque id it can pass back. */
   refs: Map<string, AmountRef>;
 }
@@ -87,6 +87,14 @@ export class GhostKeyTools {
     return found;
   }
 
+  /**
+   * The world check, deliberately performed AFTER argument validation.
+   *
+   * An unknown token or a malformed amount is the caller's mistake and costs one
+   * lookup to detect. Reporting "no session is open" first sends a model off to
+   * open a session and come back to the same error, having spent a vault unlock
+   * on the round trip. Cheap and specific before expensive and situational.
+   */
   private requireLive(): Live {
     if (this.live === null) throw new Error("no session is open; call open_session first");
     return this.live;
@@ -99,13 +107,13 @@ export class GhostKeyTools {
   private async pushStatus(): Promise<void> {
     if (this.ctx.console === undefined) return;
     if (this.live === null) {
-      this.ctx.console.setStatus({ session: false, signatures: 0 });
+      this.ctx.console.setStatus({ session: false, vaultUnlocks: 0 });
       return;
     }
     const p = await this.live.session.params();
     this.ctx.console.setStatus({
       session: p.expiry !== 0,
-      signatures: this.live.signatures,
+      vaultUnlocks: this.live.vaultUnlocks,
       vault: (await this.ctx.vault.address()) ?? undefined,
       sessionKey: this.live.session.sessionKeyAddress,
       expiry: p.expiry,
@@ -152,12 +160,17 @@ export class GhostKeyTools {
         (args.delegation ? " The session will also be able to read your balance." : ""),
     );
 
+    // The transfer cap comes from the console, not from the tool call: a chat
+    // client should not be able to talk a user into a wider one.
+    const maxTxCount = this.ctx.console?.getSettings().maxTxCount ?? 0;
+
     const result = await this.ctx.client.openSession({
       owner,
       budgets,
       recipients: args.allowlist,
       expiry: new Date(Date.now() + args.ttlHours * 3_600_000),
       readScope: args.delegation ? "balance-visible" : "spend-only",
+      ...(maxTxCount > 0 ? { maxTxCount } : {}),
     });
 
     // The SDK funds the session key during the open, while the owner is still
@@ -169,7 +182,7 @@ export class GhostKeyTools {
     this.live = {
       session: result.session,
       tier: args.delegation ? "balance-visible" : "spend-only",
-      signatures: result.ownerAuthorisations,
+      vaultUnlocks: result.ownerAuthorisations,
       refs: new Map(),
     };
     await this.pushStatus();
@@ -177,15 +190,17 @@ export class GhostKeyTools {
     return {
       ok: true,
       text:
-        `Session open. ${summary} spendable to ${args.allowlist.length} address(es) for ${args.ttlHours}h.\n` +
+        `Session open. ${summary} spendable to ${args.allowlist.length} address(es) for ${args.ttlHours}h` +
+        (maxTxCount > 0 ? `, capped at ${maxTxCount} transfers.\n` : ", uncapped.\n") +
         `The vault is locked again — that was the only time it will be needed.\n` +
-        `Signatures this session: ${result.ownerAuthorisations}.\n` +
+        `Vault unlocks this session: ${result.ownerAuthorisations}. The vault signed ` +
+        `three transactions after that one unlock, which is the point.\n` +
         (args.delegation
           ? 'This session can read your balance, so reference amounts like "half" work.'
           : "This session cannot read your balance. It sees what it spent and what is left."),
       data: {
         sessionKey: result.sessionKeyAddress,
-        signatures: result.ownerAuthorisations,
+        vaultUnlocks: result.ownerAuthorisations,
         batched: result.batched,
         tier: this.live.tier,
       },
@@ -228,8 +243,8 @@ export class GhostKeyTools {
 
   /** Returns a reference by default. A number only with a click. */
   async balance(args: { token: string; reveal: boolean }): Promise<ToolResult> {
-    const live = this.requireLive();
     const t = this.token(args.token);
+    const live = this.requireLive();
     if (live.tier !== "balance-visible" || live.session.tier !== "balance-visible") {
       return {
         ok: false,
@@ -254,8 +269,8 @@ export class GhostKeyTools {
   }
 
   async remaining(args: { token: string; reveal: boolean }): Promise<ToolResult> {
-    const live = this.requireLive();
     const t = this.token(args.token);
+    const live = this.requireLive();
     const r = await live.session.remaining(t.address);
     const id = this.newRefId("rem");
     live.refs.set(id, r);
@@ -272,9 +287,9 @@ export class GhostKeyTools {
 
   /** Boolean only. Never leaks either side of the comparison. */
   async canAfford(args: { token: string; amount: string }): Promise<ToolResult> {
-    const live = this.requireLive();
     const t = this.token(args.token);
     const wanted = parseAmount(args.amount, t.decimals);
+    const live = this.requireLive();
     const ok = await live.session.canAfford(t.address, wanted);
     return {
       ok: true,
@@ -301,13 +316,13 @@ export class GhostKeyTools {
         `  transfers   ${p.txCount}${p.maxTxCount === 0 ? " (uncapped)" : ` / ${p.maxTxCount}`}\n` +
         `  allowlist   ${recipients.join(", ") || "(none)"}\n` +
         `  can read balance  ${live.tier === "balance-visible" ? "yes" : "no"}\n` +
-        `  signatures  ${live.signatures}\n` +
+        `  vault unlocks  ${live.vaultUnlocks}\n` +
         (ready.ok ? `  ready       yes` : `  ready       no — ${ready.reasons.join("; ")}`),
       data: {
         txCount: p.txCount,
         maxTxCount: p.maxTxCount,
         expiry: p.expiry,
-        signatures: live.signatures,
+        vaultUnlocks: live.vaultUnlocks,
         ready: ready.ok,
         reasons: ready.reasons,
       },
@@ -329,9 +344,9 @@ export class GhostKeyTools {
    * sealed mode hides the amount and nothing else — and it does not pretend to.
    */
   async send(args: { token: string; to: string; amount: string }): Promise<ToolResult> {
-    const live = this.requireLive();
     const t = this.token(args.token);
     const spec = args.amount.trim();
+    const live = this.requireLive();
 
     let expr;
     let sealed = false;
@@ -417,12 +432,12 @@ export class GhostKeyTools {
     const owner = await this.ctx.vault.unlock(`Allow this session to send to ${args.to}.`);
     const hash = await live.session.addRecipient(args.to, owner);
     this.ctx.vault.lock();
-    live.signatures += 1;
+    live.vaultUnlocks += 1;
     await this.pushStatus();
     return {
       ok: true,
-      text: `${args.to} is now on the allowlist. Signatures this session: ${live.signatures}.`,
-      data: { tx: hash, signatures: live.signatures },
+      text: `${args.to} is now on the allowlist. Vault unlocks this session: ${live.vaultUnlocks}.`,
+      data: { tx: hash, vaultUnlocks: live.vaultUnlocks },
     };
   }
 
@@ -456,7 +471,7 @@ export class GhostKeyTools {
     const receipt = await wrapTx?.wait();
     this.ctx.vault.lock();
     if (this.live !== null) {
-      this.live.signatures += 1;
+      this.live.vaultUnlocks += 1;
       await this.pushStatus();
     }
     return {
@@ -469,16 +484,25 @@ export class GhostKeyTools {
   /** The panic button. Closes the session; the session key can do this alone. */
   async revokeAll(): Promise<ToolResult> {
     if (this.live === null) return { ok: true, text: "There is no session to revoke." };
-    const hash = await this.live.session.close();
+    const result = await this.live.session.close();
     const key = this.live.session.sessionKeyAddress;
     this.live = null;
     await this.pushStatus();
+
+    const returned =
+      result.reclaimed > 0n
+        ? `\n${formatEther(result.reclaimed)} ETH of unused gas went back to your vault.`
+        : result.sweepError !== undefined
+          ? `\nThe leftover gas could not be returned (${result.sweepError}); it is stranded on a key that can no longer be used.`
+          : "";
+
     return {
       ok: true,
       text:
-        `Session ${key} is closed. It can no longer move anything.\n` +
-        `The operator grant on the token is separate and still stands; clear it from the console if you want it gone too.`,
-      data: { tx: hash },
+        `Session ${key} is closed. It can no longer move anything.` +
+        returned +
+        `\nThe operator grant on the token is separate and still stands; clear it from the console if you want it gone too.`,
+      data: { tx: result.hash, reclaimed: result.reclaimed.toString() },
     };
   }
 

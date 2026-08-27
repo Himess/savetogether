@@ -73,7 +73,9 @@ The largest element on it is a number:
 
 ```
         1
-Signatures this session
+Vault unlocks this session
 ```
 
-That is the claim, rendered. One vault unlock authorises a whole session; everything after runs on a key that cannot exceed its budget.
+Unlocks, not signatures. After that one unlock the vault signs three transactions — `setOperator`, `openSession`, and `delegateForUserDecryption` on the balance-visible tier — and locks again. The thing that happens once is the authorisation, and that is what the counter names.
+
+Everything after runs on a key that cannot exceed its budget or send outside the allowlist.

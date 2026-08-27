@@ -25,6 +25,7 @@ export type { AmountSource } from "./amounts";
 
 export { BalanceVisibleSession, SpendOnlySession } from "./session";
 export type {
+  CloseResult,
   PreparedSend,
   Readiness,
   SendIntent,

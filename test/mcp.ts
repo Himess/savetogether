@@ -22,7 +22,7 @@ import {
   sanitiseChainText,
   toolDefinitions,
 } from "@ghostkey/mcp-server";
-import { ConsoleServer } from "@ghostkey/console";
+import { ConsoleServer, DEFAULT_MAX_TX_COUNT } from "@ghostkey/console";
 
 describe("MCP layer", () => {
   // -------------------------------------------------------------------------
@@ -208,13 +208,74 @@ describe("MCP layer", () => {
       }
     });
 
-    it("serves the page with its token, and shows the signature counter", async () => {
+    it("serves the page with its token, and the counter names unlocks, not signatures", async () => {
       const server = new ConsoleServer();
       const url = await server.start();
       try {
         const html = await (await fetch(url)).text();
         expect(html).to.include('id="sigCount"');
-        expect(html).to.include("Signatures this session");
+        // The label matters: the vault signs three transactions per unlock, so
+        // "signatures" would be a false claim on the demo's centrepiece.
+        expect(html).to.include("Vault unlocks this session");
+        expect(html).to.not.include("Signatures this session");
+      } finally {
+        await server.stop();
+      }
+    });
+
+    it("defaults the transfer cap to something under the leakage threshold", async () => {
+      const server = new ConsoleServer();
+      await server.start();
+      try {
+        // docs/leakage.md §3: the residual channel needs ~120 observations of the
+        // same skew to become measurable. The default has to be a real bound.
+        expect(server.getSettings().maxTxCount).to.equal(DEFAULT_MAX_TX_COUNT);
+        expect(DEFAULT_MAX_TX_COUNT).to.be.lessThan(120);
+        expect(DEFAULT_MAX_TX_COUNT).to.be.greaterThan(0);
+      } finally {
+        await server.stop();
+      }
+    });
+
+    it("accepts a new transfer cap and rejects a nonsensical one", async () => {
+      const server = new ConsoleServer();
+      const url = await server.start();
+      const base = url.split("/?")[0] ?? "";
+      const token = url.split("t=")[1] ?? "";
+      const put = async (maxTxCount: unknown) =>
+        (await (
+          await fetch(`${base}/api/settings`, {
+            method: "POST",
+            headers: { "content-type": "application/json", "x-ghostkey-token": token },
+            body: JSON.stringify({ maxTxCount }),
+          })
+        ).json()) as { ok: boolean };
+      try {
+        expect((await put(25)).ok).to.equal(true);
+        expect(server.getSettings().maxTxCount).to.equal(25);
+
+        // 0 is a legitimate choice — uncapped — and must be distinguishable from junk.
+        expect((await put(0)).ok).to.equal(true);
+        expect(server.getSettings().maxTxCount).to.equal(0);
+
+        for (const bad of [-1, 1.5, "many", null, 20_000_000]) {
+          expect((await put(bad)).ok, String(bad)).to.equal(false);
+        }
+        expect(server.getSettings().maxTxCount).to.equal(0);
+      } finally {
+        await server.stop();
+      }
+    });
+
+    it("shows the cap control and says why it matters", async () => {
+      const server = new ConsoleServer();
+      const url = await server.start();
+      try {
+        const html = await (await fetch(url)).text();
+        expect(html).to.include('id="capInput"');
+        expect(html).to.include("transfer cap");
+        // The control without the reason is just a number box.
+        expect(html).to.match(/observations|timing channel/i);
       } finally {
         await server.stop();
       }

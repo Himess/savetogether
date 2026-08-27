@@ -104,7 +104,7 @@ That is still a true and strong claim — the user authorises once — but it is
 
 ### G2 — `wrap` needs the vault, which §5.3 did not say
 
-The tool list puts `wrap(token, amount)` alongside the session-key tools, but `ERC7984ERC20Wrapper.wrap(address,uint256)` takes a **plaintext** ERC-20 amount and moves a public balance the owner holds. It is `approve` plus `wrap`, signed by the vault key. Implemented as an unlock-requiring tool, and it increments the signature counter — which is the honest thing for the counter to do.
+The tool list puts `wrap(token, amount)` alongside the session-key tools, but `ERC7984ERC20Wrapper.wrap(address,uint256)` takes a **plaintext** ERC-20 amount and moves a public balance the owner holds. It is `approve` plus `wrap`, signed by the vault key. Implemented as an unlock-requiring tool, and it increments the unlock counter — which is the honest thing for the counter to do.
 
 ### G3 — the transfer cap is not a tool argument
 

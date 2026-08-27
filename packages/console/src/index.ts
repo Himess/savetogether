@@ -29,8 +29,14 @@ export interface Pending {
 /** Whatever the console currently knows about the session, for the status panel. */
 export interface ConsoleStatus {
   session: boolean;
-  /** The product's central claim, rendered as a number. */
-  signatures: number;
+  /**
+   * The product's central claim, rendered as a number.
+   *
+   * Unlocks, not signatures: after one unlock the vault signs setOperator,
+   * openSession and — on the balance-visible tier — delegateForUserDecryption.
+   * Three signatures, one authorisation. The counter names the second.
+   */
+  vaultUnlocks: number;
   vault?: string | undefined;
   sessionKey?: string | undefined;
   expiry?: number | undefined;
@@ -39,6 +45,28 @@ export interface ConsoleStatus {
   recipients?: readonly string[] | undefined;
   tier?: "spend-only" | "balance-visible" | undefined;
 }
+
+/**
+ * Values the user sets on the console and the session client reads at open time.
+ *
+ * A transfer cap is not a tool argument — a chat client should not be talking a
+ * user into a wider one — so it lives here, next to the sentence explaining what
+ * it buys.
+ */
+export interface ConsoleSettings {
+  /** Maximum transfers per session. 0 means uncapped. */
+  maxTxCount: number;
+}
+
+/**
+ * Default cap.
+ *
+ * `docs/leakage.md` §3: reaching statistical significance on the residual gas
+ * channel would need roughly 120 observations of the same skew. Fifty is
+ * comfortably under that and generous for a day of ordinary use, so the default
+ * is a real bound rather than a token one.
+ */
+export const DEFAULT_MAX_TX_COUNT = 50;
 
 export interface Resolution {
   readonly approved: boolean;
@@ -63,7 +91,8 @@ export class ConsoleServer {
   private readonly token = randomBytes(24).toString("hex");
   private readonly waiters = new Map<string, Waiter>();
   private readonly listeners = new Set<ServerResponse>();
-  private status: ConsoleStatus = { session: false, signatures: 0 };
+  private status: ConsoleStatus = { session: false, vaultUnlocks: 0 };
+  private settings: ConsoleSettings = { maxTxCount: DEFAULT_MAX_TX_COUNT };
   private port = 0;
 
   constructor(private readonly opts: ConsoleServerOptions = {}) {
@@ -97,6 +126,11 @@ export class ConsoleServer {
 
   getStatus(): ConsoleStatus {
     return this.status;
+  }
+
+  /** Read by the session client when it opens a session. */
+  getSettings(): ConsoleSettings {
+    return this.settings;
   }
 
   /**
@@ -164,8 +198,25 @@ export class ConsoleServer {
     if (url.pathname === "/api/state") {
       this.json(res, {
         status: this.status,
+        settings: this.settings,
         pending: [...this.waiters.values()].map((w) => w.pending),
       });
+      return;
+    }
+
+    if (url.pathname === "/api/settings" && req.method === "POST") {
+      const body = (await readJson(req)) as { maxTxCount?: unknown };
+      // Not Number(): it coerces null and "" to 0, which is a legitimate value
+      // here meaning "uncapped". Junk must be rejected, not silently interpreted
+      // as the most permissive setting.
+      const raw = body.maxTxCount;
+      if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 0 || raw > 16_777_215) {
+        this.json(res, { ok: false, reason: "maxTxCount must be an integer from 0 to 16777215" });
+        return;
+      }
+      this.settings = { maxTxCount: raw };
+      this.notify();
+      this.json(res, { ok: true, settings: this.settings });
       return;
     }
 

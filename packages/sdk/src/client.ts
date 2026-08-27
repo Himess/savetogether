@@ -292,7 +292,9 @@ export class GhostKeyClient {
  * supports EIP-5792 and sequentially otherwise.
  *
  * `authorisations` reports what actually happened, so a caller can render an
- * honest signature count rather than an aspirational one.
+ * honest count rather than an aspirational one. Note what it counts:
+ * AUTHORISATIONS, not signatures. A local vault key signs three transactions
+ * after one unlock, and the unlock is the thing the user experiences.
  */
 async function submitOwnerCalls(
   owner: Signer,

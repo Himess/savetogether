@@ -37,7 +37,16 @@ import { record, requireEnv, upsertEnv, withRetry } from "./_shared";
 const ROUNDS = Number(process.env.GATE_ROUNDS ?? "3");
 const SAMPLES = Number(process.env.GATE_SAMPLES ?? "20");
 const DISTRIBUTION = process.env.GATE_DISTRIBUTION === "1";
-const FUND_TARGET = parseEther("0.05");
+/**
+ * Session keys and owners have very different gas appetites, and funding both to
+ * the higher figure wastes ETH that has to come from somewhere.
+ *
+ * A session key sends every sample: 60 of them at roughly 900k gas is about
+ * 0.055 ETH at Sepolia prices, so 0.08 leaves headroom without being silly.
+ * An owner only opens the session and tops the budget up once.
+ */
+const SESSION_KEY_TARGET = parseEther("0.08");
+const OWNER_TARGET = parseEther("0.02");
 const AMOUNT = 500n;
 const DAY = 24 * 60 * 60;
 
@@ -159,11 +168,19 @@ async function main(): Promise<void> {
   const keys = actors("GATE_SESSION_KEYS", 3);
   const recipient = actors("GATE_RECIPIENT_KEY", 1)[0]!;
 
-  for (const w of [...owners, ...keys]) {
-    const bal = await ethers.provider.getBalance(w.address);
-    if (bal < FUND_TARGET / 2n) {
-      await (await deployer.sendTransaction({ to: w.address, value: FUND_TARGET })).wait();
-      console.log(`funded  ${w.address}  ${formatEther(FUND_TARGET)} ETH`);
+  // Topped up to the target rather than by it, and at 90% rather than 50%, so a
+  // key sitting just under the line does not run dry two thirds of the way in.
+  for (const [group, target] of [
+    [owners, OWNER_TARGET],
+    [keys, SESSION_KEY_TARGET],
+  ] as const) {
+    for (const w of group) {
+      const bal = await ethers.provider.getBalance(w.address);
+      if (bal * 10n < target * 9n) {
+        const top = target - bal;
+        await (await deployer.sendTransaction({ to: w.address, value: top })).wait();
+        console.log(`funded  ${w.address}  +${formatEther(top)} -> ${formatEther(target)} ETH`);
+      }
     }
   }
 

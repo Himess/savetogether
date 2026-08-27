@@ -30,6 +30,8 @@ export interface GhostKeyConfig {
   /** Overrides the ACL address the relayer SDK ships. Rarely needed. */
   readonly aclAddress?: string;
   readonly devUnlock?: boolean;
+  /** Where the vault keystore lives. Defaults to ~/.ghostkey/vault. */
+  readonly vaultDir?: string;
 }
 
 export const DEFAULT_CONFIG_PATH = path.join(os.homedir(), ".ghostkey", "config.json");

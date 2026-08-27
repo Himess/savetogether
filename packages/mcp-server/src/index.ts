@@ -189,8 +189,9 @@ export function toolDefinitions(tools: GhostKeyTools): ToolDef[] {
       name: "add_recipient",
       title: "Widen the allowlist",
       description:
-        "Lets the session send to a new address. Requires a vault unlock at the console, and " +
-        "increases the session's signature count.",
+        "Lets the session send to a new address. Requires a vault unlock at the console, so " +
+        "it increases the session's unlock count — that is the honest cost of widening scope " +
+        "mid-session, and it is cheaper than opening a new session.",
       schema: objectSchema({ to: { type: "string" } }),
       validate: z.object({ to: z.string() }),
       run: (a) => tools.addRecipient(a as Parameters<typeof tools.addRecipient>[0]),
@@ -239,6 +240,7 @@ export async function createServer(config?: GhostKeyConfig): Promise<ServerHandl
     chainId: cfg.chainId,
     console: consoleServer,
     ...(cfg.devUnlock === true ? { devUnlock: true } : {}),
+    ...(cfg.vaultDir === undefined ? {} : { dir: cfg.vaultDir }),
   });
   await vault.ensure();
 

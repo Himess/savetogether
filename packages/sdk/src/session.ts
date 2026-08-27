@@ -65,6 +65,21 @@ export interface SendIntent {
   readonly amount: AmountExpr;
 }
 
+/**
+ * The outcome of closing a session.
+ *
+ * Session keys are single-use by design, so whatever gas is left on one after a
+ * close is stranded forever unless it is swept. Opening a session a day without
+ * this leaks 0.02 ETH a day for no benefit.
+ */
+export interface CloseResult {
+  readonly hash: string;
+  /** Wei returned to the owner. Zero when there was nothing worth moving. */
+  readonly reclaimed: bigint;
+  /** Set when the sweep failed. The session is closed regardless. */
+  readonly sweepError?: string;
+}
+
 /** A send whose proof may still be generating. */
 export interface PreparedSend {
   /** Settles when the encrypted input is ready. Await it or ignore it. */
@@ -322,12 +337,61 @@ class SessionImpl {
     return tx.hash;
   }
 
-  /** Owner or session key. The client must be able to self-terminate. */
-  async close(as?: Signer): Promise<string> {
+  /**
+   * Closes the session and returns the session key's leftover gas to the owner.
+   *
+   * Owner or session key may close — the client must be able to self-terminate.
+   * The sweep is always signed by the SESSION key, whoever closed, because that is
+   * where the balance sits and the session key can already sign a close.
+   *
+   * Best effort by construction: the close is awaited first and its result stands
+   * whatever happens next. A failed sweep leaves stranded gas, which is the state the
+   * caller was already in; a failed sweep that took the close down with it would
+   * be strictly worse.
+   */
+  async close(as?: Signer): Promise<CloseResult> {
     const c = as === undefined ? this.module : this.module.connect(as);
     const tx = await c.closeSession(this.ctx.sessionKeyAddress);
     await tx.wait();
-    return tx.hash;
+
+    try {
+      const reclaimed = await this.sweepGas();
+      return { hash: tx.hash, reclaimed };
+    } catch (e) {
+      return { hash: tx.hash, reclaimed: 0n, sweepError: (e as Error).message };
+    }
+  }
+
+  /**
+   * Sends the session key's balance to the owner, less the cost of doing so.
+   *
+   * The reserve is computed from `maxFeePerGas` rather than the base fee, so the
+   * transaction cannot price itself out between estimation and inclusion. That
+   * leaves a little dust behind, which is the right side to err on.
+   */
+  private async sweepGas(): Promise<bigint> {
+    const provider = this.ctx.sessionKey.provider;
+    if (provider === null) return 0n;
+
+    const balance = await provider.getBalance(this.ctx.sessionKeyAddress);
+    if (balance === 0n) return 0n;
+
+    const fees = await provider.getFeeData();
+    const perGas = fees.maxFeePerGas ?? fees.gasPrice;
+    if (perGas === null || perGas === undefined) return 0n;
+
+    const GAS = 21_000n;
+    const cost = GAS * perGas;
+    if (balance <= cost) return 0n;
+
+    const value = balance - cost;
+    const sweep = await this.ctx.sessionKey.sendTransaction({
+      to: this.ctx.owner,
+      value,
+      gasLimit: GAS,
+    });
+    await sweep.wait();
+    return value;
   }
 
   /** Owner only — the vault key must be unlocked for this. */
