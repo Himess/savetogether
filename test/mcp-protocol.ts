@@ -22,6 +22,8 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 
+const ZERO = "0x0000000000000000000000000000000000000001";
+
 const EXPECTED_TOOLS = [
   "add_recipient",
   "balance",
@@ -133,6 +135,66 @@ describe("MCP protocol", function () {
     expect(result.isError).to.equal(true);
     const content = result.content as Array<{ type: string; text: string }>;
     expect(content[0]?.text).to.match(/no such tool/i);
+  });
+
+  // -------------------------------------------------------------------------
+  // Argument validation before world state, on every tool that takes an argument.
+  //
+  // The first version of these tools checked the session before the arguments, so
+  // can_afford("NOPE") answered "no session is open". A model would open a
+  // session, retry, and hit the real error — one wasted vault unlock, which is a
+  // physical click. addRecipient was worse: it unlocked the vault BEFORE looking
+  // at the address at all, so "add Mehmet to the list" cost a click and returned
+  // an ABI encoding error.
+  //
+  // No session is open in any of these, so a state-first implementation fails
+  // every one of them.
+  // -------------------------------------------------------------------------
+  describe("argument errors are diagnosed before session state", () => {
+    const cases: Array<{ tool: string; args: Record<string, unknown>; expect: RegExp }> = [
+      { tool: "balance", args: { token: "NOPE", reveal: false }, expect: /gkUSD/ },
+      { tool: "remaining", args: { token: "NOPE", reveal: false }, expect: /gkUSD/ },
+      { tool: "can_afford", args: { token: "NOPE", amount: "1" }, expect: /gkUSD/ },
+      { tool: "can_afford", args: { token: "gkUSD", amount: "not a number" }, expect: /decimal/i },
+      { tool: "send", args: { token: "NOPE", to: ZERO, amount: "1" }, expect: /gkUSD/ },
+      {
+        tool: "send",
+        args: { token: "gkUSD", to: "Mehmet", amount: "1" },
+        expect: /not an address/i,
+      },
+      { tool: "add_recipient", args: { to: "Mehmet" }, expect: /not an address/i },
+      { tool: "wrap", args: { token: "NOPE", amount: "1" }, expect: /gkUSD/ },
+    ];
+
+    for (const c of cases) {
+      it(`${c.tool} with ${JSON.stringify(c.args)}`, async () => {
+        const result = await client.callTool({ name: c.tool, arguments: c.args });
+        expect(result.isError, "should be an error").to.equal(true);
+        const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+        expect(text, "must name the bad argument").to.match(c.expect);
+        expect(text, "must not blame the session").to.not.match(/no session is open/i);
+      });
+    }
+
+    it("refuses a name rather than resolving it", async () => {
+      // Resolution is a chain call whose answer the user cannot check before
+      // signing, and this is the argument where being wrong sends money away.
+      const result = await client.callTool({
+        name: "add_recipient",
+        arguments: { to: "vitalik.eth" },
+      });
+      const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+      expect(text).to.match(/ENS are not resolved/i);
+    });
+
+    it("catches a mistyped address by its checksum", async () => {
+      // Right shape, one character wrong. Silently accepting this would be the
+      // worst possible failure in the worst possible argument.
+      const bad = "0xF505e2E71df58D7244189072008f25f6b6aaE5aF";
+      const result = await client.callTool({ name: "add_recipient", arguments: { to: bad } });
+      const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+      expect(text).to.match(/checksum/i);
+    });
   });
 
   it("names an unknown token instead of failing obscurely", async () => {

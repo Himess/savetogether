@@ -94,6 +94,7 @@ export class ConsoleServer {
   private status: ConsoleStatus = { session: false, vaultUnlocks: 0 };
   private settings: ConsoleSettings = { maxTxCount: DEFAULT_MAX_TX_COUNT };
   private port = 0;
+  private stopped = false;
 
   constructor(private readonly opts: ConsoleServerOptions = {}) {
     this.server = createServer((req, res) => {
@@ -108,6 +109,7 @@ export class ConsoleServer {
   }
 
   async stop(): Promise<void> {
+    this.stopped = true;
     for (const l of this.listeners) l.end();
     this.listeners.clear();
     for (const w of this.waiters.values()) w.resolve({ approved: false });
@@ -140,6 +142,13 @@ export class ConsoleServer {
    * console must be that nothing happens, not that everything is approved.
    */
   ask(kind: PendingKind, detail: string): Promise<Resolution> {
+    // Without this a prompt raised after the console has gone registers a waiter
+    // nobody can ever answer, and the tool call hangs for the full timeout with
+    // no page to click on. Failing immediately is the honest answer, and it lets
+    // the caller say "the console is not running" instead of going quiet.
+    if (this.stopped) {
+      return Promise.resolve({ approved: false });
+    }
     const id = randomBytes(9).toString("hex");
     const pending: Pending = { id, kind, detail, createdAt: Date.now() };
     return new Promise<Resolution>((resolve) => {

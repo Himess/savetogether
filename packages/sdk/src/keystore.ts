@@ -150,7 +150,11 @@ function windowsDpapi(service: string, dir: string): SecretStore {
     kind: "windows-dpapi",
     async set(account, secret) {
       const target = file(account);
-      const script = `$s=[Console]::In.ReadToEnd().Trim(); $e=ConvertTo-SecureString $s -AsPlainText -Force | ConvertFrom-SecureString; Set-Content -Path '${target.replace(/'/g, "''")}' -Value $e -Encoding ascii`;
+      const script =
+        `$s=[Console]::In.ReadToEnd().Trim(); ` +
+        `$e=ConvertTo-SecureString $s -AsPlainText -Force | ConvertFrom-SecureString; ` +
+        // -NoNewline so the file holds exactly the blob and nothing else.
+        `Set-Content -Path '${target.replace(/'/g, "''")}' -Value $e -Encoding ascii -NoNewline`;
       await new Promise<void>((resolve, reject) => {
         const child = execFile(
           "powershell.exe",
@@ -167,18 +171,37 @@ function windowsDpapi(service: string, dir: string): SecretStore {
       } catch {
         return null;
       }
-      const script = `$e=Get-Content -Path '${target.replace(/'/g, "''")}' -Raw; $s=ConvertTo-SecureString $e; [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s))`;
+      // .Trim() is load-bearing. Set-Content used to append a newline, Get-Content
+      // -Raw returned it, and ConvertTo-SecureString rejected the result — which
+      // surfaced as "no passphrase found", making a perfectly recoverable key look
+      // like a missing one. Every vault created on Windows was unopenable, and
+      // nothing tested this path until it was tried by hand.
+      const script =
+        `$e=(Get-Content -Path '${target.replace(/'/g, "''")}' -Raw).Trim(); ` +
+        `$s=ConvertTo-SecureString $e; ` +
+        `[Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s))`;
+      let stdout: string;
       try {
-        const { stdout } = await run("powershell.exe", [
+        ({ stdout } = await run("powershell.exe", [
           "-NoProfile",
           "-NonInteractive",
           "-Command",
           script,
-        ]);
-        return stdout.trim() || null;
-      } catch {
-        return null;
+        ]));
+      } catch (e) {
+        // The file exists but will not decrypt: wrong Windows user, wrong machine,
+        // or a corrupted blob. That is not "not stored", and reporting it as such
+        // sends the caller off to create another key it will also be unable to open.
+        throw new KeystoreError(
+          `the passphrase for ${account} exists at ${target} but could not be decrypted — ` +
+            `DPAPI blobs are bound to the Windows user that wrote them (${(e as Error).message.slice(0, 120)})`,
+        );
       }
+      const value = stdout.trim();
+      if (value === "") {
+        throw new KeystoreError(`the passphrase store returned nothing for ${account}`);
+      }
+      return value;
     },
     async remove(account) {
       await fs.rm(file(account), { force: true });

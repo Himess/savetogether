@@ -14,6 +14,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 
+import { osKeychainKeystore } from "@ghostkey/sdk";
 import {
   SEPOLIA_CHAIN_ID,
   Vault,
@@ -195,6 +196,103 @@ describe("MCP layer", () => {
   });
 
   // -------------------------------------------------------------------------
+  // The keystore, against the real OS backend.
+  //
+  // This had no coverage at all, and it is the first thing that runs on a new
+  // machine. It was broken on Windows: Set-Content appended a newline that
+  // ConvertTo-SecureString then rejected, and the read path swallowed the error
+  // and returned null — so every vault created on Windows reported "no
+  // passphrase" and could never be opened. Nothing caught it because nothing
+  // exercised it.
+  //
+  // These run against whatever backend the host actually has: DPAPI on Windows,
+  // Keychain on macOS, libsecret elsewhere. A temp directory and a unique service
+  // name keep them out of the user's real store, and everything is cleaned up.
+  // -------------------------------------------------------------------------
+  describe("keystore, against the real OS backend", () => {
+    let dir: string;
+    let service: string;
+    let created: string | null = null;
+
+    beforeEach(async () => {
+      dir = await fs.mkdtemp(path.join(os.tmpdir(), "ghostkey-ks-"));
+      service = `ghostkey-test-${Math.random().toString(36).slice(2, 10)}`;
+      created = null;
+    });
+
+    afterEach(async () => {
+      if (created !== null) {
+        await osKeychainKeystore({ dir, service }).destroy(created);
+      }
+      await fs.rm(dir, { recursive: true, force: true });
+    });
+
+    it("round-trips a key through the platform passphrase store", async () => {
+      const ks = osKeychainKeystore({ dir, service });
+      const address = await ks.create("round-trip");
+      created = address;
+
+      const wallet = await ks.load(address);
+      expect(wallet.address).to.equal(address);
+
+      // Twice, because a read that consumes the secret would pass the first time.
+      const again = await ks.load(address);
+      expect(again.address).to.equal(address);
+    });
+
+    it("derives no mnemonic — there is nothing for a user to write down", async () => {
+      const ks = osKeychainKeystore({ dir, service });
+      const address = await ks.create("no-mnemonic");
+      created = address;
+
+      const wallet = await ks.load(address);
+      expect((wallet as unknown as { mnemonic?: unknown }).mnemonic ?? null).to.equal(null);
+
+      // And the keystore file must not carry one either.
+      const raw = await fs.readFile(path.join(dir, `${address.toLowerCase()}.json`), "utf8");
+      expect(raw.toLowerCase()).to.not.include("mnemonic");
+    });
+
+    it("lists what it holds, with the label it was given", async () => {
+      const ks = osKeychainKeystore({ dir, service });
+      const address = await ks.create("labelled");
+      created = address;
+
+      const entries = await ks.list();
+      expect(entries.map((e) => e.address)).to.include(address);
+      expect(entries.find((e) => e.address === address)?.label).to.equal("labelled");
+    });
+
+    it("makes a destroyed key unloadable", async () => {
+      const ks = osKeychainKeystore({ dir, service });
+      const address = await ks.create("doomed");
+      await ks.destroy(address);
+      created = null;
+
+      let threw: unknown;
+      try {
+        await ks.load(address);
+      } catch (e) {
+        threw = e;
+      }
+      expect(threw, "loading a destroyed key must fail").to.be.instanceOf(Error);
+    });
+
+    it("says a key is absent rather than pretending it is unreadable", async () => {
+      const ks = osKeychainKeystore({ dir, service });
+      let threw: unknown;
+      try {
+        await ks.load("0x0000000000000000000000000000000000000042");
+      } catch (e) {
+        threw = e;
+      }
+      // The two failures are different and the message has to distinguish them:
+      // "never stored" is recoverable by creating one, "cannot decrypt" is not.
+      expect((threw as Error).message).to.match(/no keystore file|no passphrase/i);
+    });
+  });
+
+  // -------------------------------------------------------------------------
   describe("console", () => {
     it("refuses a request without its one-time token", async () => {
       const server = new ConsoleServer();
@@ -290,6 +388,27 @@ describe("MCP layer", () => {
       } finally {
         await server.stop();
       }
+    });
+
+    it("fails a prompt immediately once the console has stopped", async () => {
+      // Otherwise the tool call waits out the full timeout with no page to click,
+      // and the user sees the chat hang for three minutes with no explanation.
+      const server = new ConsoleServer();
+      await server.start();
+      await server.stop();
+
+      const started = Date.now();
+      const answer = await server.ask("unlock", "the console is gone");
+      expect(answer.approved).to.equal(false);
+      expect(Date.now() - started, "must not wait for the timeout").to.be.lessThan(1000);
+    });
+
+    it("denies anything still pending when the console stops", async () => {
+      const server = new ConsoleServer();
+      await server.start();
+      const pending = server.ask("reveal", "nobody will answer this");
+      await server.stop();
+      expect((await pending).approved).to.equal(false);
     });
 
     it("resolves a prompt when the console answers", async () => {

@@ -26,7 +26,7 @@ import {
   type AmountRef,
   type Session,
 } from "@ghostkey/sdk";
-import { Contract, type Provider, formatEther } from "ethers";
+import { Contract, getAddress, type Provider, formatEther } from "ethers";
 import * as os from "node:os";
 import * as path from "node:path";
 
@@ -88,12 +88,43 @@ export class GhostKeyTools {
   }
 
   /**
+   * Validates a recipient address.
+   *
+   * Every address argument used to go straight through to ethers, which meant a
+   * model passing a name — "add Mehmet to the list" is a thing a user says — got
+   * an ABI encoding error AFTER the tool had already made the user click a vault
+   * unlock. A physical action spent on an argument that was never going to work.
+   *
+   * Names and ENS are refused rather than resolved: resolution is a chain call
+   * whose answer the user cannot check before signing, and this is the one
+   * argument where being wrong sends money to the wrong place.
+   */
+  private recipient(raw: string): string {
+    const value = raw.trim();
+    if (!/^0x[0-9a-fA-F]{40}$/.test(value)) {
+      throw new Error(
+        `"${raw}" is not an address. This needs a 0x-prefixed, 40-hex-digit address — names ` +
+          `and ENS are not resolved, because a resolution cannot be checked before it is signed.`,
+      );
+    }
+    try {
+      return getAddress(value);
+    } catch {
+      throw new Error(
+        `"${raw}" is the right shape but its checksum is wrong, which usually means one ` +
+          `character is mistyped. Paste it again rather than correcting it by hand.`,
+      );
+    }
+  }
+
+  /**
    * The world check, deliberately performed AFTER argument validation.
    *
-   * An unknown token or a malformed amount is the caller's mistake and costs one
-   * lookup to detect. Reporting "no session is open" first sends a model off to
-   * open a session and come back to the same error, having spent a vault unlock
-   * on the round trip. Cheap and specific before expensive and situational.
+   * An unknown token, a malformed amount or a bad address is the caller's mistake
+   * and costs one local check to detect. Reporting "no session is open" first
+   * sends a model off to open a session and come back to the same error, having
+   * spent a vault unlock on the round trip. Cheap and specific before expensive
+   * and situational — and never after something the user has to physically click.
    */
   private requireLive(): Live {
     if (this.live === null) throw new Error("no session is open; call open_session first");
@@ -144,6 +175,9 @@ export class GhostKeyTools {
     if (args.allowlist.length === 0) {
       throw new Error("an empty allowlist means no transfers at all; name at least one recipient");
     }
+    // Before the unlock: a bad address here would otherwise cost a console click
+    // and three transactions to discover.
+    const allowlist = args.allowlist.map((a) => this.recipient(a));
 
     const entries = args.tokens.map((t) => this.token(t));
     const budgets = entries.map((t, i) => ({
@@ -167,7 +201,7 @@ export class GhostKeyTools {
     const result = await this.ctx.client.openSession({
       owner,
       budgets,
-      recipients: args.allowlist,
+      recipients: allowlist,
       expiry: new Date(Date.now() + args.ttlHours * 3_600_000),
       readScope: args.delegation ? "balance-visible" : "spend-only",
       ...(maxTxCount > 0 ? { maxTxCount } : {}),
@@ -345,6 +379,7 @@ export class GhostKeyTools {
    */
   async send(args: { token: string; to: string; amount: string }): Promise<ToolResult> {
     const t = this.token(args.token);
+    const to = this.recipient(args.to);
     const spec = args.amount.trim();
     const live = this.requireLive();
 
@@ -357,7 +392,7 @@ export class GhostKeyTools {
       }
       const answer = await this.ctx.console.ask(
         "sealed",
-        `Send ${t.symbol} to ${args.to}. Type the amount here; the model will not see it.`,
+        `Send ${t.symbol} to ${to}. Type the amount here; the model will not see it.`,
       );
       if (!answer.approved || answer.value === undefined) {
         return { ok: false, text: "Cancelled at the console. Nothing was sent." };
@@ -380,7 +415,7 @@ export class GhostKeyTools {
 
     // Warm the proof before anything else: it is twelve of the roughly thirty
     // seconds, and it does not depend on the chain.
-    const prepared = live.session.prepare({ token: t.address, to: args.to, amount: expr });
+    const prepared = live.session.prepare({ token: t.address, to, amount: expr });
 
     let result;
     try {
@@ -418,7 +453,7 @@ export class GhostKeyTools {
     }
     return {
       ok: true,
-      text: `Sent ${formatAmount(result.amount, t.decimals)} ${t.symbol} to ${args.to}.`,
+      text: `Sent ${formatAmount(result.amount, t.decimals)} ${t.symbol} to ${to}.`,
       data: { status: "sent", amount: formatAmount(result.amount, t.decimals), tx: result.hash },
     };
   }
@@ -428,15 +463,16 @@ export class GhostKeyTools {
   // -------------------------------------------------------------------------
 
   async addRecipient(args: { to: string }): Promise<ToolResult> {
+    const to = this.recipient(args.to);
     const live = this.requireLive();
-    const owner = await this.ctx.vault.unlock(`Allow this session to send to ${args.to}.`);
-    const hash = await live.session.addRecipient(args.to, owner);
+    const owner = await this.ctx.vault.unlock(`Allow this session to send to ${to}.`);
+    const hash = await live.session.addRecipient(to, owner);
     this.ctx.vault.lock();
     live.vaultUnlocks += 1;
     await this.pushStatus();
     return {
       ok: true,
-      text: `${args.to} is now on the allowlist. Vault unlocks this session: ${live.vaultUnlocks}.`,
+      text: `${to} is now on the allowlist. Vault unlocks this session: ${live.vaultUnlocks}.`,
       data: { tx: hash, vaultUnlocks: live.vaultUnlocks },
     };
   }

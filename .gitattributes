@@ -1,0 +1,7 @@
+# Every multi-line patch attempted in this repo failed silently against CRLF
+# before this file existed: the string matched in the editor and not on disk.
+# Normalising in the working tree removes the trap rather than working around it.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
