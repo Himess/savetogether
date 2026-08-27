@@ -232,6 +232,16 @@ export async function createServer(config?: GhostKeyConfig): Promise<ServerHandl
     onRevoke: async () => {
       await holder.tools?.revokeAll();
     },
+    onVault: async () => {
+      const tools = holder.tools;
+      if (tools === undefined) throw new Error("not ready");
+      return tools.vaultPanel();
+    },
+    onMint: async (symbol, amount) => {
+      const tools = holder.tools;
+      if (tools === undefined) throw new Error("not ready");
+      return tools.mint(symbol, amount);
+    },
   });
   await consoleServer.start();
 

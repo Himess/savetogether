@@ -371,7 +371,7 @@ describe("MCP layer", () => {
       try {
         const html = await (await fetch(url)).text();
         expect(html).to.include('id="capInput"');
-        expect(html).to.include("transfer cap");
+        expect(html).to.match(/transfer cap/i);
         // The control without the reason is just a number box.
         expect(html).to.match(/observations|timing channel/i);
       } finally {

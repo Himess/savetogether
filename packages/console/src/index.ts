@@ -79,9 +79,32 @@ interface Waiter {
   resolve(r: Resolution): void;
 }
 
+/**
+ * What the console shows about the vault.
+ *
+ * Confidential token balances are deliberately absent: showing them would need a
+ * decryption, and a decryption is the thing the whole product makes deliberate.
+ * The console shows what is public — the address and the gas — and the
+ * conversation is where you ask about the rest.
+ */
+export interface VaultPanel {
+  readonly address: string;
+  readonly ethBalance: string;
+  readonly chainId: number;
+  readonly chainName: string;
+  /** Symbols the local config knows about, for the mint control. */
+  readonly tokens: readonly string[];
+  /** False off testnet, which hides the mint control entirely. */
+  readonly canMint: boolean;
+}
+
 export interface ConsoleServerOptions {
   /** Called when the user presses the revoke button. */
   onRevoke?: () => Promise<void> | void;
+  /** Reads the vault panel. Absent when the console runs without a chain. */
+  onVault?: () => Promise<VaultPanel>;
+  /** Mints test tokens to the vault. Testnet only; absent elsewhere. */
+  onMint?: (symbol: string, amount: string) => Promise<string>;
   /** Seconds before an unanswered prompt resolves as denied. */
   timeoutSeconds?: number;
 }
@@ -93,6 +116,7 @@ export class ConsoleServer {
   private readonly listeners = new Set<ServerResponse>();
   private status: ConsoleStatus = { session: false, vaultUnlocks: 0 };
   private settings: ConsoleSettings = { maxTxCount: DEFAULT_MAX_TX_COUNT };
+  private vault: VaultPanel | null = null;
   private port = 0;
   private stopped = false;
 
@@ -105,6 +129,17 @@ export class ConsoleServer {
   async start(): Promise<string> {
     await new Promise<void>((resolve) => this.server.listen(0, "127.0.0.1", resolve));
     this.port = (this.server.address() as AddressInfo).port;
+    // Filled in the background: a slow RPC must not delay the URL the caller
+    // needs to print, and the page refreshes on its own.
+    if (this.opts.onVault !== undefined) {
+      void this.opts
+        .onVault()
+        .then((v) => {
+          this.vault = v;
+          this.notify();
+        })
+        .catch(() => undefined);
+    }
     return this.url;
   }
 
@@ -208,8 +243,44 @@ export class ConsoleServer {
       this.json(res, {
         status: this.status,
         settings: this.settings,
+        vault: this.vault,
         pending: [...this.waiters.values()].map((w) => w.pending),
       });
+      return;
+    }
+
+    if (url.pathname === "/api/vault" && req.method === "POST") {
+      if (this.opts.onVault === undefined) {
+        this.json(res, { ok: false, reason: "this console has no chain connection" });
+        return;
+      }
+      try {
+        this.vault = await this.opts.onVault();
+        this.json(res, { ok: true, vault: this.vault });
+      } catch (e) {
+        this.json(res, { ok: false, reason: (e as Error).message.slice(0, 200) });
+      }
+      return;
+    }
+
+    if (url.pathname === "/api/mint" && req.method === "POST") {
+      if (this.opts.onMint === undefined) {
+        this.json(res, { ok: false, reason: "minting is not available here" });
+        return;
+      }
+      const body = (await readJson(req)) as { symbol?: unknown; amount?: unknown };
+      if (typeof body.symbol !== "string" || typeof body.amount !== "string") {
+        this.json(res, { ok: false, reason: "symbol and amount must both be strings" });
+        return;
+      }
+      try {
+        const tx = await this.opts.onMint(body.symbol, body.amount);
+        if (this.opts.onVault !== undefined) this.vault = await this.opts.onVault();
+        this.notify();
+        this.json(res, { ok: true, tx });
+      } catch (e) {
+        this.json(res, { ok: false, reason: (e as Error).message.slice(0, 200) });
+      }
       return;
     }
 

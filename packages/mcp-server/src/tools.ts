@@ -40,6 +40,7 @@ const ERC20_ABI = [
   "function decimals() view returns (uint8)",
   "function symbol() view returns (string)",
 ];
+const MINTABLE_ABI = ["function mintPlain(address to, uint64 amount)"];
 const WRAPPER_ABI = [
   "function wrap(address to, uint256 amount) returns (bytes32)",
   "function underlying() view returns (address)",
@@ -564,6 +565,72 @@ export class GhostKeyTools {
       text: `${formatAmount(value, t.decimals)} ${t.symbol}`,
       data: { amount: formatAmount(value, t.decimals), token: t.symbol },
     };
+  }
+
+  /**
+   * What the console shows about the vault.
+   *
+   * No confidential balances: reading one is a decryption, and a decryption is
+   * exactly the act this product makes deliberate. The console shows the public
+   * facts — address, gas, network — and the conversation is where you ask about
+   * the rest.
+   */
+  async vaultPanel(): Promise<{
+    address: string;
+    ethBalance: string;
+    chainId: number;
+    chainName: string;
+    tokens: string[];
+    canMint: boolean;
+  }> {
+    const address = (await this.ctx.vault.address()) ?? "";
+    const ethBalance =
+      address === "" ? "0" : formatEther(await this.ctx.provider.getBalance(address));
+    const chainId = this.ctx.config.chainId;
+    return {
+      address,
+      ethBalance,
+      chainId,
+      chainName: chainId === 11155111 ? "Sepolia" : `chain ${chainId}`,
+      tokens: this.ctx.config.tokens.map((x) => x.symbol),
+      // Minting is a testnet affordance. Off testnet the control does not appear
+      // at all, rather than appearing and failing.
+      canMint: chainId === 11155111,
+    };
+  }
+
+  /**
+   * Mints confidential test tokens straight to the vault.
+   *
+   * This signs with the vault key, so it raises a real unlock prompt even though
+   * the user is already standing at the console. That is the rule holding rather
+   * than an oversight: no vault signature without an explicit authorisation. It
+   * also happens before any session exists, so it does not touch the unlock
+   * counter — which counts unlocks *this session*.
+   */
+  async mint(symbol: string, amount: string): Promise<string> {
+    if (this.ctx.config.chainId !== 11155111) {
+      throw new Error("minting test tokens is restricted to Sepolia");
+    }
+    const t = this.token(symbol);
+    const value = parseAmount(amount, t.decimals);
+    if (value === 0n) throw new Error("mint an amount greater than zero");
+
+    const owner = await this.ctx.vault.unlock(
+      `Mint ${amount} ${t.symbol} to your vault. Test tokens, Sepolia only.`,
+    );
+    try {
+      const token = new Contract(t.address, MINTABLE_ABI, owner);
+      const fn = token.getFunction("mintPlain");
+      const tx = (await fn(await owner.getAddress(), value)) as {
+        hash: string;
+        wait(): Promise<unknown>;
+      };
+      await tx.wait();
+      return tx.hash;
+    } finally {
+      this.ctx.vault.lock();
+    }
   }
 
   /** @internal for the CLI's status command */

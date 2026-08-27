@@ -13,6 +13,7 @@ import * as path from "node:path";
 
 import { JsonRpcProvider, formatEther } from "ethers";
 
+import { createServer } from "./index";
 import {
   DEFAULT_CONFIG_PATH,
   loadConfig,
@@ -116,15 +117,50 @@ async function init(args: string[]): Promise<void> {
       `  Claude config    ${claudeFile}`,
       `  vault address    ${vaultAddress}`,
       "",
-      "  Fund the vault with a little Sepolia ETH and some confidential tokens, then",
-      "  restart Claude. The vault key stays on this machine, encrypted, and unlocks",
-      "  once per session — everything after that runs on a session key that cannot",
-      "  exceed the budget you set.",
+      "  Next:",
+      "",
+      "    ghostkey console      open the local page",
+      "",
+      "  Send it some Sepolia ETH, mint test tokens from the page, then start Claude.",
+      "  The vault key stays on this machine, encrypted, and unlocks once per session —",
+      "  everything after that runs on a session key that cannot exceed the budget",
+      "  you set or send outside the list you name.",
       "",
       "  No seed phrase was generated and none is needed. Nothing to write down.",
       "",
     ].join("\n"),
   );
+}
+
+/**
+ * Runs the console with no chat client attached.
+ *
+ * Funding a vault and minting test tokens are setup, and setup should not require
+ * a conversation to be open — you want the address before you have anything to
+ * say. This is also how a first run works: init, open this, send some ETH, mint,
+ * and only then start talking.
+ */
+async function consoleOnly(): Promise<void> {
+  const handles = await createServer();
+  process.stdout.write(
+    [
+      "",
+      "  GhostKey console",
+      `  ${handles.console.url}`,
+      "",
+      "  Fund the vault from the page, mint some test tokens, then start Claude.",
+      "  Ctrl-C to stop.",
+      "",
+    ].join("\n"),
+  );
+
+  await new Promise<void>((resolve) => {
+    const shutdown = () => {
+      void handles.stop().then(resolve);
+    };
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
+  });
 }
 
 async function status(): Promise<void> {
@@ -159,6 +195,9 @@ async function main(): Promise<void> {
     case "init":
       await init(rest);
       return;
+    case "console":
+      await consoleOnly();
+      return;
     case "status":
       await status();
       return;
@@ -167,6 +206,7 @@ async function main(): Promise<void> {
         [
           "",
           "  ghostkey init --rpc <url> [--module <address>]   set up config and keys",
+          "  ghostkey console                                 open the local console",
           "  ghostkey status                                  show the vault and config",
           "",
         ].join("\n"),
