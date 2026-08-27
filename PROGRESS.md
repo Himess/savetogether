@@ -108,6 +108,30 @@ The funding logic existed, but in the wrong layer: the MCP tool did it, so anyon
 
 §5.2's preference order is keychain-with-biometric, then a console click, then a terminal passphrase. A real Touch ID / Windows Hello prompt needs a native module per platform. What is implemented is key material at rest under the OS keychain plus a local human action — the second item. `docs/leakage.md` §5 says so rather than implying the first.
 
+### G6 — every session costs the vault 0.02 ETH, and nothing gives it back
+
+Found the same way as G5: the integration suite ran out of gas partway through its
+second session. Not a bug — the arithmetic is exactly what it should be — but a
+product fact nobody had written down.
+
+The session key sends its own transactions, so the vault forwards
+`DEFAULT_SESSION_GAS` (0.02 ETH) at every open. Opening N sessions costs N x 0.02,
+and **closing a session does not reclaim the remainder**: the leftover gas stays on
+a key that is now permanently unusable, since session keys are single-use by
+design. A user who opens a session a day leaks gas at a steady rate for no benefit.
+
+Two ways to fix it, neither done here because both change behaviour rather than
+correct a defect:
+
+- sweep the session key's remaining balance back to the vault inside `closeSession`,
+  which costs one extra transaction and needs the session key to sign it — it can,
+  since it can already close;
+- forward less and top up on demand, which trades a smaller float for a failure
+  mode in the middle of a send.
+
+The first is better. Recorded for step 5 rather than decided unilaterally, because
+it adds a transaction to a flow whose whole claim is about how few there are.
+
 ---
 
 ## Adversarial passes
@@ -166,3 +190,4 @@ None met §2. These were the closest.
 - End-to-end MCP run against a live chat client, which needs a human at the console by construction.
 - `--dev-unlock` demo recording.
 - The console has no control for `maxTxCount` (G3).
+- Reclaiming a closed session key's leftover gas (G6).

@@ -26,7 +26,12 @@ import { Wallet, parseEther } from "ethers";
 import { ethers } from "hardhat";
 
 const DAY = 24 * 60 * 60;
-const FUND = parseEther("0.04");
+// Two sessions are opened over this suite and the SDK forwards DEFAULT_SESSION_GAS
+// (0.02) to each session key, on top of the owner's own gas for setOperator,
+// openSession, addRecipient and a setOperator restore. 0.04 runs out partway
+// through the second session — which is itself worth knowing: opening N sessions
+// costs the vault N x DEFAULT_SESSION_GAS, and nothing reclaims it on close.
+const FUND = parseEther("0.12");
 
 function required(name: string): string {
   const v = process.env[name];

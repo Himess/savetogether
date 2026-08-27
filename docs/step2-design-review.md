@@ -1,5 +1,7 @@
 # GhostKey — Step 2 design review, before writing Solidity
 
+Terminology note: this document predates the `session client` / `model` distinction adopted in step 2 (A3); its wording has been brought into line, since the rule applies to every file.
+
 This is the pre-implementation answer to the step-2 brief: storage layout, the exact `send` flow, and everything in the brief that conflicts with what was verified. No Solidity has been written yet.
 
 Self-contained on purpose — it repeats the step-1 facts it depends on, so it can be read without the repo.
@@ -219,11 +221,11 @@ ACL delegations live in the ACL contract, not in GhostKeySession. If a closed se
 
 ## 5. Notes that are not conflicts
 
-**The delegation boundary is narrower than the brief's framing.** The brief observes that `remaining` is the module's own handle (so `FHE.allow(remaining, sessionKey)` suffices, no delegation) while `balance` belongs to the token and is granted only to the holder (`ERC7984.sol:302`, so delegation is required). Correct — and §1.1 sharpens it further: because `FHE.allow(sent, sessionKey)` is legal, the agent can also read **what it actually sent** without any delegation.
+**The delegation boundary is narrower than the brief's framing.** The brief observes that `remaining` is the module's own handle (so `FHE.allow(remaining, sessionKey)` suffices, no delegation) while `balance` belongs to the token and is granted only to the holder (`ERC7984.sol:302`, so delegation is required). Correct — and §1.1 sharpens it further: because `FHE.allow(sent, sessionKey)` is legal, the session client can also read **what it actually sent** without any delegation.
 
-So ACL delegation is required for exactly one capability: reading the holder's **balance**, which is needed only for reference amounts ("send half"). The privacy tier is therefore: _the agent sees what it spent and what it has left, but not what is in the wallet._ That is a cleaner sentence for the README than "delegation is optional".
+So ACL delegation is required for exactly one capability: reading the holder's **balance**, which is needed only for reference amounts ("send half"). The privacy tier is therefore: _the session client sees what it spent and what it has left, but not what is in the wallet._ That is a cleaner sentence for the README than "delegation is optional".
 
-**The amount is not hidden from the agent.** `createEncryptedInput(contractAddress, userAddress)` binds the ciphertext to both, and `userAddress` must equal `msg.sender`, which is the session key. So the agent constructs the ciphertext and necessarily knows the plaintext. This is correct by design — the agent decides the amount — but it should be explicit in the docs so no one claims otherwise. What is hidden is the amount _from observers_, not from the agent.
+**The amount is not hidden from the session client.** `createEncryptedInput(contractAddress, userAddress)` binds the ciphertext to both, and `userAddress` must equal `msg.sender`, which is the session key. So the session client constructs the ciphertext and necessarily knows the plaintext. This is correct by design — the session client decides the amount — but it should be explicit in the docs so no one claims otherwise. What is hidden is the amount _from observers_, not from the session client.
 
 **`within` is an `ebool`.** The client decrypts it with `FhevmType.ebool`, a different path from the `euint64` handles. A step-3 SDK note.
 
