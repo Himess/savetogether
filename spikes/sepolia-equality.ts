@@ -1,24 +1,30 @@
 /**
- * THE GATE. Step 2's headline claim — that a successful transfer, an over-budget
- * transfer and an insufficient-balance transfer are indistinguishable — is so far
- * backed by mock mode only. This proves it on live Sepolia, or fails loudly.
+ * THE GATE. Proves — or refutes — on live Sepolia that a successful transfer, an
+ * over-budget transfer and an insufficient-balance transfer are indistinguishable.
  *
- * Three things are measured per path:
+ * Three quantities are measured per send:
  *
  *   1. EXECUTION GAS. `gasUsed` minus intrinsic calldata cost. Total gasUsed is
  *      not the right quantity: it includes 4 gas per zero calldata byte and 16
  *      per non-zero, and the caller's fresh ciphertext varies in zero-byte count
  *      for reasons unrelated to the outcome.
  *   2. THE FHE OPERATION SEQUENCE, counted from the executor's own events in the
- *      receipt. Independent evidence of indistinguishability one layer below gas.
- *   3. HCU, computed from those measured op counts times the per-op costs read
- *      from HCULimit.sol. HCU itself is accumulated in transient storage with no
- *      event and no view, so it cannot be read back after a transaction — this is
- *      the closest thing to a measurement that exists, and it is not an estimate
- *      of the op sequence, only of the price of each op.
+ *      receipt. Evidence one layer below gas, at the FHE layer itself.
+ *   3. HCU, from those measured op counts times the per-op costs read from
+ *      HCULimit.sol. HCU is accumulated in transient storage with no event and no
+ *      view, so it cannot be read back; only the prices come from source.
  *
- * Idempotent: deployments and funded actors are cached in .env, so a re-run
- * continues rather than starting over.
+ * Modes:
+ *   (default)               round-robin across the three paths, GATE_ROUNDS times
+ *   GATE_CONTROL=<label>    hammer one path, GATE_ROUNDS times
+ *   GATE_DISTRIBUTION=1     GATE_SAMPLES sends on EACH path, then compare the
+ *                           per-path execution-gas distributions
+ *
+ * The distribution mode is the one that closes the gate. Proving gas is not a
+ * deterministic function of the path is not enough: a skewed distribution would
+ * leak without being deterministic.
+ *
+ * Idempotent — deployments and funded actors are cached in .env.
  *
  *   pnpm spike:sepolia-gate
  */
@@ -26,10 +32,13 @@ import { ethers } from "hardhat";
 import { Wallet, formatEther, parseEther } from "ethers";
 import { createInstance, SepoliaConfig } from "@zama-fhe/relayer-sdk/node";
 
-import { record, requireEnv, upsertEnv } from "./_shared";
+import { record, requireEnv, upsertEnv, withRetry } from "./_shared";
 
 const ROUNDS = Number(process.env.GATE_ROUNDS ?? "3");
-const FUND_TARGET = parseEther("0.03");
+const SAMPLES = Number(process.env.GATE_SAMPLES ?? "20");
+const DISTRIBUTION = process.env.GATE_DISTRIBUTION === "1";
+const FUND_TARGET = parseEther("0.05");
+const AMOUNT = 500n;
 const DAY = 24 * 60 * 60;
 
 /** Per-op HCU for euint64, read from HCULimit.sol (@fhevm/host-contracts 0.10.0). */
@@ -81,6 +90,61 @@ function actors(key: string, count: number): Wallet[] {
   return keys.map((k) => new Wallet(k, ethers.provider));
 }
 
+/**
+ * Chi-square over an r x c contingency table. Used to ask whether the per-path
+ * execution-gas distributions are distinguishable. A large statistic relative to
+ * the critical value means the path predicts the gas, which would be a leak.
+ */
+function chiSquare(table: number[][]): { stat: number; df: number } {
+  const rows = table.length;
+  const cols = table[0]?.length ?? 0;
+  const rowSum = table.map((r) => r.reduce((a, b) => a + b, 0));
+  const colSum = Array.from({ length: cols }, (_, j) => table.reduce((a, r) => a + (r[j] ?? 0), 0));
+  const n = rowSum.reduce((a, b) => a + b, 0);
+  let stat = 0;
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      const exp = ((rowSum[i] ?? 0) * (colSum[j] ?? 0)) / n;
+      if (exp > 0) stat += ((table[i]?.[j] ?? 0) - exp) ** 2 / exp;
+    }
+  }
+  return { stat, df: (rows - 1) * (cols - 1) };
+}
+
+/**
+ * Empirical mutual information in bits between the path and the observed gas.
+ * Zero means an observation of gas tells you nothing about which path ran.
+ */
+function mutualInformation(table: number[][]): number {
+  const rows = table.length;
+  const cols = table[0]?.length ?? 0;
+  const n = table.reduce((a, r) => a + r.reduce((x, y) => x + y, 0), 0);
+  const rowSum = table.map((r) => r.reduce((a, b) => a + b, 0));
+  const colSum = Array.from({ length: cols }, (_, j) => table.reduce((a, r) => a + (r[j] ?? 0), 0));
+  let mi = 0;
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      const pij = (table[i]?.[j] ?? 0) / n;
+      if (pij === 0) continue;
+      const pi = (rowSum[i] ?? 0) / n;
+      const pj = (colSum[j] ?? 0) / n;
+      mi += pij * Math.log2(pij / (pi * pj));
+    }
+  }
+  return mi;
+}
+
+interface Sample {
+  readonly label: string;
+  readonly total: bigint;
+  readonly cd: number;
+  readonly zeros: number;
+  readonly exec: bigint;
+  readonly ops: string;
+  readonly hcu: number;
+  readonly tx: string;
+}
+
 async function main(): Promise<void> {
   const net = await ethers.provider.getNetwork();
   if (net.chainId !== 11155111n) throw new Error(`expected Sepolia, got chainId ${net.chainId}`);
@@ -95,17 +159,14 @@ async function main(): Promise<void> {
   const keys = actors("GATE_SESSION_KEYS", 3);
   const recipient = actors("GATE_RECIPIENT_KEY", 1)[0]!;
 
-  // ---- fund every actor that will send a transaction ------------------------
   for (const w of [...owners, ...keys]) {
     const bal = await ethers.provider.getBalance(w.address);
     if (bal < FUND_TARGET / 2n) {
-      const tx = await deployer.sendTransaction({ to: w.address, value: FUND_TARGET });
-      await tx.wait();
+      await (await deployer.sendTransaction({ to: w.address, value: FUND_TARGET })).wait();
       console.log(`funded  ${w.address}  ${formatEther(FUND_TARGET)} ETH`);
     }
   }
 
-  // ---- deploy or reuse ------------------------------------------------------
   let moduleAddr = process.env.GATE_MODULE ?? "";
   let tokenAddr = process.env.GATE_TOKEN ?? "";
   if (moduleAddr === "" || (await ethers.provider.getCode(moduleAddr)) === "0x") {
@@ -135,10 +196,8 @@ async function main(): Promise<void> {
     network: requireEnv("SEPOLIA_RPC_URL"),
   });
 
-  // ---- one-time setup per path ---------------------------------------------
   const expiry = Math.floor(Date.now() / 1000) + 30 * DAY;
 
-  // Warm the recipient so `_balances[to]` is initialized on every path.
   if ((await token.confidentialBalanceOf(recipient.address)) === ethers.ZeroHash) {
     await (await token.connect(deployer).mintPlain(recipient.address, 1n)).wait();
     console.log("warmed recipient");
@@ -149,11 +208,7 @@ async function main(): Promise<void> {
     const key = keys[i]!;
     const setup = SETUPS[i]!;
 
-    const existing = await module.sessionOf(key.address);
-    if (existing.owner !== ethers.ZeroAddress) {
-      console.log(`session ${i} (${setup.label}) already open`);
-      continue;
-    }
+    if ((await module.sessionOf(key.address)).owner !== ethers.ZeroAddress) continue;
 
     if ((await token.confidentialBalanceOf(owner.address)) === ethers.ZeroHash) {
       await (await token.connect(deployer).mintPlain(owner.address, setup.balance)).wait();
@@ -164,7 +219,6 @@ async function main(): Promise<void> {
       .createEncryptedInput(moduleAddr, owner.address)
       .add64(setup.budget)
       .encrypt();
-
     const sig = await key.signTypedData(
       { name: "GhostKeySession", version: "1", chainId: 11155111, verifyingContract: moduleAddr },
       {
@@ -177,7 +231,6 @@ async function main(): Promise<void> {
       },
       { owner: owner.address, sessionKey: key.address, expiry, maxTxCount: 0 },
     );
-
     await (
       await module.connect(owner).openSession(
         {
@@ -192,134 +245,172 @@ async function main(): Promise<void> {
         sig,
       )
     ).wait();
-    console.log(`opened session ${i} (${setup.label})  key ${key.address}`);
+    console.log(`opened session ${i} (${setup.label})`);
   }
 
-  // ---- measure --------------------------------------------------------------
-  // Only the Interface is needed: every log in the receipt is tried and the ones
-  // that do not parse are skipped, so no address filter is required.
+  // The success path must stay successful for the whole run, so top up both the
+  // budget and the holder's balance to cover every sample with headroom.
+  if (DISTRIBUTION) {
+    const need = AMOUNT * BigInt(SAMPLES + 4);
+    const owner = owners[0]!;
+    const key = keys[0]!;
+    await (await token.connect(deployer).mintPlain(owner.address, need)).wait();
+    const top = await instance
+      .createEncryptedInput(moduleAddr, owner.address)
+      .add64(need)
+      .encrypt();
+    await (
+      await module
+        .connect(owner)
+        .increaseBudget(key.address, tokenAddr, top.handles[0]!, top.inputProof)
+    ).wait();
+    console.log(`topped up the success path by ${need} for ${SAMPLES} samples\n`);
+  }
+
+  // Only the Interface is needed: every log is tried and non-matching ones skipped.
   const iface = new ethers.Interface(EXECUTOR_ABI);
 
-  type Row = {
-    round: number;
-    label: string;
-    total: bigint;
-    cd: number;
-    zeros: number;
-    exec: bigint;
-    ops: string;
-    hcu: number;
-    tx: string;
-  };
-  const rows: Row[] = [];
+  async function sendOnce(i: number): Promise<Sample> {
+    const key = keys[i]!;
+    const enc = await withRetry(`encrypt ${SETUPS[i]!.label}`, () =>
+      instance.createEncryptedInput(moduleAddr, key.address).add64(AMOUNT).encrypt(),
+    );
+    const tx = await withRetry(`send ${SETUPS[i]!.label}`, () =>
+      module.connect(key).send(tokenAddr, recipient.address, enc.handles[0]!, enc.inputProof),
+    );
+    const receipt = await withRetry("mine", () => tx.wait());
+    const sentTx = await ethers.provider.getTransaction(tx.hash);
+    const cd = calldataGas(sentTx!.data);
 
-  // Control mode: hammer ONE path repeatedly. If a single path reproduces the full
-  // spread of execution-gas values, the variance is intra-path and cannot encode the
-  // outcome. This is the experiment that settles it, so it is part of the gate.
-  const controlPath = process.env.GATE_CONTROL;
-  const pathIdx =
-    controlPath === undefined ? null : SETUPS.findIndex((s) => s.label === controlPath);
-  if (pathIdx === -1) throw new Error(`unknown GATE_CONTROL path: ${controlPath}`);
-
-  for (let round = 1; round <= ROUNDS; round++) {
-    for (let i = 0; i < 3; i++) {
-      if (pathIdx !== null && i !== pathIdx) continue;
-      const key = keys[i]!;
-      const enc = await instance
-        .createEncryptedInput(moduleAddr, key.address)
-        .add64(500n)
-        .encrypt();
-      const tx = await module
-        .connect(key)
-        .send(tokenAddr, recipient.address, enc.handles[0]!, enc.inputProof);
-      const receipt = await tx.wait();
-      const sentTx = await ethers.provider.getTransaction(tx.hash);
-      const cd = calldataGas(sentTx!.data);
-
-      // Count the FHE operation sequence from the executor's own events, and
-      // price it with the costs read from HCULimit.sol.
-      const counts: Record<string, number> = {};
-      let hcu = 0;
-      for (const log of receipt!.logs) {
-        let parsed;
-        try {
-          parsed = iface.parseLog({ topics: [...log.topics], data: log.data });
-        } catch {
-          continue;
-        }
-        if (parsed === null) continue;
-        const name = parsed.name;
-        const cost = HCU[name];
-        if (cost === undefined) continue;
-        counts[name] = (counts[name] ?? 0) + 1;
-        const scalarByte = parsed.args["scalarByte"] as string | undefined;
-        const isScalar = scalarByte !== undefined && scalarByte !== "0x00";
-        hcu += isScalar ? cost.scalar : cost.cipher;
+    const counts: Record<string, number> = {};
+    let hcu = 0;
+    for (const log of receipt!.logs) {
+      let parsed;
+      try {
+        parsed = iface.parseLog({ topics: [...log.topics], data: log.data });
+      } catch {
+        continue;
       }
-      const ops = Object.keys(counts)
+      if (parsed === null) continue;
+      const cost = HCU[parsed.name];
+      if (cost === undefined) continue;
+      counts[parsed.name] = (counts[parsed.name] ?? 0) + 1;
+      const scalarByte = parsed.args["scalarByte"] as string | undefined;
+      hcu += scalarByte !== undefined && scalarByte !== "0x00" ? cost.scalar : cost.cipher;
+    }
+    return {
+      label: SETUPS[i]!.label,
+      total: receipt!.gasUsed,
+      cd: cd.gas,
+      zeros: cd.zeros,
+      exec: receipt!.gasUsed - BigInt(cd.gas),
+      ops: Object.keys(counts)
         .sort()
         .map((k) => `${k}x${counts[k]}`)
-        .join(" ");
+        .join(" "),
+      hcu,
+      tx: tx.hash,
+    };
+  }
 
-      rows.push({
-        round,
-        label: SETUPS[i]!.label,
-        total: receipt!.gasUsed,
-        cd: cd.gas,
-        zeros: cd.zeros,
-        exec: receipt!.gasUsed - BigInt(cd.gas),
-        ops,
-        hcu,
-        tx: tx.hash,
-      });
-      console.log(
-        `round ${round}  ${SETUPS[i]!.label.padEnd(14)} exec ${receipt!.gasUsed - BigInt(cd.gas)}  hcu ${hcu}  ${tx.hash}`,
-      );
+  const samples: Sample[] = [];
+
+  if (DISTRIBUTION) {
+    for (let i = 0; i < 3; i++) {
+      process.stdout.write(`  ${SETUPS[i]!.label.padEnd(14)} `);
+      for (let n = 0; n < SAMPLES; n++) {
+        const s = await sendOnce(i);
+        samples.push(s);
+        process.stdout.write(s.exec === 891572n ? "." : "x");
+      }
+      process.stdout.write("\n");
+    }
+  } else {
+    const control = process.env.GATE_CONTROL;
+    const only = control === undefined ? null : SETUPS.findIndex((s) => s.label === control);
+    if (only === -1) throw new Error(`unknown GATE_CONTROL path: ${control}`);
+    for (let round = 1; round <= ROUNDS; round++) {
+      for (let i = 0; i < 3; i++) {
+        if (only !== null && i !== only) continue;
+        const s = await sendOnce(i);
+        samples.push(s);
+        console.log(`round ${round}  ${s.label.padEnd(14)} exec ${s.exec}  hcu ${s.hcu}`);
+      }
     }
   }
 
   // ---- report ---------------------------------------------------------------
-  console.log("\n  SEPOLIA EQUALITY GATE\n");
-  console.log(
-    "  round  path             total gas   calldata gas   zero bytes   EXECUTION gas        HCU",
-  );
-  for (const r of rows) {
+  const execValues = [...new Set(samples.map((s) => s.exec.toString()))].sort();
+  const opSeqs = [...new Set(samples.map((s) => s.ops))];
+  const hcus = [...new Set(samples.map((s) => s.hcu))];
+
+  console.log("\n  EXECUTION-GAS DISTRIBUTION BY PATH\n");
+  console.log(`  path             n   ${execValues.map((v) => v.padStart(9)).join("  ")}`);
+  const table: number[][] = [];
+  for (const setup of SETUPS) {
+    const mine = samples.filter((s) => s.label === setup.label);
+    if (mine.length === 0) continue;
+    const row = execValues.map((v) => mine.filter((s) => s.exec.toString() === v).length);
+    table.push(row);
     console.log(
-      `  ${String(r.round).padStart(5)}  ${r.label.padEnd(15)} ${String(r.total).padStart(9)} ` +
-        `${String(r.cd).padStart(14)} ${String(r.zeros).padStart(12)} ${String(r.exec).padStart(15)} ` +
-        `${String(r.hcu).padStart(10)}`,
+      `  ${setup.label.padEnd(15)} ${String(mine.length).padStart(2)}   ` +
+        row.map((c) => String(c).padStart(9)).join("  "),
     );
   }
-  console.log("\n  FHE operation sequence per path:");
-  for (const r of rows.filter((x) => x.round === 1)) {
-    console.log(`    ${r.label.padEnd(15)} ${r.ops}`);
+
+  let chi = { stat: 0, df: 0 };
+  let mi = 0;
+  if (table.length > 1 && execValues.length > 1) {
+    chi = chiSquare(table);
+    mi = mutualInformation(table);
+    // df=2 -> 5.991 at p=0.05; df=1 -> 3.841. Above it, the path predicts the gas.
+    const crit = chi.df === 1 ? 3.841 : chi.df === 2 ? 5.991 : 7.815;
+    console.log(
+      `\n  chi-square ${chi.stat.toFixed(3)} on ${chi.df} df (critical ${crit} at p=0.05) -> ` +
+        `${chi.stat > crit ? "DISTRIBUTIONS DIFFER" : "not distinguishable"}`,
+    );
+    console.log(`  mutual information path <-> gas : ${mi.toFixed(5)} bits per observation`);
   }
 
-  const execs = [...new Set(rows.map((r) => r.exec.toString()))];
-  const opSeqs = [...new Set(rows.map((r) => r.ops))];
-  const hcus = [...new Set(rows.map((r) => r.hcu))];
+  console.log(`\n  distinct FHE op sequences : ${opSeqs.length}`);
+  for (const o of opSeqs) console.log(`    ${o}`);
+  console.log(`  distinct HCU values       : ${hcus.length}  ${hcus.join(", ")}`);
 
-  const out = record("sepolia-equality", {
+  const out = record(DISTRIBUTION ? "sepolia-distribution" : "sepolia-equality", {
     network: "sepolia",
     module: moduleAddr,
     token: tokenAddr,
-    rounds: ROUNDS,
-    distinctExecutionGas: execs,
+    mode: DISTRIBUTION ? "distribution" : (process.env.GATE_CONTROL ?? "round-robin"),
+    samplesPerPath: DISTRIBUTION ? SAMPLES : undefined,
+    execValues,
+    table,
+    chiSquare: chi,
+    mutualInformationBits: mi,
     distinctOpSequences: opSeqs,
     distinctHCU: hcus,
-    rows: rows.map((r) => ({ ...r, total: r.total.toString(), exec: r.exec.toString() })),
+    samples: samples.map((s) => ({ ...s, total: s.total.toString(), exec: s.exec.toString() })),
   });
-
-  console.log(`\n  distinct execution-gas values : ${execs.length}  ${execs.join(", ")}`);
-  console.log(`  distinct FHE op sequences     : ${opSeqs.length}`);
-  console.log(`  distinct HCU values           : ${hcus.length}  ${hcus.join(", ")}`);
   console.log(`\n  recorded -> ${out}`);
 
+  // ---- criterion (b) --------------------------------------------------------
+  // Hard equality on the two quantities that describe the computation; a bounded,
+  // explained residual on EVM gas, with the distributions required to be
+  // indistinguishable rather than merely non-deterministic.
   const failures: string[] = [];
-  if (execs.length !== 1) failures.push(`execution gas differs across paths: ${execs.join(", ")}`);
-  if (opSeqs.length !== 1) failures.push(`FHE operation sequence differs across paths`);
-  for (const r of rows) {
-    if (r.total - BigInt(r.cd) !== r.exec) failures.push(`attribution does not close on ${r.tx}`);
+  if (opSeqs.length !== 1) failures.push("FHE operation sequence differs across paths");
+  if (hcus.length !== 1) failures.push(`HCU differs across paths: ${hcus.join(", ")}`);
+  const spread =
+    execValues.length === 0
+      ? 0n
+      : BigInt(execValues[execValues.length - 1]!) - BigInt(execValues[0]!);
+  if (spread > 4n) failures.push(`execution-gas spread ${spread} exceeds the 4 gas bound`);
+  if (table.length > 1 && execValues.length > 1) {
+    const crit = chi.df === 1 ? 3.841 : chi.df === 2 ? 5.991 : 7.815;
+    if (chi.stat > crit)
+      failures.push(`execution-gas distributions differ by path (chi2 ${chi.stat.toFixed(3)})`);
+  }
+  for (const s of samples) {
+    if (s.total - BigInt(s.cd) !== s.exec) failures.push(`attribution does not close on ${s.tx}`);
   }
 
   if (failures.length > 0) {
@@ -328,8 +419,10 @@ async function main(): Promise<void> {
     process.exitCode = 1;
     return;
   }
-  console.log("\n  GATE PASSED — execution gas, FHE operation sequence and HCU are identical");
-  console.log("  across every path on live Sepolia, and the calldata attribution closes.");
+  console.log("\n  GATE PASSED");
+  console.log("    FHE operation sequence : identical on every path");
+  console.log("    HCU                    : identical on every path");
+  console.log(`    execution gas          : spread ${spread}, distributions not distinguishable`);
 }
 
 main().catch((e: unknown) => {

@@ -131,3 +131,60 @@ export async function signEip712(signer: TypedDataSigner, payload: Eip712Payload
   if (entry === undefined) throw new Error(`EIP-712 payload has no type named ${primary}`);
   return signer.signTypedData(payload.domain, { [primary]: entry }, payload.message);
 }
+
+/**
+ * Retries a transient failure with exponential backoff.
+ *
+ * The Zama relayer and the RPC both drop connections occasionally — a 60-sample
+ * run hit `UND_ERR_CONNECT_TIMEOUT` on the fifth send. That is not a defect in
+ * anything under test, but a measurement harness that dies on it produces no
+ * measurement, and a session client that dies on it is unusable. Only transport
+ * failures are retried: a revert or an assertion failure must surface immediately.
+ */
+export async function withRetry<T>(
+  label: string,
+  fn: () => Promise<T>,
+  opts: { attempts?: number; baseMs?: number } = {},
+): Promise<T> {
+  const attempts = opts.attempts ?? 5;
+  const baseMs = opts.baseMs ?? 1500;
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (!isTransient(err) || i === attempts - 1) throw err;
+      const wait = baseMs * 2 ** i;
+      console.log(`    ${label}: ${describe(err)} — retry ${i + 1}/${attempts - 1} in ${wait}ms`);
+      await new Promise((r) => setTimeout(r, wait));
+    }
+  }
+  throw lastError;
+}
+
+const TRANSIENT = [
+  "UND_ERR_CONNECT_TIMEOUT",
+  "ETIMEDOUT",
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "EAI_AGAIN",
+  "ENOTFOUND",
+  "SERVER_ERROR",
+  "TIMEOUT",
+  "socket hang up",
+  "fetch failed",
+  "502",
+  "503",
+  "504",
+  "429",
+];
+
+function isTransient(err: unknown): boolean {
+  const s = `${(err as { code?: string })?.code ?? ""} ${(err as Error)?.message ?? ""}`;
+  return TRANSIENT.some((t) => s.includes(t));
+}
+
+function describe(err: unknown): string {
+  return `${(err as { code?: string })?.code ?? (err as Error)?.message ?? "unknown"}`.slice(0, 60);
+}

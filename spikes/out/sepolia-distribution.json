@@ -1,0 +1,622 @@
+{
+  "network": "sepolia",
+  "module": "0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6",
+  "token": "0xCFf87b42b916f7aA0F61CD060C9f48772F303D37",
+  "mode": "distribution",
+  "samplesPerPath": 20,
+  "execValues": ["891568", "891572"],
+  "table": [
+    [9, 11],
+    [6, 14],
+    [4, 16]
+  ],
+  "chiSquare": {
+    "stat": 2.926829268292683,
+    "df": 2
+  },
+  "mutualInformationBits": 0.03538853049373822,
+  "distinctOpSequences": ["FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2"],
+  "distinctHCU": [1334064],
+  "samples": [
+    {
+      "label": "success",
+      "total": "896740",
+      "cd": 5172,
+      "zeros": 129,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x61a00f5ccfb47dc220c3723ef77c3923ef65ea94b554d09ab441c387221ea0ca"
+    },
+    {
+      "label": "success",
+      "total": "896768",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xc18338d8bf23bdc2f052ac42b447fe3adf8d62153e2c659e7958f79a8c99a2db"
+    },
+    {
+      "label": "success",
+      "total": "896732",
+      "cd": 5160,
+      "zeros": 130,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x6bee836d8c7c985c91e22b2c47490e0f66f3660732673457a880d9f7fb53bc2e"
+    },
+    {
+      "label": "success",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xa19bdc5ebd1f7ea71817fb5e2dbb0ab4ec960009303d13d7f9bafb9653a791be"
+    },
+    {
+      "label": "success",
+      "total": "896744",
+      "cd": 5172,
+      "zeros": 129,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xcb6be8f9125a8a8121af986976a03b6a108c83498756c4ad868970bb9b150097"
+    },
+    {
+      "label": "success",
+      "total": "896764",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x1be9eddcc4e24a08820dea8755d6df26dd326efc851672dec5e21a4682221323"
+    },
+    {
+      "label": "success",
+      "total": "896752",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x1a864b443e575e2525db04cee8851cc567b72658f9aac3b340be5b3eb1c2ec73"
+    },
+    {
+      "label": "success",
+      "total": "896764",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xba3d6e60d958ce2e069fe0899ced4f20948f458e9a1664e1c19da676b36be261"
+    },
+    {
+      "label": "success",
+      "total": "896720",
+      "cd": 5148,
+      "zeros": 131,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x9a63c6b367154f818c4555383447fa8f3e96e9505b3b353aa8e1bebf7770ac11"
+    },
+    {
+      "label": "success",
+      "total": "896728",
+      "cd": 5160,
+      "zeros": 130,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x2b7429e402b4f610e3427978499f4c7dd596cbaf092d261340ba34c426d2e191"
+    },
+    {
+      "label": "success",
+      "total": "896744",
+      "cd": 5172,
+      "zeros": 129,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x5835ffdb1cc8de876a64751bbd564cfaa560cf85ccde88cf5c5523f8ebc5f139"
+    },
+    {
+      "label": "success",
+      "total": "896744",
+      "cd": 5172,
+      "zeros": 129,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xfd8d00ea41755043eb0f965ae11f3b71fe143ffe86f76db61afebd21b09d50fa"
+    },
+    {
+      "label": "success",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xe92803e2801073fb50a9baf6dfd227fae38372c855bd22944f624732329cf85a"
+    },
+    {
+      "label": "success",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x227cf9768d1107035249c3178bf1c94ce7f5ad376bfe6c4d0778b8595d7c7eb9"
+    },
+    {
+      "label": "success",
+      "total": "896752",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xd35cea109ae7711b2872141c8e3648eaef2befa7ac68b7a6caf3c1106e3982a8"
+    },
+    {
+      "label": "success",
+      "total": "896764",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x5cc6ccf391688effa59bdf3e4e7ff30bf8e78bafb76e1ac828bab036296fb125"
+    },
+    {
+      "label": "success",
+      "total": "896764",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x5a2aa9b3add8ad8df0f7ec3aa041b160ccb235b8fa543ba71fd2ec5f8e909e87"
+    },
+    {
+      "label": "success",
+      "total": "896744",
+      "cd": 5172,
+      "zeros": 129,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xf9a21cf9743761422afcae782a1889f9058eb648829ee3845cbab611aecea40d"
+    },
+    {
+      "label": "success",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x3b248d9782e75e3a9f5b240029a462fd833da1c3ca7aba22e1580fd9085b0959"
+    },
+    {
+      "label": "success",
+      "total": "896752",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xb94b93c904a7ee8f1a7c93daacc0f9581faa0ef2b2fa3d0efe9865ef33fe157b"
+    },
+    {
+      "label": "over-budget",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x7958da3e716bc5a477b42a6019745e6b9effa35d4b591eca3356af515e8cae48"
+    },
+    {
+      "label": "over-budget",
+      "total": "896768",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xc8648fc9ebcde1097924563c5afa466eab73e1a1c6d2b8606b9c4167915d34e4"
+    },
+    {
+      "label": "over-budget",
+      "total": "896728",
+      "cd": 5160,
+      "zeros": 130,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xf1e23e34cb0b1ad1360d0d1b68ea6524675d3815509ad5298a83fb2cdf9337f4"
+    },
+    {
+      "label": "over-budget",
+      "total": "896764",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x6734090db913ab9eb5abb6b24d93378f18194da5e4b4c4dfa46cbb840a95c33e"
+    },
+    {
+      "label": "over-budget",
+      "total": "896768",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x66ad0ec80c2224e9c160132f5cf0285938bb438952691ff9738590d85b60c5ec"
+    },
+    {
+      "label": "over-budget",
+      "total": "896768",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x815e6d77a7145789d2e6c89181f2242ad4f3bf385d67ba51961a3e09125b3f7e"
+    },
+    {
+      "label": "over-budget",
+      "total": "896764",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x33ceb5f7ff68fad6fe843345ed52c09fb1d26eb5102e6c716bb56d8b0a40426a"
+    },
+    {
+      "label": "over-budget",
+      "total": "896744",
+      "cd": 5172,
+      "zeros": 129,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xaa1117474c4dfe0253097f7d357c5d42a1c6863ef02ab74a50ca1070368d83b8"
+    },
+    {
+      "label": "over-budget",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x250f403f19d6eff83aa4396ca5cee8e5e573d9ffc7d073198e339bcfc2536784"
+    },
+    {
+      "label": "over-budget",
+      "total": "896752",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x11402437aaef3b5b529af8f881c607a1ef743881e23f40ffb4ac4cdddd77dce2"
+    },
+    {
+      "label": "over-budget",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xa3efa2a445d53fbecc29014afbee4f75b1569ebb9ea5a8ebffeeaf004536a3c2"
+    },
+    {
+      "label": "over-budget",
+      "total": "896764",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xac4a94616beb8abf1e506b1dc096bd6eb3b4163442cdc769d3d9acf2a2c14846"
+    },
+    {
+      "label": "over-budget",
+      "total": "896768",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xdc670bdc1baab769adc30eb0e59dea133829dab1278f3bdf355266cc710ec7e0"
+    },
+    {
+      "label": "over-budget",
+      "total": "896728",
+      "cd": 5160,
+      "zeros": 130,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x4b813d0f8e6330a571df122a1de050bcd647c2c410093b95b912342caca861f1"
+    },
+    {
+      "label": "over-budget",
+      "total": "896732",
+      "cd": 5160,
+      "zeros": 130,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xd0377476ec53270e0be464db6b065f9e3f65827dc477f3690743b73486c40498"
+    },
+    {
+      "label": "over-budget",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x88d0614514580b0c0a9dd7033aefa8c27df68e3c5b7b76af89b9282c795dddf8"
+    },
+    {
+      "label": "over-budget",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x0fb19353c38cd8cd0467e162a91e9cc0f3a9f749206dd1911e71e7874b6c1635"
+    },
+    {
+      "label": "over-budget",
+      "total": "896768",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x803c0c3a307fe72ee9d33559f75faa332ec7bd2abf63bde986d8f8e5b04d953c"
+    },
+    {
+      "label": "over-budget",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x3ca05449e7e426df338a09864d9eb89eefec3c1fca012b492d61586d3209e882"
+    },
+    {
+      "label": "over-budget",
+      "total": "896744",
+      "cd": 5172,
+      "zeros": 129,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x6c3c7e69b43a29bb0cd384dc23eb8434409fb66d37ca8e161f10cc899214f790"
+    },
+    {
+      "label": "short-balance",
+      "total": "896768",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x16c89ed577383b726e3496a5a3389dc188c60e4f4c73a04d74e897ff0120dd8b"
+    },
+    {
+      "label": "short-balance",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x1f475407a150c42f6b125311fc902f5853c809ecb8d47642491c104c72df86a9"
+    },
+    {
+      "label": "short-balance",
+      "total": "896768",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x70064051ce5be0b47590e5180e55926f4be3203f28b9ac215e01cf686e48e85a"
+    },
+    {
+      "label": "short-balance",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x94609f23a3eba1596c5f48569065ea7af37f1bbdc6fae06baeb8e2c1952a6064"
+    },
+    {
+      "label": "short-balance",
+      "total": "896768",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x422e7bc2fe54fdf16c9fd440e45cec1f3c4d8a4f62f23d80d28dbc292de3f483"
+    },
+    {
+      "label": "short-balance",
+      "total": "896768",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x26857632937edc4a351f7346bb4a8972767aebb388ceb44aca72580e82b6817b"
+    },
+    {
+      "label": "short-balance",
+      "total": "896752",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x188359abab6db3f52999b2f8d905aeabe43c1787a6a554890d1f4139c57db2a2"
+    },
+    {
+      "label": "short-balance",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xa96808fafbab2eeec66f9c7787fcb12536c8110ec5e467284dd47b8044d5da14"
+    },
+    {
+      "label": "short-balance",
+      "total": "896768",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x79086daafd5fb6bf012a0f9e3aefdfd24afe3f07f926ba74e7cc82acbfe1fd3d"
+    },
+    {
+      "label": "short-balance",
+      "total": "896740",
+      "cd": 5172,
+      "zeros": 129,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xd049cf748dcff09b8b6bc6bdd76ac3cce801f07cb1b03c45ef03d905baea15aa"
+    },
+    {
+      "label": "short-balance",
+      "total": "896768",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x3d4748e12f1ff27aa0ea61f74d67141cf656a48f2c7bb2ba8eb1821f8f603519"
+    },
+    {
+      "label": "short-balance",
+      "total": "896752",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xc43caff81969195a12be5ce141b08e22d0a3fb134124ecbe7f447d95b7918eea"
+    },
+    {
+      "label": "short-balance",
+      "total": "896768",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xd4c3576e2156a61b997559b619d416b5a9af5bc6c2b33b66b77396675f46d44d"
+    },
+    {
+      "label": "short-balance",
+      "total": "896732",
+      "cd": 5160,
+      "zeros": 130,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xcf5e10c771bbcedf409de72f1183e5d231206026877fec900e47b1ba80a9c831"
+    },
+    {
+      "label": "short-balance",
+      "total": "896764",
+      "cd": 5196,
+      "zeros": 127,
+      "exec": "891568",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x256cb912262d38de70cbaff506af2e919130da0aab73224e9e490df941ccf666"
+    },
+    {
+      "label": "short-balance",
+      "total": "896744",
+      "cd": 5172,
+      "zeros": 129,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x8823a1b97061f2ab00d07a605e19cb9ace592b38aaedc3d5345cf3556611b6a0"
+    },
+    {
+      "label": "short-balance",
+      "total": "896744",
+      "cd": 5172,
+      "zeros": 129,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x2448a03efecfcfe471246fbc2dc643928d93ceb415ff78b870973862b5d74a26"
+    },
+    {
+      "label": "short-balance",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0x6c643176c12265ea47a347ee4ec2523b33f095a27c280aa58e2681c2ee042769"
+    },
+    {
+      "label": "short-balance",
+      "total": "896744",
+      "cd": 5172,
+      "zeros": 129,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xb670ce8fa879f99e8b56bcb507cb7d6489ff0a1c2f9ae60e9a76bc6c15cacf08"
+    },
+    {
+      "label": "short-balance",
+      "total": "896756",
+      "cd": 5184,
+      "zeros": 128,
+      "exec": "891572",
+      "ops": "FheAddx2 FheGex2 FheIfThenElsex4 FheSubx3 TrivialEncryptx2",
+      "hcu": 1334064,
+      "tx": "0xdbe03cef0b6c6577b2a2c80535c7dcc5e61c5e0796adee28b824481d19c53c4f"
+    }
+  ]
+}

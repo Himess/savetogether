@@ -3,7 +3,17 @@ import prettier from "eslint-config-prettier";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["node_modules", "artifacts", "cache", "fhevmTemp", "types", "dist", "coverage"] },
+  {
+    ignores: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "artifacts",
+      "cache",
+      "fhevmTemp",
+      "types",
+      "coverage",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   prettier,

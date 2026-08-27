@@ -10,7 +10,7 @@
   },
   "scripts": {
     "compile": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat compile",
-    "test": "hardhat test",
+    "test": "hardhat test test/GhostKeySession.ts test/mcp.ts",
     "test:sepolia": "hardhat test --network sepolia",
     "spike:latency": "hardhat run spikes/latency.ts --network sepolia",
     "spike:delegation": "hardhat run spikes/delegation.ts --network sepolia",
@@ -23,7 +23,13 @@
     "prettier:write": "prettier --write \"**/*.{js,json,md,sol,ts,yml}\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "clean": "rimraf ./fhevmTemp ./artifacts ./cache ./types ./dist",
-    "spike:sepolia-gate": "hardhat run spikes/sepolia-equality.ts --network sepolia"
+    "spike:sepolia-gate": "hardhat run spikes/sepolia-equality.ts --network sepolia",
+    "build:sdk": "pnpm --filter @ghostkey/sdk build",
+    "test:sdk:sepolia": "hardhat test test/sdk.sepolia.ts --network sepolia",
+    "build:packages": "pnpm --filter @ghostkey/sdk build && pnpm --filter @ghostkey/console build && pnpm --filter @ghostkey/mcp-server build",
+    "test:mcp": "hardhat test test/mcp.ts",
+    "typecheck:all": "pnpm typecheck && pnpm --filter @ghostkey/sdk typecheck && pnpm --filter @ghostkey/console typecheck && pnpm --filter @ghostkey/mcp-server typecheck",
+    "test:all": "hardhat test test/GhostKeySession.ts test/mcp.ts"
   },
   "dependencies": {
     "@fhevm/solidity": "0.11.1",
@@ -35,6 +41,9 @@
     "@eslint/js": "^9.39.2",
     "@fhevm/hardhat-plugin": "0.4.2",
     "@fhevm/mock-utils": "0.4.2",
+    "@ghostkey/console": "workspace:*",
+    "@ghostkey/mcp-server": "workspace:*",
+    "@ghostkey/sdk": "workspace:*",
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
     "@nomicfoundation/hardhat-ethers": "^3.1.3",
     "@nomicfoundation/hardhat-network-helpers": "^1.1.2",

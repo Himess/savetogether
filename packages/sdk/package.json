@@ -1,14 +1,25 @@
 {
   "name": "@ghostkey/sdk",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
-  "description": "Headless two-layer wallet for GhostKey sessions",
+  "description": "Headless client for GhostKey encrypted spending sessions on ERC-7984",
   "license": "MIT",
-  "type": "module",
+  "type": "commonjs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@zama-fhe/relayer-sdk": "0.4.1",
+    "ethers": "^6.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.3"
   }
 }
