@@ -9,7 +9,9 @@ Step 2's headline claim was backed by mock mode only. This is the live-chain che
 - Script: `spikes/sepolia-equality.ts` — `pnpm spike:sepolia-gate`
 - Raw data: `spikes/out/sepolia-equality.json`
 
-**22 live transactions.** The literal gate criterion — execution gas identical across paths — **did not hold**. Two values appear, four gas apart. The rest of this document establishes what that difference is and is not.
+**Resampled at n = 180.** The original run at 20 samples per path was underpowered: it showed 45% / 30% / 20% and chi-square 2.927, which is "not distinguishable" only in the weak sense of not having the power to see an effect that size. At 60 per path the spread collapses to 30.0% / 31.7% / 26.7% and chi-square falls to **0.374, p = 0.83**. Details in §2; the bound and the power statement live in [`leakage.md`](./leakage.md) §3.
+
+**The literal gate criterion — execution gas identical across paths — does not hold.** Two values appear, four gas apart, on every path. The rest of this document establishes what that difference is and is not.
 
 ---
 

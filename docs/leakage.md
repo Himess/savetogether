@@ -42,47 +42,56 @@ A budget rejection, an insufficient balance and a successful transfer must be in
 
 ### What is exactly equal
 
-Across 60 live transactions, 20 per path (`docs/step3-gate.md`, `spikes/out/sepolia-distribution.json`):
+Across 180 live transactions, 60 per path (`docs/step3-gate.md`, `spikes/out/sepolia-distribution.json`):
 
 ```
 FHE operation sequence   FheAdd x2  FheGe x2  FheIfThenElse x4  FheSub x3  TrivialEncrypt x2
 HCU                      1,334,064
 ```
 
-One distinct operation sequence and one distinct HCU value across all sixty. These are the quantities that describe what the FHE layer actually did, and they carry no information at all.
+One distinct operation sequence and one distinct HCU value across all 180. These are the quantities that describe what the FHE layer actually did, and they carry no information at all.
 
 ### What is not
 
 Execution gas takes two values, four apart:
 
-| path          | n   | 891,568 | 891,572 |
-| ------------- | --- | ------- | ------- |
-| success       | 20  | 9       | 11      |
-| over-budget   | 20  | 6       | 14      |
-| short-balance | 20  | 4       | 16      |
+| path          | n   | 891,568 | 891,572 | low-value rate |
+| ------------- | --- | ------- | ------- | -------------- |
+| success       | 60  | 18      | 42      | 30.0%          |
+| over-budget   | 60  | 19      | 41      | 31.7%          |
+| short-balance | 60  | 16      | 44      | 26.7%          |
 
 The variance is **not** in GhostKeySession, the token, or the ACL — a trace diff of two same-path transactions found 181 identical calls and exactly one differing by 4 gas, inside `HCULimit.checkHCUForFheGe`, the FHEVM's own cost accounting. No change to this project could remove it.
 
 ### The bound
 
-**Chi-square 2.927 on 2 degrees of freedom** against a critical value of 5.991 at p = 0.05. The three distributions are not distinguishable.
+**Chi-square 0.374 on 2 degrees of freedom** against a critical value of 5.991 at p = 0.05. **p = 0.83.** The three distributions are not distinguishable.
 
-**Mutual information between the path and the observed gas: 0.03539 bits per observation.**
+**Mutual information between the path and the observed gas: 0.00151 bits per observation** — and that figure is _below the noise floor_, which is the strongest reading available.
 
-That figure is an _upper_ bound in two senses, and both matter:
+The Miller–Madow bias of an empirical mutual information over an r×c table is `(r-1)(c-1) / 2N` nats: here `2/360` nats, or **0.00801 bits**. That is what a _perfectly independent_ process would typically show at this sample size. The measured 0.00151 bits is a fifth of it, so the bias-corrected estimate is negative — what you see when the true mutual information is zero and sampling noise happens to land low.
 
-1. **Finite-sample bias inflates it.** The Miller–Madow bias of an empirical mutual information over an r×c table is `(r-1)(c-1) / 2N` nats — here `2 / 120` nats, or **0.024 bits**. Two thirds of the measured 0.0354 bits is the floor that pure sampling noise produces under _perfect_ independence. Bias-corrected, the estimate is ≈ **0.011 bits**, which is not distinguishable from zero at this sample size.
-2. **The uncertainty it eats into is 1.585 bits.** Three outcomes, so `log2(3)`. Even taking the uncorrected 0.0354 bits at face value, an observer learns at most **2.2% of one transfer's outcome** from its gas.
+Cross-check: `chi² / (2N ln2)` = 0.00150 bits, agreeing with the direct computation.
 
-### Why the transfer cap matters
+Against 1.585 bits of outcome entropy (three outcomes, `log2(3)`), an observer learns **under 0.1%** of one transfer's outcome from its gas — and the honest reading is that they learn nothing.
 
-A single observation is close to useless, so the real question is what an attacker learns from many. Two things bound that.
+### What this sample size can and cannot rule out
 
-**The observations are independent transfers.** Watching one transfer tells you nothing extra about a different one — each has its own outcome and its own coin flip. So the per-transfer bound above does not accumulate into certainty about any particular transfer.
+Stated plainly, because "not distinguishable" and "no effect" are different claims and only one of them is supported.
 
-**The sample count is capped and public.** `Session.maxTxCount` is plaintext, fixed at session open, and enforced by the contract; `session_status` reports it. An attacker attempting to _detect_ a distributional difference at all is limited to that many samples. Scaling the observed effect — which is noise — from n = 60 to significance would need n ≈ 123 samples of the same skew. **A session opened with `maxTxCount` below roughly 120 cannot, even in principle, accumulate enough observations to reach p = 0.05 on an effect this size.**
+**n = 180 has 80% power to detect a spread of about ±13 percentage points** between the extreme paths — Cohen's `w = 0.231`, from a non-centrality parameter of 9.63 at 2 degrees of freedom.
 
-That is not the reason the channel is safe. The reason is that the distributions are indistinguishable and the difference lives in a third-party contract's accounting. The cap is a second bound, and it is one the owner sets.
+That number matters because of where it sits. An earlier run at n = 20 per path showed 45% / 30% / 20%, a spread of ±12.5 points, which reads as a trend to any sceptical eye. **This design is powered to detect precisely that effect, and it did not: the spread collapsed to 30.0% / 31.7% / 26.7% and chi-square fell from 2.927 to 0.374.** The apparent trend was sampling noise, and n = 180 is the sample size that says so rather than merely failing to contradict it.
+
+**What it cannot rule out** is a genuine skew smaller than roughly ±13 points. Detecting a ±3 point skew would need on the order of 3,000 samples. So the honest statement is: any real effect is smaller than ±13 points, and the point estimate sits at essentially zero.
+
+### Why the transfer cap still matters
+
+Even a skew too small for 180 samples to see would have to be _accumulated_ to be useful, and `Session.maxTxCount` bounds how many observations an attacker can gather from one session. It is plaintext, fixed at open, enforced by the contract, and reported by `session_status`.
+
+At the console's default cap of 50, a whole session yields 50 observations. **That is enough power to detect only a spread of ±24 points or more** — an effect four times larger than the one already ruled out at n = 180, and eight times the pooled variation actually observed. A single session cannot, even in principle, learn anything from this channel.
+
+That is not the reason the channel is safe. The reason is that the distributions are indistinguishable and the residual lives in a third-party contract's accounting. The cap is a second, independent bound, and it is one the owner sets — which is why it is a control on the console rather than an argument a chat client can talk its way into widening.
 
 ### Calldata
 

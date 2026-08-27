@@ -10,7 +10,7 @@ The decision log and the adversarial passes live in [`PROGRESS.md`](../PROGRESS.
 
 Step 3 opened with a gate: prove on live Sepolia that a successful transfer, an over-budget transfer and an insufficient-balance transfer are indistinguishable, before building anything on top of the claim.
 
-It passes. 60 live transactions, 20 per path. The FHE operation sequence and the HCU consumption are **identical** on every path; execution gas takes two values four apart, with chi-square 2.927 against a critical 5.991 — not distinguishable. Full report in [`step3-gate.md`](./step3-gate.md), residual leak bounded in [`leakage.md`](./leakage.md).
+It passes. 180 live transactions, 60 per path. The FHE operation sequence and the HCU consumption are **identical** on every path; execution gas takes two values four apart, with chi-square 0.374 against a critical 5.991 — not distinguishable, and powered to have caught a real effect of the size an earlier smaller run appeared to show. Full report in [`step3-gate.md`](./step3-gate.md), residual leak bounded in [`leakage.md`](./leakage.md).
 
 Two things had to be built that the brief did not anticipate:
 

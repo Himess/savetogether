@@ -8,7 +8,7 @@ No MCP server, no language model, no chat context. This package is usable on its
 
 `ERC7984.setOperator(spender, until)` grants an operator unlimited spending authority, bounded only by time. OpenZeppelin's own documentation warns that setting an operator lets that address take all of your tokens.
 
-GhostKey adds the missing piece: an **encrypted spending budget**. Every transfer is clamped against it homomorphically — no revert, no plaintext comparison, no branch on an encrypted value. An observer cannot tell an accepted transfer from a rejected one; on live Sepolia the FHE operation sequence and the HCU consumption are identical on every path (see `docs/step3-gate.md`).
+GhostKey adds the missing piece: an **encrypted spending budget**. Every transfer is clamped against it homomorphically — no revert, no plaintext comparison, no branch on an encrypted value. An observer cannot tell an accepted transfer from a rejected one; on live Sepolia, across 180 transactions, the FHE operation sequence and the HCU consumption are identical on every path (see `docs/step3-gate.md`).
 
 ## Terminology
 

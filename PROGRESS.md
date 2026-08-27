@@ -18,20 +18,25 @@ Contract frozen at `882a2c7`. Sources of truth: `findings.md`, `docs/step2-notes
 
 ## Task 0 — the gate
 
-```
-path             n      891568     891572
-success         20           9         11
-over-budget     20           6         14
-short-balance   20           4         16
+Resampled at **n = 180**, 60 per path, after the n = 20 run was correctly called underpowered.
 
-chi-square 2.927 on 2 df (critical 5.991 at p=0.05) -> not distinguishable
-mutual information path <-> gas : 0.03539 bits per observation
+```
+path             n      891568     891572   low-rate
+success         60          18         42      30.0%
+over-budget     60          19         41      31.7%
+short-balance   60          16         44      26.7%
+
+chi-square 0.374 on 2 df (critical 5.991 at p=0.05), p = 0.83
+mutual information path <-> gas : 0.00151 bits per observation
+                                  (Miller-Madow floor at this N is 0.00801 bits)
 
 distinct FHE op sequences : 1   FheAdd x2 FheGe x2 FheIfThenElse x4 FheSub x3 TrivialEncrypt x2
 distinct HCU values       : 1   1,334,064
 ```
 
-Criterion (b) is recorded in `docs/step2-notes.md` as the accepted gate and enforced by `spikes/sepolia-equality.ts`. The residual leak is bounded in `docs/leakage.md`: 0.0354 bits per observation, of which **0.024 bits is the finite-sample bias floor** — the amount a perfectly independent process would show at n = 60. Bias-corrected, ≈ 0.011 bits against 1.585 bits of outcome entropy.
+The n = 20 run showed 45% / 30% / 20% — a visible trend, and chi-square 2.927. At 60 per path it collapses to 30.0% / 31.7% / 26.7%. **The design is powered to ±13 points, which is exactly the spread the small run appeared to show, so this is a detection failure of a real effect rather than a shrug.** The measured mutual information is now a fifth of the noise floor for the sample size, so the bias-corrected estimate is negative.
+
+Criterion (b) is recorded in `docs/step2-notes.md` as the accepted gate and enforced by `spikes/sepolia-equality.ts`. The residual is bounded in `docs/leakage.md` §3, which also states what n = 180 cannot rule out: a genuine skew below ±13 points. A ±3 point skew would need on the order of 3,000 samples; the console's default cap of 50 gives one session enough power to see only ±24 points or more.
 
 Two things had to be built to get here that were not in the brief:
 

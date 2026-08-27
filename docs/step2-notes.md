@@ -48,7 +48,7 @@ Criterion (b) from `step3-gate.md` §5 is the accepted gate, and `spikes/sepolia
 - **hard equality** on HCU, across every path;
 - **execution gas** bounded at a 4 gas spread, with the per-path distributions required to be statistically indistinguishable — chi-square against the critical value at p = 0.05 — and the calldata attribution required to close on every sample.
 
-It passes on 60 live Sepolia transactions, 20 per path: one operation sequence, one HCU value, chi-square 2.927 against a critical 5.991. The residual leak is bounded and written up in `docs/leakage.md`.
+It passes on 180 live Sepolia transactions, 60 per path: one operation sequence, one HCU value, chi-square 0.374 against a critical 5.991 (p = 0.83). The residual leak is bounded and written up in `docs/leakage.md`.
 
 The original criterion — execution gas exactly equal — is falsified on chain and cannot be satisfied by any change to this contract, because the 4 gas lives in `HCULimit`'s own accounting. Criterion (b) asserts hard equality exactly where the claim lives and bounds the rest rather than waving at it.
 
