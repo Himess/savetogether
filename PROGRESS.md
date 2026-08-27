@@ -203,6 +203,37 @@ None met §2. These were the closest.
 
 ---
 
+## Step 5
+
+| task                            | state                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------- |
+| A — resample the gate at n=180  | **done**, chi-square 0.374, p = 0.83                                      |
+| B — the counter counts unlocks  | done, field renamed too                                                   |
+| C — sweep leftover gas on close | done, best-effort, reported                                               |
+| D — transfer cap on the console | done, default 50 with the reason beside it                                |
+| E — drive the MCP with a model  | **cannot be done here**; harness built, see below                         |
+| F — docs                        | architecture, threat-model, leakage, README written; tool surface stubbed |
+| G — demo materials              | evidence one-pager and dev-unlock verification done; script waits for E   |
+
+### What was done about E
+
+Driving the MCP with a real model needs a chat client and a human at the console, so it is not something this process can run. What it could do was build the thing that makes E possible and check the layer underneath it.
+
+`test/mcp-protocol.ts` connects a real MCP client over an in-memory transport. Nothing before it had spoken the wire protocol — every test inspected `toolDefinitions` directly — so nothing verified the server answers `tools/list` or `tools/call` at all.
+
+It found a usability bug of exactly the class E exists to find, and the audit that followed found worse. See the ordering entry below.
+
+### Untested layers found by asking the question
+
+The protocol gap was a category, not a bug. Asking what else had none turned up two more:
+
+- **The keystore had no coverage and was broken on Windows.** It is the first thing that runs on a new machine. Every vault created there was unopenable, and the error message sent the user off to create another one that also would be. Now exercised against whatever backend the host actually has.
+- **The console could be asked for a confirmation after it had stopped.** The waiter was registered, nobody could answer, and the tool call hung for the full three-minute timeout with no page to click. Fails immediately now.
+
+Still uncovered, and named rather than fixed: **there is no way for a client to reconcile after a crash between submission and settlement.** The contract is atomic and `remaining()` tells the truth on restart, but the `Sent` event for that particular transfer is on chain with no API to read it back. A `history()` method would close it; the shape should be decided after E, because what a model asks for after a crash determines what the method needs to return.
+
+---
+
 ## Remaining for step 5
 
 - End-to-end MCP run against a live chat client, which needs a human at the console by construction.
