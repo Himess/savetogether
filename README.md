@@ -35,6 +35,8 @@ Two keys, both generated locally, no seed phrase derived at all:
 
 If the vault key were the only key the budget would be decoration — an owner can always bypass the module and call `confidentialTransfer` directly. The split is what makes the budget real.
 
+The console shows a count of vault unlocks. Opening a session is one. `wrap` and `add_recipient` each cost another, and the counter **goes up when they do** — which is the point: a number that never moves could be a constant with a label on it, and one that moves exactly when you authorise something is a measurement.
+
 ---
 
 ## The evidence
@@ -59,6 +61,8 @@ The two quantities that describe what the FHE layer _did_ are exactly identical.
 An earlier run at 20 samples per path showed 45% / 30% / 20%, which reads as a trend. This design has 80% power to detect a spread of ±13 points — the spread that run appeared to show — and it did not detect it. That is a failure to find a real effect, not a shrug.
 
 Full accounting: [`docs/leakage.md`](docs/leakage.md). The run: [`docs/step3-gate.md`](docs/step3-gate.md). Raw data: [`spikes/out/sepolia-distribution.json`](spikes/out/sepolia-distribution.json).
+
+One-page versions: [`docs/evidence.html`](docs/evidence.html) reads; [`docs/evidence-card.html`](docs/evidence-card.html) is the same argument in a single 16:9 frame, sized to be screenshotted.
 
 ---
 

@@ -107,6 +107,14 @@ The console counter therefore reads `Vault unlocks this session`, not "signature
 
 For SDK consumers who _do_ have a browser wallet, the same three calls batch into one approval via EIP-5792 `wallet_sendCalls`, with a sequential fallback. The product does not use that path — there is no browser wallet in it — and that path is **not verified against a live wallet**.
 
+### An instrument, not a decoration
+
+`wrap` and `add_recipient` each cost another vault unlock, and the counter goes up when they do. That is the design, and it is what makes the number worth looking at.
+
+A counter that never moves proves nothing — it could be a constant with a label on it. One that moves **exactly when the owner authorises something and never otherwise** is a measurement. Opening a session is one unlock; widening the allowlist mid-session is another, because widening scope is an owner decision and the counter is honest about what it cost.
+
+So the console does not show a bare number. Each unlock records what it bought and the page derives the note from that ledger — `1 session · 1 recipient added · the vault locked again after each` — because an unattributed increment reads as drift, and an attributed one reads as the owner's own history.
+
 ---
 
 ## 6. Session lifecycle

@@ -49,3 +49,4 @@ export {
 } from "./errors";
 
 export { ACL_ABI, ERC7984_ABI, GHOSTKEY_ABI } from "./abi";
+export { isTransient, withRetry } from "./fhe";

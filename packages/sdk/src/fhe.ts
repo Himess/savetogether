@@ -12,6 +12,79 @@
 import type { Signer } from "ethers";
 import { createInstance, SepoliaConfig } from "@zama-fhe/relayer-sdk/node";
 
+/**
+ * Retries a transport failure with exponential backoff.
+ *
+ * The Zama relayer drops connections. This is measured, not hypothetical: a
+ * 60-sample gate run died on its fifth send with `UND_ERR_CONNECT_TIMEOUT`. A
+ * session client that dies on one of those is unusable, and a demo recorded in
+ * real time cannot be re-cut around it.
+ *
+ * ONLY transport failures are retried. A revert, a rejected proof, or a failed
+ * assertion must surface immediately — retrying those would turn a clear error
+ * into a slow one, and could resubmit something that already had an effect.
+ */
+export async function withRetry<T>(
+  label: string,
+  fn: () => Promise<T>,
+  opts: {
+    attempts?: number;
+    baseMs?: number;
+    onRetry?: (attempt: number, error: unknown) => void;
+  } = {},
+): Promise<T> {
+  const attempts = opts.attempts ?? 4;
+  const baseMs = opts.baseMs ?? 1000;
+  let last: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      last = err;
+      if (!isTransient(err) || i === attempts - 1) {
+        // Annotate rather than wrap: the caller may be matching on the error
+        // type, and knowing it was retried four times over eight seconds is the
+        // difference between "the relayer is flaky" and "the relayer is down".
+        if (isTransient(err) && i > 0 && err instanceof Error) {
+          err.message = `${err.message} [${label}: gave up after ${i + 1} attempts]`;
+        }
+        throw err;
+      }
+      opts.onRetry?.(i + 1, err);
+      await new Promise((r) => setTimeout(r, baseMs * 2 ** i));
+    }
+  }
+  throw last;
+}
+
+/** Substrings that identify a connection problem rather than a rejected request. */
+const TRANSIENT = [
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_SOCKET",
+  "ETIMEDOUT",
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "EAI_AGAIN",
+  "ENOTFOUND",
+  "EPIPE",
+  "socket hang up",
+  "fetch failed",
+  "network error",
+  "SERVER_ERROR",
+  "TIMEOUT",
+  "status: 429",
+  "status: 502",
+  "status: 503",
+  "status: 504",
+];
+
+/** @internal exported for the tests that pin the transient/permanent split. */
+export function isTransient(err: unknown): boolean {
+  const e = err as { code?: string; cause?: { code?: string }; message?: string };
+  const haystack = `${e?.code ?? ""} ${e?.cause?.code ?? ""} ${e?.message ?? ""}`;
+  return TRANSIENT.some((t) => haystack.includes(t));
+}
+
 /** Minimal shape of the relayer SDK instance the SDK depends on. */
 export interface FhevmInstance {
   createEncryptedInput(
@@ -101,10 +174,9 @@ export function warmInput(
 ): WarmInput {
   let aborted = false;
   const ready = (async () => {
-    const enc = await instance
-      .createEncryptedInput(contractAddress, userAddress)
-      .add64(value)
-      .encrypt();
+    const enc = await withRetry("encrypt", () =>
+      instance.createEncryptedInput(contractAddress, userAddress).add64(value).encrypt(),
+    );
     const handle = enc.handles[0];
     if (handle === undefined) throw new Error("relayer returned no handle for the encrypted input");
     return { handle: hex(handle), inputProof: hex(enc.inputProof) };
@@ -133,7 +205,7 @@ export async function encryptMany(
     encrypt(): Promise<{ handles: Uint8Array[]; inputProof: Uint8Array }>;
   };
   for (const v of values) builder = builder.add64(v);
-  const enc = await builder.encrypt();
+  const enc = await withRetry("encrypt-many", () => builder.encrypt());
   return { handles: enc.handles.map(hex), inputProof: hex(enc.inputProof) };
 }
 
@@ -164,15 +236,18 @@ export async function userDecrypt(
     signer,
     instance.createEIP712(kp.publicKey, [contractAddress], start, 1),
   );
-  const res = await instance.userDecrypt(
-    [{ handle, contractAddress }],
-    kp.privateKey,
-    kp.publicKey,
-    sig,
-    [contractAddress],
-    await signer.getAddress(),
-    start,
-    1,
+  const address = await signer.getAddress();
+  const res = await withRetry("user-decrypt", () =>
+    instance.userDecrypt(
+      [{ handle, contractAddress }],
+      kp.privateKey,
+      kp.publicKey,
+      sig,
+      [contractAddress],
+      address,
+      start,
+      1,
+    ),
   );
   return toBigInt(res[handle]);
 }
@@ -197,16 +272,19 @@ export async function delegatedUserDecrypt(
     delegate,
     instance.createDelegatedUserDecryptEIP712(kp.publicKey, [contractAddress], delegator, start, 1),
   );
-  const res = await instance.delegatedUserDecrypt(
-    [{ handle, contractAddress }],
-    kp.privateKey,
-    kp.publicKey,
-    sig,
-    [contractAddress],
-    delegator,
-    await delegate.getAddress(),
-    start,
-    1,
+  const delegateAddress = await delegate.getAddress();
+  const res = await withRetry("delegated-user-decrypt", () =>
+    instance.delegatedUserDecrypt(
+      [{ handle, contractAddress }],
+      kp.privateKey,
+      kp.publicKey,
+      sig,
+      [contractAddress],
+      delegator,
+      delegateAddress,
+      start,
+      1,
+    ),
   );
   return toBigInt(res[handle]);
 }
@@ -224,15 +302,18 @@ export async function userDecryptBool(
     signer,
     instance.createEIP712(kp.publicKey, [contractAddress], start, 1),
   );
-  const res = await instance.userDecrypt(
-    [{ handle, contractAddress }],
-    kp.privateKey,
-    kp.publicKey,
-    sig,
-    [contractAddress],
-    await signer.getAddress(),
-    start,
-    1,
+  const boolAddress = await signer.getAddress();
+  const res = await withRetry("user-decrypt-bool", () =>
+    instance.userDecrypt(
+      [{ handle, contractAddress }],
+      kp.privateKey,
+      kp.publicKey,
+      sig,
+      [contractAddress],
+      boolAddress,
+      start,
+      1,
+    ),
   );
   const v = res[handle];
   return v === true || v === 1n || v === "true" || v === "1";

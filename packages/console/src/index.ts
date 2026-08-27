@@ -37,6 +37,11 @@ export interface ConsoleStatus {
    * Three signatures, one authorisation. The counter names the second.
    */
   vaultUnlocks: number;
+  /**
+   * What those unlocks were for, so the page can say it rather than show a bare
+   * number. Sums to vaultUnlocks.
+   */
+  unlocks?: readonly { reason: string; n: number }[] | undefined;
   vault?: string | undefined;
   sessionKey?: string | undefined;
   expiry?: number | undefined;
@@ -117,6 +122,7 @@ export class ConsoleServer {
   private status: ConsoleStatus = { session: false, vaultUnlocks: 0 };
   private settings: ConsoleSettings = { maxTxCount: DEFAULT_MAX_TX_COUNT };
   private vault: VaultPanel | null = null;
+  private vaultError: string | null = null;
   private port = 0;
   private stopped = false;
 
@@ -129,17 +135,6 @@ export class ConsoleServer {
   async start(): Promise<string> {
     await new Promise<void>((resolve) => this.server.listen(0, "127.0.0.1", resolve));
     this.port = (this.server.address() as AddressInfo).port;
-    // Filled in the background: a slow RPC must not delay the URL the caller
-    // needs to print, and the page refreshes on its own.
-    if (this.opts.onVault !== undefined) {
-      void this.opts
-        .onVault()
-        .then((v) => {
-          this.vault = v;
-          this.notify();
-        })
-        .catch(() => undefined);
-    }
     return this.url;
   }
 
@@ -168,6 +163,27 @@ export class ConsoleServer {
   /** Read by the session client when it opens a session. */
   getSettings(): ConsoleSettings {
     return this.settings;
+  }
+
+  /**
+   * Reads the vault panel and pushes it to any open page.
+   *
+   * Called by the owner of this server once its dependencies exist — not from
+   * start(), which runs before they do. Failures are recorded rather than
+   * swallowed: a page showing dashes with no explanation is worse than one
+   * saying it could not reach the chain, especially on a first run where the
+   * user has nothing to compare against.
+   */
+  async refreshVault(): Promise<void> {
+    if (this.opts.onVault === undefined) return;
+    try {
+      this.vault = await this.opts.onVault();
+      this.vaultError = null;
+    } catch (e) {
+      this.vault = null;
+      this.vaultError = (e as Error).message.slice(0, 200);
+    }
+    this.notify();
   }
 
   /**
@@ -244,6 +260,7 @@ export class ConsoleServer {
         status: this.status,
         settings: this.settings,
         vault: this.vault,
+        vaultError: this.vaultError,
         pending: [...this.waiters.values()].map((w) => w.pending),
       });
       return;
@@ -254,12 +271,12 @@ export class ConsoleServer {
         this.json(res, { ok: false, reason: "this console has no chain connection" });
         return;
       }
-      try {
-        this.vault = await this.opts.onVault();
-        this.json(res, { ok: true, vault: this.vault });
-      } catch (e) {
-        this.json(res, { ok: false, reason: (e as Error).message.slice(0, 200) });
+      await this.refreshVault();
+      if (this.vaultError !== null) {
+        this.json(res, { ok: false, reason: this.vaultError });
+        return;
       }
+      this.json(res, { ok: true, vault: this.vault });
       return;
     }
 

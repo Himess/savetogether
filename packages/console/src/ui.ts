@@ -165,9 +165,25 @@ async function post(path, body) {
 
 function renderStatus(s) {
   $("sigCount").textContent = s.vaultUnlocks ?? 0;
-  $("sigNote").textContent = s.session
-    ? "the vault signed three transactions after this, then locked again"
-    : "no session open";
+  // Naming what the count is FOR is what makes a later increment read as
+  // attributable rather than as drift. wrap and add_recipient each cost another
+  // unlock by design, so the note has to say which, not just that it moved.
+  const LABEL = {
+    session: ["session", "sessions"],
+    recipient: ["recipient added", "recipients added"],
+    wrap: ["wrap", "wraps"],
+  };
+  const spent = (s.unlocks || [])
+    .filter(function (u) { return u.n > 0; })
+    .map(function (u) {
+      const l = LABEL[u.reason] || [u.reason, u.reason];
+      return u.n + " " + (u.n === 1 ? l[0] : l[1]);
+    });
+  $("sigNote").textContent = spent.length
+    ? spent.join(" · ") + " · the vault locked again after each"
+    : s.session
+      ? "session open"
+      : "no session open";
   $("skey").textContent = s.sessionKey ?? "—";
   $("expiry").textContent = s.expiry ? new Date(s.expiry * 1000).toLocaleString() : "—";
   $("txcount").textContent = s.session
@@ -178,8 +194,13 @@ function renderStatus(s) {
   $("tier").textContent = s.session ? (s.tier === "balance-visible" ? "yes" : "no") : "—";
 }
 
-function renderVault(v) {
-  if (!v) return;
+function renderVault(v, err) {
+  if (!v) {
+    $("vaultNote").textContent = err
+      ? "could not read the vault: " + err
+      : "reading the vault…";
+    return;
+  }
   $("vaultAddr").textContent = v.address || "—";
   $("vaultEth").textContent = v.ethBalance != null ? v.ethBalance + " ETH" : "—";
   $("vaultChain").textContent = v.chainName || (v.chainId ? "chain " + v.chainId : "—");
@@ -259,7 +280,7 @@ $("copyAddr").addEventListener("click", async () => {
 $("refreshVault").addEventListener("click", async () => {
   $("vaultNote").textContent = "checking…";
   const r = await post("/api/vault", {});
-  renderVault(r.vault);
+  renderVault(r.vault, r.reason);
   $("vaultNote").textContent = r.ok === false ? (r.reason || "failed") : "";
 });
 
@@ -284,7 +305,7 @@ async function refresh() {
     const s = await (await fetch("/api/state", { headers: { "x-ghostkey-token": TOKEN } })).json();
     renderStatus(s.status);
     renderSettings(s.settings || {});
-    renderVault(s.vault);
+    renderVault(s.vault, s.vaultError);
     renderPending(s.pending);
   } catch { /* the server is gone; the next tick will recover */ }
 }

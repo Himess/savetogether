@@ -171,14 +171,19 @@ Also caught in passing: `Number(null)` is `0`, so `null` was being silently acce
 1. **Task E.** The MCP has never been driven by a model. This is the largest untested surface in the system and it is not a code path — it is the product's actual interface. It needs a chat client and a human at the console.
 2. The demo script, after E.
 3. `history()` for crash reconciliation, shaped by what E shows.
-4. The relayer retry policy belongs in the SDK, not only in the spikes. The relayer does drop connections — a 60-sample run died on one.
-5. EIP-5792 batching is implemented and **unverified against a live wallet**. The product path does not use it.
-6. No confirmation-depth policy anywhere. Acceptable on Sepolia; not on mainnet.
+4. EIP-5792 batching is implemented and **unverified against a live wallet**. The product path does not use it.
+5. No confirmation-depth policy anywhere. Acceptable on Sepolia; not on mainnet.
 
 ---
 
 ## 9. What I would push back on
 
-**The brief's `open_session` signature has no `maxTxCount`,** and the cap is the second independent bound on the timing channel. It is on the console now, which is the right place for it, but a user who never opens the console never sets one — and the default is the only thing standing between them and an uncapped session. Worth deciding whether the default should be lower, or whether the first session open should require the console once regardless.
+**The brief's `open_session` signature has no `maxTxCount`.** I originally argued this on leakage grounds — the cap as a second independent bound on the timing channel. **That argument is now retired:** at n = 180 there is no measurable channel for the cap to bound, and presenting it as a defence would be guarding against a concern the measurement dissolved. The cap is an owner-set extra, and `docs/leakage.md` §3 now says so in that order.
 
-**"One vault unlock" is doing a lot of work in the pitch.** It is true and it is the right claim, but the vault signs three transactions per unlock, and `wrap` and `add_recipient` each cost another. A viewer watching the counter go from 1 to 2 mid-demo will want that explained before it happens rather than after.
+What survives is smaller and is not about leakage: a session with no cap has no ceiling on how much it can do before its TTL expires, and a user who never opens the console never sets one. The default of 50 is the only thing between them and that. Worth deciding whether the first session open should require the console once regardless — not to bound a side channel, but so the ceiling is a choice somebody made.
+
+~~**"One vault unlock" is doing a lot of work in the pitch.**~~ **Withdrawn — the sign was backwards.**
+
+I filed the counter's increments as a presentational risk to be managed. They are the opposite. A counter that never moves proves nothing; it could be a constant with a label on it. One that moves **exactly when the owner authorises something and never otherwise** is a measurement, and the fact that `wrap` and `add_recipient` each cost another unlock is what demonstrates the counter is wired to the thing it claims to count.
+
+Acted on rather than merely conceded: each unlock now records what it bought, and the console renders the breakdown — `1 session · 1 recipient added · the vault locked again after each` — so an increment reads as attributable rather than as drift. Four tests execute the shipped `renderStatus` pulled out of the served page, because a test against a copy of that logic would pass while the page said something else.

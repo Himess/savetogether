@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GhostKey — evidence card</title>
+<!--
+  The screenshot variant of evidence.html: three headline stats and the gate
+  table in one 16:9 frame, legible at thumbnail size.
+
+  Deliberately dark only, unlike its sibling. A card that renders differently
+  depending on who screenshots it is not a card.
+
+  The frame is 60em x 33.75em and every size inside it is in em, so the whole
+  thing scales from one font-size. At 20px that is exactly 1200x675.
+-->
+<style>
+  :root {
+    --bg:#07080a; --panel:#131519; --line:#262a32; --text:#e8eaed; --dim:#8b919c;
+    --accent:#7dd3a0;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing:border-box; }
+  html, body { background:var(--bg); }
+  body { margin:0; color:var(--text); min-height:100vh;
+         font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+         display:flex; align-items:center; justify-content:center; padding:1vw; }
+
+  .frame {
+    font-size: clamp(9px, 1.63vw, 20px);
+    width:60em; height:33.75em; flex:none;
+    background:var(--bg);
+    border:0.05em solid var(--line); border-radius:0.8em;
+    padding:2.1em 2.4em 1.7em;
+    display:flex; flex-direction:column;
+  }
+
+  .kicker { font:600 0.62em/1 var(--mono); letter-spacing:.16em; text-transform:uppercase;
+            color:var(--accent); margin-bottom:1.5em; }
+  h1 { font-size:1.62em; line-height:1.18; margin:0 0 .42em; letter-spacing:-.02em;
+       font-weight:650; max-width:20ch; }
+  .claim { margin:0; font-size:.82em; line-height:1.5; color:var(--dim); max-width:62ch; }
+
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:.75em; margin:1.5em 0 .9em; }
+  .stat { background:var(--panel); border:0.05em solid var(--line); border-radius:.5em;
+          padding:.85em 1em .95em; }
+  .stat .n { display:block; font:650 2.5em/1 var(--mono); color:var(--accent);
+             letter-spacing:-.03em; }
+  .stat .l { display:block; margin-top:.55em; font-size:.72em; line-height:1.35; color:var(--dim); }
+
+  table { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:.82em; }
+  th { padding:0 0 .55em; font-size:.78em; font-weight:500; color:var(--dim);
+       letter-spacing:.05em; text-transform:uppercase; text-align:right; }
+  td { padding:.5em 0; border-top:0.05em solid var(--line); text-align:right;
+       font-variant-numeric:tabular-nums; }
+  th:first-child, td:first-child { text-align:left; font-family:inherit; color:var(--dim); }
+
+  .verdict { margin-top:auto; padding-top:1.05em; border-top:0.05em solid var(--line);
+             display:flex; gap:2.2em; align-items:baseline; }
+  .verdict div { flex:1; }
+  .verdict .k { display:block; font:600 .64em/1 var(--mono); letter-spacing:.1em;
+                text-transform:uppercase; color:var(--dim); margin-bottom:.5em; }
+  .verdict .v { font-size:.82em; line-height:1.45; }
+  .verdict .v b { font-family:var(--mono); font-weight:650; color:var(--accent); }
+
+  .foot { margin-top:1.1em; font-size:.66em; color:var(--dim); font-family:var(--mono);
+          letter-spacing:.03em; }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="kicker">GhostKey &middot; encrypted spending budgets on Zama FHEVM</div>
+
+  <h1>An over-budget transfer is indistinguishable from a successful one</h1>
+  <p class="claim">
+    Every ERC-7984 transfer is clamped against an encrypted budget. A request over budget
+    is not rejected &mdash; it executes a real transfer carrying an encrypted zero.
+  </p>
+
+  <div class="stats">
+    <div class="stat"><span class="n">180</span><span class="l">live Sepolia transactions<br>60 per path</span></div>
+    <div class="stat"><span class="n">1</span><span class="l">distinct FHE operation sequence<br>across all of them</span></div>
+    <div class="stat"><span class="n">1</span><span class="l">distinct HCU value<br>1,334,064 every time</span></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>path</th><th>n</th><th>891,568 gas</th><th>891,572 gas</th><th>low rate</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>successful transfer</td><td>60</td><td>18</td><td>42</td><td>30.0%</td></tr>
+      <tr><td>over budget</td><td>60</td><td>19</td><td>41</td><td>31.7%</td></tr>
+      <tr><td>short balance</td><td>60</td><td>16</td><td>44</td><td>26.7%</td></tr>
+    </tbody>
+  </table>
+
+  <div class="verdict">
+    <div>
+      <span class="k">Not distinguishable</span>
+      <span class="v">&chi;&sup2; <b>0.374</b> on 2 df, <b>p = 0.83</b>. The three gas
+      distributions are the same distribution.</span>
+    </div>
+    <div>
+      <span class="k">Below the noise floor</span>
+      <span class="v">Mutual information <b>0.00151</b> bits &mdash; under the
+      <b>0.00801</b>-bit Miller&ndash;Madow bias an independent process shows at N&nbsp;=&nbsp;180.</span>
+    </div>
+    <div>
+      <span class="k">Powered to have found it</span>
+      <span class="v">80% power at <b>&plusmn;13</b> points &mdash; the exact spread an
+      earlier n&nbsp;=&nbsp;20 run appeared to show, which then collapsed.</span>
+    </div>
+  </div>
+
+  <div class="foot">
+    residual 4-gas split traced to HCULimit.checkHCUForFheGe, the FHEVM's own cost accounting &mdash; 181 calls compared, 180 bit-identical
+  </div>
+</div>
+</body>
+</html>

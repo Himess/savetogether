@@ -73,7 +73,7 @@ The Miller–Madow bias of an empirical mutual information over an r×c table is
 
 Cross-check: `chi² / (2N ln2)` = 0.00150 bits, agreeing with the direct computation.
 
-Against 1.585 bits of outcome entropy (three outcomes, `log2(3)`), an observer learns **under 0.1%** of one transfer's outcome from its gas — and the honest reading is that they learn nothing.
+Against 1.585 bits of outcome entropy (three outcomes, `log2(3)`), an observer learns **under 0.1%** of one transfer's outcome from its gas — and the honest reading is that they learn nothing measurable.
 
 ### What this sample size can and cannot rule out
 
@@ -85,13 +85,24 @@ That number matters because of where it sits. An earlier run at n = 20 per path 
 
 **What it cannot rule out** is a genuine skew smaller than roughly ±13 points. Detecting a ±3 point skew would need on the order of 3,000 samples. So the honest statement is: any real effect is smaller than ±13 points, and the point estimate sits at essentially zero.
 
-### Why the transfer cap still matters
+### The transfer cap, which is now an extra rather than a defence
 
-Even a skew too small for 180 samples to see would have to be _accumulated_ to be useful, and `Session.maxTxCount` bounds how many observations an attacker can gather from one session. It is plaintext, fixed at open, enforced by the contract, and reported by `session_status`.
+Before the resample, the cap carried weight: with an apparent skew on the table it
+mattered how many observations an attacker could gather. After n = 180 it does not.
+The finding is that **there is nothing detectable to accumulate** — chi-square 0.374
+at p = 0.83, mutual information below the noise floor. Presenting the cap as a second
+line of defence would be mounting a guard against a concern the measurement already
+dissolved.
 
-At the console's default cap of 50, a whole session yields 50 observations. **That is enough power to detect only a spread of ±24 points or more** — an effect four times larger than the one already ruled out at n = 180, and eight times the pooled variation actually observed. A single session cannot, even in principle, learn anything from this channel.
+It is worth having anyway, as an owner-set bound on a channel nobody has shown to
+exist. `Session.maxTxCount` is plaintext, fixed at open, enforced by the contract,
+and reported by `session_status`. At the console's default of 50, a whole session
+yields 50 observations — enough power to detect only a spread of ±24 points or more,
+which is four times larger than what n = 180 already excludes.
 
-That is not the reason the channel is safe. The reason is that the distributions are indistinguishable and the residual lives in a third-party contract's accounting. The cap is a second, independent bound, and it is one the owner sets — which is why it is a control on the console rather than an argument a chat client can talk its way into widening.
+So: the channel is not measurable, and the cap means one session could not measure
+it even if it were. Those are two statements in that order, and the first is the one
+that matters.
 
 ### Calldata
 

@@ -14,7 +14,8 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { osKeychainKeystore } from "@ghostkey/sdk";
+import { consoleHtml } from "@ghostkey/console";
+import { isTransient, osKeychainKeystore, withRetry } from "@ghostkey/sdk";
 import {
   SEPOLIA_CHAIN_ID,
   Vault,
@@ -208,6 +209,135 @@ describe("MCP layer", () => {
   // These run against whatever backend the host actually has: DPAPI on Windows,
   // Keychain on macOS, libsecret elsewhere. A temp directory and a unique service
   // name keep them out of the user's real store, and everything is cleaned up.
+  // -------------------------------------------------------------------------
+  // The relayer drops connections. Measured, not hypothetical: a 60-sample gate
+  // run died on its fifth send with UND_ERR_CONNECT_TIMEOUT. A demo recorded in
+  // real time cannot be re-cut around one of those.
+  //
+  // The split matters more than the retry. Retrying a revert would turn a clear
+  // error into a slow one and could resubmit something that already had effect.
+  // -------------------------------------------------------------------------
+  // The counter is the product's central claim rendered as a number. A number
+  // nobody can attribute is not evidence, so the page says what each unlock
+  // bought. These run the shipped renderStatus out of the page itself — a test
+  // against a copy of the logic would pass while the page said something else.
+  // -------------------------------------------------------------------------
+  describe("the unlock counter says what it is for", () => {
+    /** Pulls renderStatus out of the served page and runs it against stub nodes. */
+    function note(status: Record<string, unknown>): string {
+      const html = consoleHtml("t");
+      const start = html.indexOf("function renderStatus(s) {");
+      expect(start, "renderStatus not found in the page").to.be.greaterThan(-1);
+      const src = html.slice(start, html.indexOf("\nfunction ", start + 10));
+      const nodes: Record<string, { textContent: unknown }> = {};
+      const $ = (id: string) => (nodes[id] ??= { textContent: null });
+      // eslint-disable-next-line @typescript-eslint/no-implied-eval
+      new Function("$", "s", `${src}\nrenderStatus(s);`)($, status);
+      return String(nodes["sigNote"]?.textContent ?? "");
+    }
+
+    it("names the session that one unlock opened", () => {
+      expect(
+        note({ session: true, vaultUnlocks: 1, unlocks: [{ reason: "session", n: 1 }] }),
+      ).to.equal("1 session · the vault locked again after each");
+    });
+
+    it("attributes the second unlock to the action that spent it", () => {
+      const text = note({
+        session: true,
+        vaultUnlocks: 2,
+        unlocks: [
+          { reason: "session", n: 1 },
+          { reason: "recipient", n: 1 },
+        ],
+      });
+      expect(text).to.equal("1 session · 1 recipient added · the vault locked again after each");
+    });
+
+    it("pluralises rather than repeating", () => {
+      const text = note({
+        session: true,
+        vaultUnlocks: 3,
+        unlocks: [
+          { reason: "session", n: 1 },
+          { reason: "recipient", n: 2 },
+        ],
+      });
+      expect(text).to.equal("1 session · 2 recipients added · the vault locked again after each");
+    });
+
+    it("says nothing is open rather than showing a bare zero", () => {
+      expect(note({ session: false, vaultUnlocks: 0 })).to.equal("no session open");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe("relayer retry", () => {
+    it("recovers from a transport failure", async () => {
+      let attempts = 0;
+      const value = await withRetry(
+        "test",
+        async () => {
+          attempts += 1;
+          if (attempts < 3) {
+            const e = new Error("fetch failed") as Error & { code?: string };
+            e.code = "UND_ERR_CONNECT_TIMEOUT";
+            throw e;
+          }
+          return "settled";
+        },
+        { baseMs: 5 },
+      );
+      expect(value).to.equal("settled");
+      expect(attempts).to.equal(3);
+    });
+
+    it("does not retry a revert", async () => {
+      let attempts = 0;
+      let threw: unknown;
+      try {
+        await withRetry(
+          "test",
+          async () => {
+            attempts += 1;
+            throw new Error("execution reverted: RecipientNotAllowed");
+          },
+          { baseMs: 5 },
+        );
+      } catch (e) {
+        threw = e;
+      }
+      expect(attempts, "a revert must surface immediately").to.equal(1);
+      expect((threw as Error).message).to.include("execution reverted");
+    });
+
+    it("gives up eventually, and says how many times it tried", async () => {
+      let threw: unknown;
+      try {
+        await withRetry(
+          "encrypt",
+          async () => {
+            const e = new Error("socket hang up");
+            throw e;
+          },
+          { attempts: 3, baseMs: 5 },
+        );
+      } catch (e) {
+        threw = e;
+      }
+      expect((threw as Error).message).to.match(/gave up after 3 attempts/);
+    });
+
+    it("classifies transport failures apart from rejected requests", () => {
+      for (const m of ["UND_ERR_CONNECT_TIMEOUT", "socket hang up", "status: 503", "ECONNRESET"]) {
+        expect(isTransient(new Error(m)), m).to.equal(true);
+      }
+      for (const m of ["execution reverted", "invalid checksum", "not an address"]) {
+        expect(isTransient(new Error(m)), m).to.equal(false);
+      }
+    });
+  });
+
   // -------------------------------------------------------------------------
   describe("keystore, against the real OS backend", () => {
     let dir: string;

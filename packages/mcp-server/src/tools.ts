@@ -61,11 +61,23 @@ export interface ToolResult {
   readonly data?: Record<string, unknown>;
 }
 
+/**
+ * What a vault unlock was spent on.
+ *
+ * The counter is the product's central claim as a number, and a number nobody can
+ * attribute is not evidence — it could be a constant with a label on it. Recording
+ * the reason is what makes a move from 1 to 2 mid-demo readable as "the owner
+ * widened the allowlist" rather than as drift.
+ */
+export type UnlockReason = "session" | "recipient" | "wrap";
+
 /** Session state the tools share. One session at a time, deliberately. */
 interface Live {
   session: Session;
   tier: "spend-only" | "balance-visible";
   vaultUnlocks: number;
+  /** Aggregated by reason, in order of first occurrence. Sums to vaultUnlocks. */
+  unlocks: { reason: UnlockReason; n: number }[];
   /** Refs handed to the model, keyed by an opaque id it can pass back. */
   refs: Map<string, AmountRef>;
 }
@@ -136,6 +148,16 @@ export class GhostKeyTools {
     return `${kind}_${Math.random().toString(36).slice(2, 10)}`;
   }
 
+  /** Counts an unlock and remembers what it bought. */
+  private recordUnlock(reason: UnlockReason): void {
+    const live = this.live;
+    if (live === null) return;
+    live.vaultUnlocks += 1;
+    const seen = live.unlocks.find((u) => u.reason === reason);
+    if (seen === undefined) live.unlocks.push({ reason, n: 1 });
+    else seen.n += 1;
+  }
+
   private async pushStatus(): Promise<void> {
     if (this.ctx.console === undefined) return;
     if (this.live === null) {
@@ -146,6 +168,7 @@ export class GhostKeyTools {
     this.ctx.console.setStatus({
       session: p.expiry !== 0,
       vaultUnlocks: this.live.vaultUnlocks,
+      unlocks: this.live.unlocks.map((u) => ({ ...u })),
       vault: (await this.ctx.vault.address()) ?? undefined,
       sessionKey: this.live.session.sessionKeyAddress,
       expiry: p.expiry,
@@ -218,6 +241,7 @@ export class GhostKeyTools {
       session: result.session,
       tier: args.delegation ? "balance-visible" : "spend-only",
       vaultUnlocks: result.ownerAuthorisations,
+      unlocks: [{ reason: "session", n: result.ownerAuthorisations }],
       refs: new Map(),
     };
     await this.pushStatus();
@@ -469,7 +493,7 @@ export class GhostKeyTools {
     const owner = await this.ctx.vault.unlock(`Allow this session to send to ${to}.`);
     const hash = await live.session.addRecipient(to, owner);
     this.ctx.vault.lock();
-    live.vaultUnlocks += 1;
+    this.recordUnlock("recipient");
     await this.pushStatus();
     return {
       ok: true,
@@ -508,7 +532,7 @@ export class GhostKeyTools {
     const receipt = await wrapTx?.wait();
     this.ctx.vault.lock();
     if (this.live !== null) {
-      this.live.vaultUnlocks += 1;
+      this.recordUnlock("wrap");
       await this.pushStatus();
     }
     return {

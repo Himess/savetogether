@@ -267,6 +267,11 @@ export async function createServer(config?: GhostKeyConfig): Promise<ServerHandl
   holder.tools = tools;
   const defs = toolDefinitions(tools);
 
+  // Now that the tools exist, fill the vault panel. Doing this inside
+  // ConsoleServer.start() raced the assignment above and always lost, so a first
+  // run opened the page to an empty panel with no address to fund.
+  void consoleServer.refreshVault();
+
   const server = new Server(
     { name: "ghostkey", version: "0.1.0" },
     { capabilities: { tools: {} } },
