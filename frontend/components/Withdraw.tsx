@@ -31,7 +31,10 @@ export function Withdraw() {
 
   const units = useMemo(() => {
     const n = Number(amount);
-    return Number.isFinite(n) && n > 0 ? BigInt(Math.round(n * 1e6)) : 0n;
+    // Raw token units, the same convention Deposit uses. Scaling here and not
+    // there sent 1e6x the intended amount, which the contract then clamped to an
+    // encrypted zero -- a transaction that succeeded and moved nothing.
+    return Number.isFinite(n) && n > 0 ? BigInt(Math.round(n)) : 0n;
   }, [amount]);
 
   if (!address || !POOL) return null;
@@ -58,7 +61,7 @@ export function Withdraw() {
       <h2>Withdraw</h2>
       <div className="row">
         <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
-        <span className="dim">cUSDC</span>
+        <span className="dim">gUSDC</span>
         <button disabled={busy || encrypting || units === 0n || !onSepolia} onClick={submit}>
           {encrypting ? "Encrypting…" : busy ? "Sending…" : "Withdraw"}
         </button>
