@@ -1,0 +1,9 @@
+node_modules/
+artifacts/
+cache/
+types/
+out/
+.next/
+probe/secrets.json
+.env
+*.tsbuildinfo

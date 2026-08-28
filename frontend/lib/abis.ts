@@ -1,0 +1,38 @@
+/** Only what the UI calls. A fuller ABI would be noise. */
+export const POOL_ABI = [
+  { type: "function", name: "deposit", stateMutability: "nonpayable", inputs: [{ name: "encAmount", type: "bytes32" }, { name: "inputProof", type: "bytes" }], outputs: [] },
+  { type: "function", name: "withdraw", stateMutability: "nonpayable", inputs: [{ name: "encAmount", type: "bytes32" }, { name: "inputProof", type: "bytes" }], outputs: [] },
+  { type: "function", name: "confidentialBalanceOf", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "bytes32" }] },
+  { type: "function", name: "winningsOf", stateMutability: "view", inputs: [{ name: "user", type: "address" }], outputs: [{ type: "bytes32" }] },
+  { type: "function", name: "pendingOf", stateMutability: "view", inputs: [{ name: "user", type: "address" }], outputs: [{ type: "bytes32" }] },
+  { type: "function", name: "drawCount", stateMutability: "view", inputs: [], outputs: [{ type: "uint32" }] },
+  { type: "function", name: "prize", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
+  { type: "function", name: "accrued", stateMutability: "view", inputs: [{ type: "uint32" }, { type: "address" }], outputs: [{ type: "bool" }] },
+  {
+    type: "function", name: "drawAt", stateMutability: "view", inputs: [{ type: "uint32" }],
+    outputs: [{
+      type: "tuple", components: [
+        { name: "periodStart", type: "uint40" }, { name: "snapshotAt", type: "uint40" },
+        { name: "status", type: "uint8" }, { name: "encR", type: "bytes32" },
+        { name: "encTotalWeight", type: "bytes32" }, { name: "r", type: "uint64" },
+        { name: "totalWeight", type: "uint128" },
+      ],
+    }],
+  },
+] as const;
+
+export const ERC7984_ABI = [
+  { type: "function", name: "confidentialBalanceOf", stateMutability: "view", inputs: [{ type: "address" }], outputs: [{ type: "bytes32" }] },
+  { type: "function", name: "isOperator", stateMutability: "view", inputs: [{ type: "address" }, { type: "address" }], outputs: [{ type: "bool" }] },
+  { type: "function", name: "setOperator", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "uint48" }], outputs: [] },
+  { type: "function", name: "wrap", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [{ type: "bytes32" }] },
+  { type: "function", name: "decimals", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
+] as const;
+
+export const ERC20_ABI = [
+  { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ type: "address" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "allowance", stateMutability: "view", inputs: [{ type: "address" }, { type: "address" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "approve", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [{ type: "bool" }] },
+  { type: "function", name: "mint", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [] },
+  { type: "function", name: "decimals", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
+] as const;
