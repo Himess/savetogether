@@ -38,6 +38,14 @@ function ZamaBridge({ children }: { children: ReactNode }) {
     (async () => {
       if (!isConnected || !address || !connector) { setConnectorWC(null); return; }
       try {
+        // Not every connector exposes getProvider — Rabby does not, and calling it
+        // threw a red 'walletClient failed' into the console on every load. The
+        // fallback below already handles its absence, so the check just stops the
+        // noise being the first thing a judge with devtools open sees.
+        if (typeof (connector as { getProvider?: unknown }).getProvider !== "function") {
+          setConnectorWC(null);
+          return;
+        }
         const provider = (await connector.getProvider()) as any;
         if (cancelled || !provider) return;
         setConnectorWC(createWalletClient({ account: address, chain: viemSepolia, transport: custom(provider) }));

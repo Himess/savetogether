@@ -56,8 +56,10 @@ async function main(): Promise<void> {
     const w = wallets[i]!;
     const already = Number(await pool.observationCount(w.address));
     if (already > 0) continue;
-    const amount = BigInt(100 * (i + 1)); // different sizes, so the odds differ visibly
-    await (await signer.sendTransaction({ to: w.address, value: ethers.parseEther("0.004") })).wait();
+    // Different sizes so the odds differ visibly, and large enough that the
+    // yield calculation does not round to zero over a few minutes.
+    const amount = BigInt(100_000 * (i + 1));
+    await (await signer.sendTransaction({ to: w.address, value: ethers.parseEther("0.01") })).wait();
     await (await token.mint(w.address, amount * 2n)).wait();
     const until = (await ethers.provider.getBlock("latest"))!.timestamp + 365 * 24 * 3600;
     await (await (token.connect(w) as Contract).setOperator(poolAddr, until)).wait();
@@ -65,6 +67,13 @@ async function main(): Promise<void> {
     await (await (pool.connect(w) as Contract).deposit(enc.handles[0], enc.inputProof)).wait();
     console.log(`  ${w.address} deposited ${amount}`);
   }
+
+  // ---- harvest first -----------------------------------------------------
+  // The reserve is empty until this runs. If a prize is paid after it, the
+  // money came from yield on these deposits and nowhere else.
+  await (await pool.harvest()).wait();
+  console.log(`
+harvested — the reserve is funded from yield alone`);
 
   // ---- the round ---------------------------------------------------------
   const before = Number(await pool.drawCount());

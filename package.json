@@ -7,7 +7,7 @@
     "compile": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat compile",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "spike:draw": "hardhat run spikes/draw-hcu.ts --network sepolia",
-    "test": "hardhat test test/ConfidentialPrizePool.ts test/equality-invariants.ts test/draw-ordering.ts test/accrual.ts test/storage-cost.ts",
+    "test": "hardhat test test/ConfidentialPrizePool.ts test/equality-invariants.ts test/draw-ordering.ts test/accrual.ts test/yield.ts test/storage-cost.ts",
     "test:sepolia": "hardhat test test/d1-wrapper-revert.ts test/e1-wrap-path.ts test/sepolia-deposit.ts --network sepolia",
     "keeper": "hardhat run scripts/keeper.ts --network sepolia"
   },

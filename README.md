@@ -88,6 +88,52 @@ no separate withdrawal whose timing could be correlated with a draw.
 
 ---
 
+## Where the prize comes from
+
+Yield, on the pool's own deposits. Principal does not sit in the pool — it goes
+to a yield source the moment it arrives, and `harvest()` moves what it has earned
+into the reserve the prizes are paid from.
+
+The source is an interface with two implementations, and the split is the honest
+part:
+
+| | |
+| --- | --- |
+| `MockYieldSource` | What the deployed demo runs on. Accrues `principal × rate × elapsed`, computed homomorphically on the **encrypted** principal, and settles immediately. |
+| `ZamaVaultSource` | Zama's own confidential vault on Sepolia. Real, and driven end to end on chain. |
+
+**What the mock simulates is where the yield comes from — it is pre-funded and
+invests nothing. It does not simulate how much.** The amount is a genuine
+function of what the pool holds and for how long, which is the half worth
+demonstrating: the prize really is proportional to deposits over time.
+
+### The vault integration is real, and the demo still does not use it
+
+`ZamaVaultSource` was driven against the deployed batchers on Sepolia — joined
+batch 271, dispatched it, and claimed **Confidential steakcUSDC** vault shares:
+
+```
+adapter  0xc5120E26aafdD76D324E62cF19c391C367Cf99Ba
+shares   0x13F7d34A4f0102734F19E3Ff16e068Fe194B28c4
+before   0x0000000000000000…      after   0xeab10babaa34a0e8…
+```
+
+Two measured reasons the demo runs on the mock instead, rather than one asserted
+one:
+
+1. **The deployed vault produces no yield.** It is a staging instance with an
+   idle-only VaultV2 and no yield adapter, so a prize pool fed from it never
+   fills.
+2. **Settlement is asynchronous**, and a batch round trip in the middle of a
+   three-minute recording costs the demo its pace for nothing.
+
+Two things worth recording because the documentation says otherwise. The
+batcher's `toToken` is `Confidential steakcUSDC (Mock)`, not the
+`Confidential mvUSDC` that the address reference lists as cShare. And while every
+step of a batch is documented as permissionless, our own `dispatchBatchCallback`
+reverted — the batch settled because Zama runs a keeper, so there is an
+operational dependency the docs do not mention.
+
 ## What we measured
 
 Everything below is measured on live Sepolia, not inferred. `findings.md` has the
@@ -173,10 +219,11 @@ machine, its self-healing keeper, and four KMS traps it paid to discover.
   type-checks, every panel is in the bundle, and the contract path under each is
   covered by tests and a live round — but connecting a wallet and signing a permit
   is a manual pass that has not happened.
-- **Yield is mocked.** Zama's Confidential Vault is deployed on Sepolia
-  (`0x6AB54988261AEC573a2CA13cF802d3B1114f864C`) but the staging instance has no
-  yield adapter, so it generates none. The plug-in point is a real address rather
-  than a hypothetical.
+- **The demo runs on simulated yield, and the vault adapter is not wired into
+  the deployed pool.** It is tested live but one constructor argument away, and
+  redeeming through it would make withdrawal asynchronous — it serves
+  redemptions from its own liquidity instead, which is a limitation rather than
+  a design.
 - **`euint128` for the cumulative accumulator is required, not optional.** A
   6-decimal balance of 1e12 held for a year overflows `2^64` in about seven months.
 - **No confirmation-depth policy.** Fine on Sepolia; not on mainnet.

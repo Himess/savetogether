@@ -5,6 +5,7 @@ import {FHE, euint64, euint128, ebool, externalEuint64} from "@fhevm/solidity/li
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 import {IERC7984} from "@openzeppelin/confidential-contracts/interfaces/IERC7984.sol";
 import {FHESafeMath} from "@openzeppelin/confidential-contracts/utils/FHESafeMath.sol";
+import {IYieldSource} from "./interfaces/IYieldSource.sol";
 
 /**
  * Confidential no-loss prize savings — deposits, withdrawals, and the
@@ -100,6 +101,14 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
     euint64 private _reserve;
 
     /**
+     * Where idle principal earns. Optional, and the pool works without one —
+     * a pool with no source simply has no yield, which is what this contract
+     * did before the source existed and what the tests without one still
+     * exercise.
+     */
+    IYieldSource public yieldSource;
+
+    /**
      * Credits won but not yet folded into a balance.
      *
      * `accrue` deliberately does NOT write an observation. Writing one would cost
@@ -141,6 +150,8 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
 
     event Accrued(address indexed user, uint32 indexed drawId);
     event ReserveFunded(uint40 timestamp);
+    event YieldSourceSet(address indexed source);
+    event Harvested(uint40 timestamp);
 
     event Deposited(address indexed user, uint40 timestamp, uint256 observationIndex);
     event Withdrawn(address indexed user, uint40 timestamp, uint256 observationIndex);
@@ -177,6 +188,14 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
         FHE.allowTransient(amount, address(asset));
         euint64 received = asset.confidentialTransferFrom(msg.sender, address(this), amount);
 
+        // Principal does not sit here. It goes straight to the yield source, so
+        // it is earning from the moment it arrives rather than from whenever a
+        // keeper next remembers to move it.
+        if (address(yieldSource) != address(0)) {
+            FHE.allowTransient(received, address(yieldSource));
+            yieldSource.supply(received);
+        }
+
         (, euint64 newUser) = FHESafeMath.tryAdd(_balanceOf(_userObs[msg.sender]), received);
         (, euint64 newTotal) = FHESafeMath.tryAdd(_balanceOf(_totalObs), received);
 
@@ -202,8 +221,17 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
         (ebool within, euint64 decreased) = FHESafeMath.tryDecrease(balance, amount);
         euint64 request = FHE.select(within, amount, FHE.asEuint64(0));
 
-        FHE.allowTransient(request, address(asset));
-        euint64 sent = asset.confidentialTransfer(msg.sender, request);
+        // With a source, the principal is over there and comes back straight to
+        // the withdrawer — one transfer rather than two. Without one, the pool
+        // still holds it and pays directly. Both paths are tested.
+        euint64 sent;
+        if (address(yieldSource) != address(0)) {
+            FHE.allowTransient(request, address(yieldSource));
+            sent = yieldSource.redeem(request, msg.sender);
+        } else {
+            FHE.allowTransient(request, address(asset));
+            sent = asset.confidentialTransfer(msg.sender, request);
+        }
 
         // The token may move less than asked even after the clamp. Whatever it
         // declined to move is returned to the balance in the same transaction,
@@ -499,6 +527,37 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
     // -----------------------------------------------------------------------
     // accrual
     // -----------------------------------------------------------------------
+
+    /**
+     * Points the pool at a yield source and authorises it to pull principal.
+     *
+     * The operator grant is what lets `supply` move tokens out of this contract;
+     * without it every deposit would silently keep its principal here and the
+     * prize would never be funded.
+     */
+    function setYieldSource(IYieldSource source) external {
+        yieldSource = source;
+        if (address(source) != address(0)) {
+            asset.setOperator(address(source), type(uint48).max);
+        }
+        emit YieldSourceSet(address(source));
+    }
+
+    /**
+     * Moves accrued yield into the reserve the prizes are paid from.
+     *
+     * Permissionless, and this is the sentence the product's claim rests on:
+     * the prize comes from yield on the pool's own deposits, not from a pot
+     * somebody topped up by hand.
+     */
+    function harvest() external {
+        if (address(yieldSource) == address(0)) return;
+        euint64 got = yieldSource.harvest(address(this));
+        (, euint64 next) = FHESafeMath.tryAdd(_reserve, got);
+        _reserve = next;
+        FHE.allowThis(_reserve);
+        emit Harvested(uint40(block.timestamp));
+    }
 
     /// Sets the per-winner prize. Plaintext by design; the reserve is not.
     function setPrize(uint64 prize_) external {

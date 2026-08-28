@@ -1632,3 +1632,117 @@ wallet.
 It is the third instance of the same pattern — §11.1's cancelling errors, §14's
 wrong unit of analysis, §16.3's `as never` — and the same question found it
 again: not *does this look right*, but *what is this actually reading*.
+
+---
+
+## 19. Day 7 — the prize comes from yield, and the vault path is proven
+
+### 19.1 The gap §18 named is closed
+
+`docs/day6-report.md` recorded that there was no yield at all — not a mock — and
+that the README said otherwise. That is fixed, and fixed as an interface rather
+than a hardcoded mock:
+
+```
+contracts/interfaces/IYieldSource.sol   asset / supply / redeem / harvest
+contracts/MockYieldSource.sol           accrues principal x rate x elapsed
+contracts/ZamaVaultSource.sol           Zama's confidential vault on Sepolia
+```
+
+Principal no longer sits in the pool. It goes to the source on arrival, and
+`harvest()` moves what it earned into the reserve.
+
+**What the mock simulates is where the yield comes from — it is pre-funded and
+invests nothing. It does not simulate how much.** The amount is computed
+homomorphically on the encrypted principal, so it is a real function of what the
+pool holds and for how long. GhostLend's equivalent had a keeper mint an
+arbitrary number into a vault; this one cannot be typed in.
+
+Eight tests, and the pair that carries the claim:
+
+- **"pays a prize out of harvested yield, end to end"** — nothing funds the
+  reserve anywhere in the test
+- **"pays nothing when no yield has been harvested"** — the same setup without
+  the harvest. Without this mirror the first test could pass on a reserve that
+  came from somewhere else.
+
+**Live, on the redeployed pool:** the reserve started empty, `harvest()` filled
+it, and the winner was paid 25. Nothing was funded by hand.
+
+```
+pool   0x3f6F8e5A853bEC8FA008b31E28f9B0fD9dC0F287
+token  0x1bbBE55d24174d57305632E75fE47ac3C5158a9F
+yield  0x5D402A5D1dD70E4499B68379C7e343323E11E1eC
+```
+
+### 19.2 The frozen surface is still frozen — checked, not assumed
+
+J1 required re-verifying rather than asserting it. A diff of
+`ConfidentialPrizePool.sol` filtered for `accrue`, `_snapshotCumulative`,
+`_cumulativeAt`, `thresholdFor`, `_uniform`, `FHE.gt`, the credit `select` and
+the keccak returns **nothing**. Sixty-one lines were added around them and none
+inside. The 306-sample equality result stands.
+
+### 19.3 The vault, driven live
+
+`ZamaVaultSource` joined batch 271 on the deployed
+`DepositVaultBatcherConfidential`, dispatched it, and claimed real vault shares:
+
+```
+adapter  0xc5120E26aafdD76D324E62cF19c391C367Cf99Ba
+shares   0x13F7d34A4f0102734F19E3Ff16e068Fe194B28c4
+before   0x0000000000000000…      after   0xeab10babaa34a0e8…
+```
+
+A contract cannot call `join` — it takes an externally encrypted input and a
+proof, which no contract can forge. The way in is the ERC-7984 receiver hook:
+`confidentialTransferAndCall` makes the batcher's `onConfidentialTransferReceived`
+fire, and it reads the token's `from` as the beneficiary. So the adapter joins on
+its own behalf with no proof and no operator grant.
+
+**Three things the documentation does not say, found by reading the deployed
+contract instead:**
+
+1. **The batcher's `toToken` is `Confidential steakcUSDC (Mock)`**
+   (`0x13F7d34A…28c4`), not the `Confidential mvUSDC` the address reference lists
+   as cShare. Two different vaults; the docs point at the other one.
+2. **Settlement is not permissionless in practice.** Every step is documented as
+   a permissionless call, and `dispatchBatch()` is. But our own
+   `dispatchBatchCallback` reverted — the batch settled because Zama runs a
+   keeper. That is an operational dependency, not an open door.
+3. **`minBatchAge` is one second** and batch 270 completed its whole cycle in
+   about sixteen blocks, so the batching delay is minutes rather than hours.
+   Still too long to sit inside a three-minute recording, but far shorter than
+   "asynchronous" implies.
+
+### 19.4 Why the demo still runs on the mock
+
+Two measured reasons rather than one asserted one:
+
+- The deployed vault is staging, idle-only, with no yield adapter. It produces
+  **zero** yield (A9), so a prize pool fed from it never fills.
+- Redemption through the batchers is a batch round trip, which would make
+  withdrawal asynchronous. `ZamaVaultSource` serves redemptions from its own
+  liquidity instead — and that is a limitation, stated as one: it does not unwind
+  shares on demand.
+
+The pool needs no change to switch. `setYieldSource` takes either.
+
+### 19.5 A self-inflicted scare worth recording
+
+Mid-way through, a query for `BatchDispatched` returned zero events and I nearly
+concluded the vault was dormant. The event signature I used was wrong — the real
+one is `BatchDispatched(uint256)` with no indexed parameter, so the topic never
+matched. Re-queried against the ABI, six full cycles had completed in the last
+nine thousand blocks.
+
+The same failure as §14 in miniature: a measurement that looked conclusive and
+was measuring nothing. Caught before anything was built on it, which is the only
+part that went right.
+
+### 19.6 Also fixed
+
+`favicon.ico` 404, and the red `[zama connector walletClient failed]` the carried
+ZamaBridge threw on every load — Rabby does not expose `getProvider`, the
+fallback already handled it, and the console error was the first thing a judge
+with devtools open would have seen.

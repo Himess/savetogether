@@ -12,9 +12,9 @@ export const SEPOLIA_CHAIN_ID = 11155111;
 
 /** Deployed by scripts/deploy.ts — see out/deployment.json. */
 export const POOL = (process.env.NEXT_PUBLIC_POOL ??
-  "0x307e2D1eA71C73FD4358622933880868BbCe05D0") as `0x${string}`;
+  "0x3f6F8e5A853bEC8FA008b31E28f9B0fD9dC0F287") as `0x${string}`;
 export const TOKEN = (process.env.NEXT_PUBLIC_TOKEN ??
-  "0x056AC066e0770A7BE08eCAc73C09f811B067fc46") as `0x${string}`;
+  "0x1bbBE55d24174d57305632E75fE47ac3C5158a9F") as `0x${string}`;
 
 /** Zama's Confidential Vault staging deployment — the production path. */
 export const CUSDC = "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639" as const;
