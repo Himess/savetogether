@@ -1525,3 +1525,61 @@ pass that has not been done.
 
 That, and the Vercel deployment that §13.3 could only infer would work, are the
 first two things on day 6 — before the video depends on either.
+
+---
+
+## 17. Day 6 — deployed publicly, and the wall a judge would have hit
+
+### 17.1 The Vercel build settles §13.3
+
+`readyState: READY`. The local `next build` failure was environmental, exactly as
+§13.3 inferred from GhostLend reproducing it — the Linux builder compiles the same
+source without complaint. That inference is now a measurement.
+
+**Live: https://ghostpool-himess.vercel.app**
+
+### 17.2 The deployment served a Vercel login page, not the app
+
+The first thing the deployed URL returned was `HTTP 200` with the title
+**`Login – Vercel`**. Deployment Protection is on by default for this account, so
+every visitor — including a judge — would have met an authentication wall instead
+of GhostPool, while the deploy itself reported success.
+
+This is precisely what I1 was for. Nothing in the build, the tests or the type
+checker could have caught it: the deployment was correct and the *access policy*
+was wrong.
+
+Fixed with `vercel project protection disable --sso`. The URL now returns the real
+title, and the lazily-loaded panel chunk (`/_next/static/chunks/3lrau_1e-gp5n.js`)
+is served and contains every component — traversed from the served HTML rather
+than assumed from the local build.
+
+### 17.3 A naming collision worth knowing about
+
+`ghostpool.vercel.app` is already taken, by an unrelated project called
+**"GhostPool — Private Prediction Markets on Arbitrum"**. The submission's URL is
+therefore `ghostpool-himess.vercel.app`.
+
+Not a technical problem, but worth deciding deliberately rather than discovering
+in a judging thread: the name is not unique in this ecosystem.
+
+### 17.4 I3 needed no work
+
+The demo reserve was funded at 10,000 against a prize of 25 — **400 prizes**. With
+six participants and one expected winner per draw, the tail that §5.4 sizes for is
+nowhere near it. No change made.
+
+### 17.5 What still cannot be checked without a person
+
+The browser pass with a real wallet. Everything checkable by machine now is:
+TypeScript passes, the Vercel build succeeds, the URL is publicly reachable, the
+served bundle contains every panel, and the contract path under each is covered by
+30 local tests plus a live round.
+
+What is not: connecting a wallet, the network guard firing and recovering, signing
+the EIP-712 permit, a balance actually decrypting in a browser, rejecting a
+signature mid-flow, and reloading during a pending transaction. **The relayer SDK
+has never run in a browser in this project** — only in Node.
+
+That is a human pass, and §16.3's `as never` bug is the argument for doing it
+before the recording rather than during it.

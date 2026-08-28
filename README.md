@@ -12,6 +12,7 @@ Season 4.
 
 | | |
 | --- | --- |
+| **Live** | **https://ghostpool-himess.vercel.app** |
 | **Pool** | [`0x307e2D1eA71C73FD4358622933880868BbCe05D0`](https://sepolia.etherscan.io/address/0x307e2D1eA71C73FD4358622933880868BbCe05D0) |
 | **Token** | [`0x056AC066e0770A7BE08eCAc73C09f811B067fc46`](https://sepolia.etherscan.io/address/0x056AC066e0770A7BE08eCAc73C09f811B067fc46) |
 | **Network** | Sepolia (11155111) |
