@@ -5,6 +5,7 @@ import { EXPLORER, POOL } from "../lib/addresses";
 import { POOL_ABI } from "../lib/abis";
 
 const STATUS = ["not opened", "open — waiting on the reveal", "revealed"] as const;
+const PILL = ["pill pill--idle", "pill pill--open", "pill pill--live"] as const;
 
 /**
  * What the current draw is doing.
@@ -35,36 +36,35 @@ export function DrawStatus() {
   const snapshot = Number(draw?.snapshotAt ?? 0);
 
   return (
-    <div className="panel">
-      <h2>Draw</h2>
+    <div className="panel panel--feature">
+      <h2>
+        Draw
+        {id > 0 && <span className={PILL[status] ?? PILL[0]}>{STATUS[status] ?? "unknown"}</span>}
+      </h2>
       {id === 0 ? (
         <p className="dim">No draw has been opened yet. Deposit now and you are in the first one.</p>
       ) : (
         <>
-          <table className="mono" style={{ width: "100%", borderCollapse: "collapse" }}>
+          <table className="kv">
             <tbody>
               <tr>
-                <td className="dim">Round</td>
-                <td style={{ textAlign: "right" }}>#{id}</td>
+                <td>Round</td>
+                <td className="val val--big">#{id}</td>
               </tr>
               <tr>
-                <td className="dim">State</td>
-                <td style={{ textAlign: "right" }}>{STATUS[status] ?? "unknown"}</td>
-              </tr>
-              <tr>
-                <td className="dim">Weights frozen at</td>
-                <td style={{ textAlign: "right" }}>
+                <td>Weights frozen at</td>
+                <td className="val">
                   {snapshot ? new Date(snapshot * 1000).toLocaleString() : "—"}
                 </td>
               </tr>
               <tr>
-                <td className="dim">Prize</td>
-                <td style={{ textAlign: "right" }}>{String(prize ?? 0)}</td>
+                <td>Prize</td>
+                <td className="val">{String(prize ?? 0)}</td>
               </tr>
               {status === 2 && (
                 <tr>
-                  <td className="dim">Randomness</td>
-                  <td style={{ textAlign: "right" }}>{String(draw?.r ?? 0)}</td>
+                  <td>Randomness</td>
+                  <td className="val val--muted">{String(draw?.r ?? 0)}</td>
                 </tr>
               )}
             </tbody>
@@ -87,7 +87,7 @@ export function DrawStatus() {
         </>
       )}
       <p className="note">
-        <a href={`${EXPLORER}/address/${POOL}`} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
+        <a href={`${EXPLORER}/address/${POOL}`} target="_blank" rel="noreferrer" style={{ color: "var(--ink-2)", textDecoration: "underline" }}>
           Pool on Etherscan
         </a>
       </p>

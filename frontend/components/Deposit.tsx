@@ -73,11 +73,11 @@ export function Deposit() {
         <span className="dim">gUSDC</span>
       </div>
 
-      <table className="mono" style={{ width: "100%", borderCollapse: "collapse", marginBottom: 14 }}>
+      <table className="kv" style={{ marginBottom: 18 }}>
         <tbody>
           <tr>
-            <td className="dim">Test tokens</td>
-            <td style={{ textAlign: "right", width: 150 }}>
+            <td>Test tokens</td>
+            <td style={{ width: 150 }}>
               <button className="ghost" disabled={!!busy}
                 onClick={() => run("mint", () => writeContractAsync({
                   abi: ERC20_ABI, address: TOKEN, functionName: "mint", args: [address, 1_000n],
@@ -87,10 +87,10 @@ export function Deposit() {
             </td>
           </tr>
           <tr>
-            <td className="dim">Pool may move them</td>
-            <td style={{ textAlign: "right" }}>
+            <td>Pool may move them</td>
+            <td>
               {isOperator ? (
-                <span>authorised</span>
+                <span className="val val--muted">authorised</span>
               ) : (
                 <button className="ghost" disabled={!!busy}
                   onClick={() => run("operator", () => writeContractAsync({

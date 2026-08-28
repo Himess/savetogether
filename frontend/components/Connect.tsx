@@ -50,8 +50,10 @@ export function Connect() {
       <div className="panel">
         <h2>Wallet</h2>
         <div className="row">
-          <span className="mono">{short(address!)}</span>
-          <span className="dim">{wrongChain ? `chain ${chainId}` : "Sepolia"}</span>
+          <span className="addr">{short(address!)}</span>
+          <span className={wrongChain ? "pill pill--open" : "pill pill--live"}>
+            {wrongChain ? `chain ${chainId}` : "Sepolia"}
+          </span>
           <button className="ghost" onClick={() => disconnect()}>Disconnect</button>
         </div>
       </div>

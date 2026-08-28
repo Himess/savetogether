@@ -66,19 +66,19 @@ export function Balances() {
   return (
     <div className="panel">
       <h2>Your position</h2>
-      <table className="mono" style={{ width: "100%", borderCollapse: "collapse" }}>
+      <table className="kv">
         <tbody>
           <tr>
-            <td className="dim">In the pool</td>
-            <td style={{ textAlign: "right" }}>{show(balanceHandle)}</td>
+            <td>In the pool</td>
+            <td className="val val--big">{show(balanceHandle)}</td>
           </tr>
           <tr>
-            <td className="dim">Won, all time</td>
-            <td style={{ textAlign: "right" }}>{show(winHandle)}</td>
+            <td>Won, all time</td>
+            <td className="val">{show(winHandle)}</td>
           </tr>
           <tr>
-            <td className="dim">Won, not yet compounded</td>
-            <td style={{ textAlign: "right" }}>{show(pendHandle)}</td>
+            <td>Won, not yet compounded</td>
+            <td className="val val--muted">{show(pendHandle)}</td>
           </tr>
         </tbody>
       </table>
