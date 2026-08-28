@@ -1,6 +1,6 @@
 "use client";
 
-import { useAccount, useChainId, useConnect, useDisconnect, useSwitchChain } from "wagmi";
+import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
 import { SEPOLIA_CHAIN_ID } from "../lib/addresses";
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
@@ -14,14 +14,14 @@ const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
  * instruction is slower than pressing a button.
  */
 export function Connect() {
-  const { address, isConnected } = useAccount();
-  const chainId = useChainId();
+  // The connector's chain, not the config's. See lib/chain.ts.
+  const { address, isConnected, chainId } = useAccount();
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
 
   const injected = connectors.find((c) => c.id === "injected") ?? connectors[0];
-  const wrongChain = isConnected && chainId !== SEPOLIA_CHAIN_ID;
+  const wrongChain = isConnected && chainId !== undefined && chainId !== SEPOLIA_CHAIN_ID;
 
   if (!isConnected) {
     return (

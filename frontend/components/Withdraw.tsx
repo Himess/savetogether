@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useAccount, useWriteContract } from "wagmi";
 import { POOL } from "../lib/addresses";
 import { POOL_ABI } from "../lib/abis";
+import { useOnSepolia } from "../lib/chain";
 import { useEncrypt } from "@zama-fhe/react-sdk";
 
 /**
@@ -26,6 +27,7 @@ export function Withdraw() {
   const { writeContractAsync } = useWriteContract();
   const { mutateAsync: encrypt, isPending: encrypting } = useEncrypt();
   const [busy, setBusy] = useState(false);
+  const onSepolia = useOnSepolia();
 
   const units = useMemo(() => {
     const n = Number(amount);
@@ -57,9 +59,10 @@ export function Withdraw() {
       <div className="row">
         <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
         <span className="dim">cUSDC</span>
-        <button disabled={busy || encrypting || units === 0n} onClick={submit}>
+        <button disabled={busy || encrypting || units === 0n || !onSepolia} onClick={submit}>
           {encrypting ? "Encrypting…" : busy ? "Sending…" : "Withdraw"}
         </button>
+        {!onSepolia && <span className="warn">Switch your wallet to Sepolia first.</span>}
       </div>
       <p className="note">
         Your principal is never at risk — only the yield funds prizes. Asking for

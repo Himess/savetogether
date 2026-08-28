@@ -1583,3 +1583,52 @@ has never run in a browser in this project** — only in Node.
 
 That is a human pass, and §16.3's `as never` bug is the argument for doing it
 before the recording rather than during it.
+
+---
+
+## 18. The browser pass found what nothing else could
+
+First run against the deployed URL with a real wallet, and the first check failed —
+in a way that looked like success.
+
+### 18.1 The app said Sepolia; the wallet was on Ethereum
+
+The wallet panel showed a green **SEPOLIA** badge. The draw panel showed round #1
+with the correct randomness. The deposit panel said the pool was **authorised**.
+Everything read as healthy.
+
+The wallet was on Ethereum mainnet the whole time. Pressing a button opened Rabby
+showing `Chain: Ethereum` and `Not enough gas`, with the Sign button dead.
+
+**Cause.** `Connect.tsx` read the chain from wagmi's `useChainId()`, which returns
+the **configured** chain rather than the connector's. With `chains: [sepolia]` as
+the only entry it returns 11155111 unconditionally, so `wrongChain` was never true
+and the guard never fired.
+
+The failure compounds because reads and writes take different paths. Reads go
+through wagmi's own transport, which is pinned to Sepolia — so balances, draw
+state and the operator flag were all genuinely correct for Sepolia. Only writes go
+to the wallet's chain. **The page was right about everything except the one thing
+that decides whether a transaction can succeed.**
+
+### 18.2 Fixed in two places, because the badge was only half of it
+
+`lib/chain.ts` now exposes `useOnSepolia()`, reading `useAccount().chainId` — the
+connector's real chain. `Connect.tsx` uses it for the banner.
+
+Correcting the badge alone would have left a user on mainnet able to press
+Deposit and meet an unpayable transaction. So every write is gated on it too:
+mint, authorise, deposit, withdraw and the decryption permit are disabled off
+Sepolia, each with **"Switch your wallet to Sepolia first."**
+
+### 18.3 What this says about the four days before it
+
+Thirty local tests, a live end-to-end round, a type checker, and a chunk-graph
+traversal of the deployed bundle all passed while the first real user could not
+send a transaction. None of them could have caught it: the bug lives in the gap
+between a read path and a write path that only exists inside a browser holding a
+wallet.
+
+It is the third instance of the same pattern — §11.1's cancelling errors, §14's
+wrong unit of analysis, §16.3's `as never` — and the same question found it
+again: not *does this look right*, but *what is this actually reading*.

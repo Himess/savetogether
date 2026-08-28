@@ -5,6 +5,7 @@ import { useAccount, useReadContract } from "wagmi";
 import { useDecryptValues, useGrantPermit, useHasPermit } from "@zama-fhe/react-sdk";
 import { POOL } from "../lib/addresses";
 import { POOL_ABI } from "../lib/abis";
+import { useOnSepolia } from "../lib/chain";
 
 const ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
@@ -40,6 +41,7 @@ export function Balances() {
 
   const { data: hasPermit } = useHasPermit({ contractAddresses: [POOL] }, { enabled });
   const { mutate: grantPermit, isPending: granting } = useGrantPermit();
+  const onSepolia = useOnSepolia();
 
   const handles = useMemo(
     () => [balanceHandle, winHandle, pendHandle].filter((h): h is `0x${string}` => !!h && h !== ZERO),
@@ -85,7 +87,7 @@ export function Balances() {
 
       {hasPermit !== true && (
         <div className="row" style={{ marginTop: 14 }}>
-          <button disabled={granting} onClick={() => grantPermit([POOL])}>
+          <button disabled={granting || !onSepolia} onClick={() => grantPermit([POOL])}>
             {granting ? "Waiting for signature…" : "Decrypt my balances"}
           </button>
           <span className="dim">One EIP-712 signature, kept in this browser.</span>

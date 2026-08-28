@@ -5,6 +5,7 @@ import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { useEncrypt } from "@zama-fhe/react-sdk";
 import { POOL, TOKEN } from "../lib/addresses";
 import { ERC7984_ABI, ERC20_ABI, POOL_ABI } from "../lib/abis";
+import { useOnSepolia } from "../lib/chain";
 
 /**
  * Getting in.
@@ -24,6 +25,7 @@ export function Deposit() {
   const { writeContractAsync } = useWriteContract();
   const { mutateAsync: encrypt, isPending: encrypting } = useEncrypt();
   const [busy, setBusy] = useState<string | null>(null);
+  const onSepolia = useOnSepolia();
 
   const enabled = !!address && !!POOL;
   const { data: isOperator, refetch: refetchOperator } = useReadContract({
@@ -78,7 +80,7 @@ export function Deposit() {
           <tr>
             <td>Test tokens</td>
             <td style={{ width: 150 }}>
-              <button className="ghost" disabled={!!busy}
+              <button className="ghost" disabled={!!busy || !onSepolia}
                 onClick={() => run("mint", () => writeContractAsync({
                   abi: ERC20_ABI, address: TOKEN, functionName: "mint", args: [address, 1_000n],
                 }))}>
@@ -92,7 +94,7 @@ export function Deposit() {
               {isOperator ? (
                 <span className="val val--muted">authorised</span>
               ) : (
-                <button className="ghost" disabled={!!busy}
+                <button className="ghost" disabled={!!busy || !onSepolia}
                   onClick={() => run("operator", () => writeContractAsync({
                     abi: ERC7984_ABI, address: TOKEN, functionName: "setOperator",
                     args: [POOL, Math.floor(Date.now() / 1000) + 365 * 24 * 3600],
@@ -106,10 +108,11 @@ export function Deposit() {
       </table>
 
       <div className="row">
-        <button disabled={!!busy || encrypting || units === 0n || !isOperator} onClick={deposit}>
+        <button disabled={!!busy || encrypting || units === 0n || !isOperator || !onSepolia} onClick={deposit}>
           {encrypting ? "Encrypting…" : busy === "deposit" ? "Depositing…" : "Deposit"}
         </button>
-        {!isOperator && <span className="warn">Authorise the pool first.</span>}
+        {!onSepolia && <span className="warn">Switch your wallet to Sepolia first.</span>}
+        {onSepolia && !isOperator && <span className="warn">Authorise the pool first.</span>}
       </div>
 
       <p className="note">
