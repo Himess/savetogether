@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GhostKey — evidence</title>
+<style>
+  :root {
+    --bg:#0b0c0e; --panel:#131519; --line:#23262d; --text:#e8eaed; --dim:#8b919c;
+    --accent:#7dd3a0; --warn:#f0b849;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7f9; --panel:#fff; --line:#e2e5ea; --text:#14161a; --dim:#5a616d; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); padding:44px 20px 60px;
+         font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;
+         display:flex; justify-content:center; }
+  main { width:100%; max-width:780px; }
+  header { margin-bottom:30px; }
+  h1 { font-size:22px; margin:0 0 6px; letter-spacing:-.02em; }
+  .claim { font-size:15px; color:var(--dim); margin:0; max-width:60ch; }
+  h2 { font-size:12px; margin:32px 0 12px; color:var(--dim); font-weight:600;
+       letter-spacing:.06em; text-transform:uppercase; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+          padding:20px 22px; }
+  table { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:13px; }
+  th { text-align:right; color:var(--dim); font-weight:500; padding:0 0 10px; font-size:11px;
+       letter-spacing:.04em; text-transform:uppercase; }
+  th:first-child, td:first-child { text-align:left; }
+  td { padding:8px 0; border-top:1px solid var(--line); text-align:right; }
+  td:first-child { color:var(--dim); font-family:inherit; font-size:13px; }
+  .big { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:14px; }
+  .stat { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+          padding:18px 20px; }
+  .stat .n { font:600 26px/1.1 var(--mono); color:var(--accent); display:block; }
+  .stat .n.warn { color:var(--warn); }
+  .stat .l { color:var(--dim); font-size:12px; margin-top:6px; display:block; }
+  pre { font-family:var(--mono); font-size:12.5px; line-height:1.55; margin:0;
+        overflow-x:auto; color:var(--text); }
+  .note { color:var(--dim); font-size:13px; margin:12px 0 0; }
+  .note strong { color:var(--text); font-weight:600; }
+  footer { color:var(--dim); font-size:12px; margin-top:34px; line-height:1.7;
+           border-top:1px solid var(--line); padding-top:16px; }
+  code { font-family:var(--mono); font-size:12.5px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>An over-budget transfer is indistinguishable from a successful one</h1>
+    <p class="claim">
+      GhostKey clamps every ERC-7984 transfer against an encrypted budget. A request over
+      budget is not rejected — it executes a real transfer carrying an encrypted zero.
+      This is the measurement of whether that holds on chain.
+    </p>
+  </header>
+
+  <div class="big">
+    <div class="stat">
+      <span class="n">180</span>
+      <span class="l">live Sepolia transactions, 60 per path</span>
+    </div>
+    <div class="stat">
+      <span class="n">1</span>
+      <span class="l">distinct FHE operation sequence across all of them</span>
+    </div>
+    <div class="stat">
+      <span class="n">1</span>
+      <span class="l">distinct HCU value — 1,334,064 every time</span>
+    </div>
+  </div>
+
+  <h2>Execution gas by path</h2>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>path</th><th>n</th><th>891,568</th><th>891,572</th><th>low rate</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>successful transfer</td><td>60</td><td>18</td><td>42</td><td>30.0%</td></tr>
+        <tr><td>over budget</td><td>60</td><td>19</td><td>41</td><td>31.7%</td></tr>
+        <tr><td>balance too low</td><td>60</td><td>16</td><td>44</td><td>26.7%</td></tr>
+      </tbody>
+    </table>
+    <p class="note">
+      <strong>&chi;&sup2; = 0.374</strong> on 2 df against a critical 5.991 at p = 0.05.
+      <strong>p = 0.83.</strong> The three distributions are not distinguishable.
+    </p>
+  </div>
+
+  <h2>The leak, bounded</h2>
+  <div class="card">
+    <pre>mutual information, path &harr; gas    0.00151 bits per observation
+Miller&ndash;Madow noise floor at N=180   0.00801 bits
+cross-check  &chi;&sup2; / (2N ln2)          0.00150 bits</pre>
+    <p class="note">
+      The measurement is <strong>a fifth of the floor</strong> — below what a perfectly
+      independent process typically shows at this sample size, so the bias-corrected
+      estimate is negative. Against 1.585 bits of outcome entropy, an observer learns
+      nothing measurable.
+    </p>
+  </div>
+
+  <h2>Powered to see the effect it did not find</h2>
+  <div class="card">
+    <pre>earlier run, n=20 per path       45% / 30% / 20%   &chi;&sup2; = 2.927
+this run,    n=60 per path       30.0% / 31.7% / 26.7%   &chi;&sup2; = 0.374
+
+80% power at n=180 detects       a spread of &plusmn;13 points (Cohen's w = 0.231)
+the earlier run appeared to show a spread of &plusmn;12.5 points</pre>
+    <p class="note">
+      The small run looked like a trend. This design is powered to detect precisely that
+      effect and did not, which is <strong>a failure to find a real effect</strong> rather
+      than a shrug. What it cannot rule out is a skew below &plusmn;13 points; seeing
+      &plusmn;3 would need on the order of 3,000 samples.
+    </p>
+  </div>
+
+  <h2>Where the four gas lives</h2>
+  <div class="card">
+    <pre>                            891,568    891,572   delta
+GhostKeySession              896752     896756      +4
+  FHEVMExecutor               30365      30369      +4
+    HCULimit  0xc277a936      14962      14966      +4
+
+ACL                          468761     468761       0
+MockERC7984                  306652     306652       0
+InputVerifier                165522     165522       0</pre>
+    <p class="note">
+      A trace diff of two <em>same-path</em> transactions: 181 calls, one differs.
+      It is inside <code>HCULimit.checkHCUForFheGe</code> — the FHEVM's own cost
+      accounting. Not GhostKeySession, not the token, not the ACL, and
+      <strong>no change to this project could remove it</strong>.
+    </p>
+  </div>
+
+  <footer>
+    Measured on Ethereum Sepolia against
+    <code>@fhevm/solidity 0.11.1</code>,
+    <code>@openzeppelin/confidential-contracts 0.5.3</code>,
+    <code>@zama-fhe/relayer-sdk 0.4.1</code>.<br>
+    Raw data: <code>spikes/out/sepolia-distribution.json</code> &middot;
+    method and caveats: <code>docs/leakage.md</code> &middot;
+    the run: <code>docs/step3-gate.md</code><br>
+    one frame, for screenshots: <code>docs/evidence-card.html</code>
+  </footer>
+</main>
+</body>
+</html>

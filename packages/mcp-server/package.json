@@ -1,0 +1,27 @@
+{
+  "name": "@ghostkey/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server exposing GhostKey encrypted spending sessions to chat clients",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "ghostkey": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@ghostkey/console": "*",
+    "@ghostkey/sdk": "*",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "ethers": "^6.16.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.3"
+  }
+}
