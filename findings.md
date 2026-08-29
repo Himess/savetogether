@@ -1746,3 +1746,77 @@ part that went right.
 ZamaBridge threw on every load — Rabby does not expose `getProvider`, the
 fallback already handled it, and the console error was the first thing a judge
 with devtools open would have seen.
+
+---
+
+## 20. The token question — is gUSDC hiding something?
+
+Asked plainly during M5: *"aren't we already using ERC-7984? why gUSDC?"* The
+question is worth recording because the answer is "nothing is wrong" and the
+confusion was entirely self-inflicted.
+
+`gUSDC` **is** an ERC-7984. It is `ERC7984Mock`, deployed by us, named "Ghost
+USDC". Same standard, same interface, same `confidentialTransferFrom` the pool
+calls on anything else. The only two differences from Zama's `cUSDC` are that
+ours has a public `mint` and theirs is a wrapper over a test ERC-20.
+
+The `g` was branding. It cost more than it bought: a reader who knows the
+ecosystem sees `cUSDC` everywhere, meets `gUSDC`, and reasonably wonders whether
+the pool needs something non-standard. It does not.
+
+### 20.1 So the claim was tested rather than asserted
+
+"The pool holds an ERC-7984 and never asks which one" is a statement about our
+code. Zama's wrapper is somebody else's contract, with its own operator model
+and its own error surface, so the claim was worth an experiment rather than a
+paragraph.
+
+`scripts/deploy-cusdc.ts` deploys the **unmodified** `ConfidentialPrizePool`
+against Zama's deployed wrapper:
+
+```
+pool    0x3Eddf704b0909F6A8fa491857533D28C22f9b8d4
+token   0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639   Zama's cUSDC
+yield   0x87735E305704607470A8473Bf622816fDC80Ca54   1000%/yr, as labelled
+pot     250,000 USDC, wrapped straight into the yield source
+prize   25 USDC
+```
+
+`scripts/smoke-cusdc.ts`, on chain:
+
+```
+position before   400000000
+mint, approve, wrap 100 USDC
+deposit           0x5bc9d4d66bf4743ee914dc4ed6e16c81ec107824620de25b5849ac0ed33593ef
+gas               1,614,766
+position after    500000000
+delta             100000000        PASS
+```
+
+No contract change was needed. Two prior measurements already covered the parts
+that could have differed: D1 found this wrapper **clamps** an insufficient
+transfer rather than reverting, which is the assumption the silent withdraw
+rests on, and E1 found `mint -> approve -> wrap` succeeds from an account the
+wrapper has never seen.
+
+### 20.2 Two things this turned up
+
+1. **The pot cannot be minted.** A wrapper has no `mint`, so the yield source is
+   funded by minting the underlying, approving, and wrapping *directly to the
+   source's address*. The underlying's mint is permissionless but capped —
+   1,000,000 USDC per call succeeds, 10,000,000 reverts — so the pot is 250,000
+   rather than the 50,000,000 the mock pool uses.
+
+2. **The first smoke script cried wolf three times.** It asserted the absolute
+   position equalled the deposit, which is only true on a virgin pool; three
+   good deposits were reported as `FAIL`. The delta is the thing under test.
+   Worth naming: an assertion that is wrong in the *failing* direction is the
+   cheap kind, and this one still wasted three runs before being read properly.
+
+### 20.3 What is kept
+
+Both. The mock-token pool stays the one a judge meets — a public `mint` is one
+click where the wrapper path is three transactions, and E1 measured that a
+missing precondition there produces a bare `execution reverted` with nothing in
+it. The cUSDC pool stands as the evidence that this is a convenience and not a
+dependency.

@@ -720,7 +720,8 @@ export class GhostKeyTools {
       throw new Error("no prize pool is configured — set pool.address in the GhostKey config");
     }
     if (live.pool === undefined) {
-      live.pool = live.session.poolClient(cfg.address, cfg.token);
+      // cfg.token is what the user calls it; the client needs the address.
+      live.pool = live.session.poolClient(cfg.address, this.token(cfg.token).address);
     }
     return live.pool;
   }

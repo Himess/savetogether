@@ -68,9 +68,12 @@ async function writeClaudeConfig(): Promise<string> {
   const existing = await readJsonIfPresent(file);
   const servers = (existing["mcpServers"] as Record<string, unknown> | undefined) ?? {};
 
+  // This checkout's own entry point, not a published package: `npx` would
+  // resolve nothing today, and `dist/cli.js` is the setup CLI -- `dist/index.js`
+  // is the one that speaks MCP over stdio.
   servers["ghostkey"] = {
-    command: "npx",
-    args: ["-y", "@ghostkey/mcp-server"],
+    command: process.execPath,
+    args: [path.join(__dirname, "index.js")],
   };
   existing["mcpServers"] = servers;
 
@@ -79,11 +82,25 @@ async function writeClaudeConfig(): Promise<string> {
   return file;
 }
 
+/** The prize pool, and the token it settles in. One product, one config. */
+const POOL_ADDRESS = "0x3f6F8e5A853bEC8FA008b31E28f9B0fD9dC0F287";
+const POOL_TOKEN = "gUSDC";
+
 const SEPOLIA_STARTER_TOKENS: readonly TokenEntry[] = [
   {
     symbol: "gkUSD",
     address: "0xCFf87b42b916f7aA0F61CD060C9f48772F303D37",
     decimals: 6,
+  },
+  {
+    // Whole units, deliberately. The frontend shipped a bug where withdraw
+    // scaled by 1e6 and deposit did not: asking for 5 sent 5,000,000, the pool
+    // clamped it to an encrypted zero, and the transaction SUCCEEDED having
+    // moved nothing -- silent, because the clamp is a privacy feature. Six
+    // decimals here would rebuild that trap one layer up.
+    symbol: POOL_TOKEN,
+    address: "0x1bbBE55d24174d57305632E75fE47ac3C5158a9F",
+    decimals: 0,
   },
 ];
 
@@ -102,14 +119,10 @@ async function init(args: string[]): Promise<void> {
     // The prize pool this session client can act in. Optional: the session
     // layer is useful on its own, and a config written before the pool existed
     // has to keep loading rather than failing.
-    ...(flag(args, "--pool") === undefined
-      ? {}
-      : {
-          pool: {
-            address: flag(args, "--pool")!,
-            token: flag(args, "--pool-token") ?? "gUSDC",
-          },
-        }),
+    pool: {
+      address: flag(args, "--pool") ?? POOL_ADDRESS,
+      token: flag(args, "--pool-token") ?? POOL_TOKEN,
+    },
   };
   await saveConfig(config);
 
