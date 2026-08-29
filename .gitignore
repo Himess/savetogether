@@ -8,3 +8,4 @@ probe/secrets.json
 .env
 *.tsbuildinfo
 fhevmTemp/
+packages/*/dist/
