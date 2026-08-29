@@ -36,3 +36,20 @@ export const ERC20_ABI = [
   { type: "function", name: "mint", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [] },
   { type: "function", name: "decimals", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
 ] as const;
+
+/** Only the reads the vault-proof section makes. Nothing here can write. */
+export const ADAPTER_ABI = [
+  { type: "function", name: "openBatches", stateMutability: "view", inputs: [], outputs: [{ type: "uint256[]" }] },
+  { type: "function", name: "asset", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+] as const;
+
+export const BATCHER_ABI = [
+  { type: "function", name: "batchState", stateMutability: "view", inputs: [{ type: "uint256" }], outputs: [{ type: "uint8" }] },
+  { type: "function", name: "toToken", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+] as const;
+
+export const SHARE_ABI = [
+  { type: "function", name: "name", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
+  { type: "function", name: "symbol", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
+  { type: "function", name: "confidentialBalanceOf", stateMutability: "view", inputs: [{ type: "address" }], outputs: [{ type: "bytes32" }] },
+] as const;

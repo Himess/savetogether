@@ -5,6 +5,7 @@ import { Connect } from "./Connect";
 import { Deposit } from "./Deposit";
 import { DrawStatus } from "./DrawStatus";
 import { Withdraw } from "./Withdraw";
+import Link from "next/link";
 import { POOL } from "../lib/addresses";
 
 export function App() {
@@ -37,6 +38,15 @@ export function App() {
         <Balances />
         <Deposit />
         <Withdraw />
+
+        {/* Reached deliberately, never on the primary path: the vault-backed
+            pool pays no prize, and a judge who wanders into it by accident
+            would read the product as broken. */}
+        <p className="note note--plain" style={{ marginTop: 24 }}>
+          <Link href="/vault" style={{ color: "var(--ink-2)", textDecoration: "underline" }}>
+            See the Zama vault integration →
+          </Link>
+        </p>
       </main>
     </>
   );

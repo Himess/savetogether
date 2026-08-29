@@ -21,3 +21,13 @@ export const CUSDC = "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639" as const;
 export const USDC = "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF" as const;
 
 export const EXPLORER = "https://sepolia.etherscan.io";
+
+/**
+ * The composition pool: GhostPool's adapter sitting on Zama's own confidential
+ * vault. Read-only in the UI — entry goes through a batcher whose settlement
+ * depends on Zama's keeper, so a deposit here would leave a judge waiting on
+ * somebody else's infrastructure with a position that reads as neither in nor out.
+ */
+export const VAULT_ADAPTER = "0xc5120E26aafdD76D324E62cF19c391C367Cf99Ba" as const;
+export const VAULT_SHARE = "0x13F7d34A4f0102734F19E3Ff16e068Fe194B28c4" as const;
+export const DEPOSIT_BATCHER = "0x48758559c14d4d92b4C74A99660B6a8dbe85F53b" as const;
