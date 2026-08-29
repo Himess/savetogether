@@ -30,6 +30,10 @@ const EXPECTED_TOOLS = [
   "can_afford",
   "list_assets",
   "open_session",
+  "pool_deposit",
+  "pool_position",
+  "pool_status",
+  "pool_withdraw",
   "remaining",
   "revoke_all",
   "send",
@@ -164,6 +168,14 @@ describe("MCP protocol", function () {
       },
       { tool: "add_recipient", args: { to: "Mehmet" }, expect: /not an address/i },
       { tool: "wrap", args: { token: "NOPE", amount: "1" }, expect: /gkUSD/ },
+      // The pool tools take an amount that may be a reference, so "is this even
+      // an amount" is a question about syntax and has to be answered before any
+      // lookup. A model that gets told "no session" for a typo opens one and
+      // then hits the same typo.
+      { tool: "pool_deposit", args: { amount: "" }, expect: /reference/i },
+      { tool: "pool_deposit", args: { amount: "half of it" }, expect: /neither an amount nor a reference/i },
+      { tool: "pool_deposit", args: { amount: "bal_1:double" }, expect: /not a reference operation/i },
+      { tool: "pool_withdraw", args: { amount: "lots" }, expect: /neither an amount nor a reference/i },
     ];
 
     for (const c of cases) {

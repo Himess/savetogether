@@ -32,6 +32,12 @@ export interface GhostKeyConfig {
   readonly devUnlock?: boolean;
   /** Where the vault keystore lives. Defaults to ~/.ghostkey/vault. */
   readonly vaultDir?: string;
+  /**
+   * The prize pool, when one is configured. Optional: the session layer is
+   * useful without it, and a config written before the pool existed must keep
+   * working rather than failing to load.
+   */
+  readonly pool?: { readonly address: string; readonly token: string };
 }
 
 export const DEFAULT_CONFIG_PATH = path.join(os.homedir(), ".ghostkey", "config.json");

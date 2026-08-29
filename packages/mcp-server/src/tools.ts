@@ -23,6 +23,8 @@ import {
   osKeychainKeystore,
   ref,
   revealAmount,
+  PoolClient,
+  type AmountExpr,
   type AmountRef,
   type Session,
 } from "@ghostkey/sdk";
@@ -80,6 +82,8 @@ interface Live {
   unlocks: { reason: UnlockReason; n: number }[];
   /** Refs handed to the model, keyed by an opaque id it can pass back. */
   refs: Map<string, AmountRef>;
+  /** Built on first use; a session without a configured pool never makes one. */
+  pool?: PoolClient;
 }
 
 export class GhostKeyTools {
@@ -663,6 +667,211 @@ export class GhostKeyTools {
     if (address === null) return { address: null, balance: "0" };
     return { address, balance: formatEther(await this.ctx.provider.getBalance(address)) };
   }
+
+  // -------------------------------------------------------------------------
+  // the pool
+  //
+  // Amounts are references or exact figures, never a number the model had to
+  // read first. "Half my balance" resolves inside the session client, so the
+  // plaintext exists for the moment it takes to encrypt an input and never
+  // enters the transcript. A tool that only accepted numbers would force the
+  // model to decrypt the balance to compute half of it, and the balance would
+  // be in its context from then on — that is the product's claim collapsing,
+  // not a bug in a tool.
+  // -------------------------------------------------------------------------
+
+  /** Syntax only, so a malformed amount is diagnosed before any chain lookup. */
+  private amountSpec(raw: unknown): string {
+    if (typeof raw !== "string" || raw.trim() === "") {
+      throw new Error(
+        'amount must be a figure like "250", or a reference like "bal_1" or "bal_1:half".',
+      );
+    }
+    const spec = raw.trim();
+    const [id = "", op = ""] = spec.split(":");
+    if (/^[0-9]+(\.[0-9]+)?$/.test(id)) return spec;
+    if (!/^[a-z]+_[0-9]+$/.test(id)) {
+      throw new Error(
+        `${id} is neither an amount nor a reference. References look like bal_1 and come from ` +
+          `balance, remaining or pool_position.`,
+      );
+    }
+    if (op !== "" && op !== "half" && !op.startsWith("percent=")) {
+      throw new Error(`${op} is not a reference operation. Use :half or :percent=25.`);
+    }
+    return spec;
+  }
+
+  /** Turns a validated spec into an expression. Needs the session for its refs. */
+  private exprFor(spec: string, live: Live, decimals: number): AmountExpr {
+    const [id = "", op = ""] = spec.split(":");
+    if (!live.refs.has(id)) return exact(parseAmount(spec, decimals));
+    const r = live.refs.get(id);
+    if (r === undefined) throw new Error(`unknown reference ${id}`);
+    const base = ref(r);
+    if (op === "half") return base.half();
+    if (op.startsWith("percent")) return base.percent(Number(op.split("=")[1] ?? "0"));
+    return base;
+  }
+
+  private requirePool(live: Live): PoolClient {
+    const cfg = this.ctx.config.pool;
+    if (cfg === undefined) {
+      throw new Error("no prize pool is configured — set pool.address in the GhostKey config");
+    }
+    if (live.pool === undefined) {
+      live.pool = live.session.poolClient(cfg.address, cfg.token);
+    }
+    return live.pool;
+  }
+
+  /**
+   * Puts money in the pool.
+   *
+   * Handles its own preconditions. Entering the pool is authorise, then fund,
+   * then deposit, and making the model discover that from three separate
+   * failures would defeat the point of it being one sentence.
+   *
+   * The deposit is for what ACTUALLY arrived rather than what was asked for.
+   * The owner's transfer is bounded by the session's encrypted budget and
+   * clamps silently when it would exceed it, so depositing the request would
+   * credit a position the pool never received.
+   */
+  async poolDeposit(args: { amount: string }): Promise<ToolResult> {
+    const spec = this.amountSpec(args.amount);
+    const live = this.requireLive();
+    const pool = this.requirePool(live);
+    const cfg = this.ctx.config.pool!;
+    const t = this.token(cfg.token);
+    const expr = this.exprFor(spec, live, t.decimals);
+
+    const steps: string[] = [];
+    if (!(await pool.isAuthorised())) {
+      await pool.authorise();
+      steps.push("authorised the pool to move the session's tokens");
+    }
+
+    // Budget-bounded: this is the owner's spend, and the module clamps it.
+    const moved = await live.session.send({
+      token: t.address,
+      to: live.session.sessionKeyAddress,
+      amount: expr,
+    });
+    if (moved.outcome === "over-budget") {
+      return {
+        ok: false,
+        text: "That is more than the session's remaining budget, so nothing moved.",
+        data: { status: "over-budget" },
+      };
+    }
+    if (moved.outcome === "insufficient-balance") {
+      return {
+        ok: false,
+        text: `The wallet does not hold that much ${t.symbol}, so nothing moved.`,
+        data: { status: "insufficient-balance" },
+      };
+    }
+    steps.push("moved it from the vault within the session budget");
+
+    const hash = await pool.deposit(ref(moved.sent));
+    steps.push("deposited");
+
+    const id = this.newRefId("dep");
+    live.refs.set(id, moved.sent);
+    return {
+      ok: true,
+      text:
+        `Done: ${steps.join(", ")}. The amount was encrypted before it left this machine and ` +
+        `I did not see it. The deposited figure is available as ${id}.`,
+      data: { tx: hash, ref: id, steps },
+    };
+  }
+
+  /** Takes principal back out. Asking for more than the position moves nothing. */
+  async poolWithdraw(args: { amount: string }): Promise<ToolResult> {
+    const spec = this.amountSpec(args.amount);
+    const live = this.requireLive();
+    const pool = this.requirePool(live);
+    const cfg = this.ctx.config.pool!;
+    const t = this.token(cfg.token);
+    const expr = this.exprFor(spec, live, t.decimals);
+
+    const hash = await pool.withdraw(expr);
+    return {
+      ok: true,
+      text:
+        `Withdrawn. Asking for more than the position holds succeeds and moves nothing, on ` +
+        `purpose — a failed transaction would be visible on chain, and what someone tried to ` +
+        `take out is nobody else's business.`,
+      data: { tx: hash },
+    };
+  }
+
+  /**
+   * The position, as references.
+   *
+   * Three numbers rather than one because they are three different facts: what
+   * is earning weight in the next draw, what has ever been won, and what is won
+   * but not yet compounded. Summing them would misstate the odds.
+   */
+  async poolPosition(args: { reveal: boolean }): Promise<ToolResult> {
+    const live = this.requireLive();
+    const pool = this.requirePool(live);
+    const cfg = this.ctx.config.pool!;
+    const t = this.token(cfg.token);
+
+    const p = await pool.position();
+    const inPool = this.newRefId("pool");
+    const won = this.newRefId("won");
+    const pending = this.newRefId("pend");
+    live.refs.set(inPool, p.inPool);
+    live.refs.set(won, p.won);
+    live.refs.set(pending, p.pending);
+
+    if (!args.reveal) {
+      return {
+        ok: true,
+        text:
+          `In the pool: ${inPool}. Won all time: ${won}. Won but not yet compounded: ` +
+          `${pending}. These are references — I have not seen the numbers.`,
+        data: { inPool, won, pending, token: t.symbol },
+      };
+    }
+    return this.revealRef(inPool, "Reveal your pool position to the model?", t);
+  }
+
+  /** Public facts about the round. Nothing here is anybody's secret. */
+  async poolStatus(): Promise<ToolResult> {
+    const live = this.requireLive();
+    const pool = this.requirePool(live);
+    const s = await pool.status();
+
+    if (s.round === 0) {
+      return {
+        ok: true,
+        text: "No draw has been opened yet. A deposit now is in the first one.",
+        data: { round: 0 },
+      };
+    }
+    const when = new Date(s.snapshotAt * 1000).toISOString();
+    const tail =
+      s.state === "open"
+        ? " The randomness is drawn and still encrypted — nobody knows the outcome yet."
+        : s.state === "revealed"
+          ? " Credits are applied to every participant, winner or not; there is nothing to claim."
+          : "";
+    return {
+      ok: true,
+      text: `Round ${s.round}, ${s.state}. Prize ${s.prize}. Weights frozen at ${when}.${tail}`,
+      data: {
+        round: s.round,
+        state: s.state,
+        prize: s.prize.toString(),
+        snapshotAt: s.snapshotAt,
+      },
+    };
+  }
+
 }
 
 /** Turns an SDK error into something worth saying to a person. */

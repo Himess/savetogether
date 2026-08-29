@@ -48,5 +48,8 @@ export {
   ZeroAmountError,
 } from "./errors";
 
+export { PoolClient } from "./pool";
+export type { PoolContext, PoolPosition, PoolStatus } from "./pool";
+
 export { ACL_ABI, ERC7984_ABI, GHOSTKEY_ABI } from "./abi";
 export { isTransient, withRetry } from "./fhe";

@@ -216,6 +216,70 @@ export function toolDefinitions(tools: GhostKeyTools): ToolDef[] {
       validate: z.object({}),
       run: () => tools.revokeAll(),
     },
+    {
+      name: "pool_deposit",
+      title: "Put money into the prize pool",
+      description:
+        "Amount is either a figure like \"250\" or a REFERENCE from balance or pool_position. " +
+        "For anything proportional — half, a quarter, all of it — pass the reference with an " +
+        "operation: \"bal_1:half\", \"bal_1:percent=25\", or \"bal_1\" for all of it. Do NOT reveal " +
+        "a balance and compute the figure yourself; the reference is resolved locally and the " +
+        "number never reaches you, which is the entire point. Handles its own setup: it " +
+        "authorises the pool and moves the funds within the session budget before depositing, " +
+        "so one call is the whole thing.",
+      schema: objectSchema({
+        amount: {
+          type: "string",
+          description: 'a figure like "250", or a reference like "bal_1" or "bal_1:half"',
+        },
+      }),
+      validate: z.object({ amount: z.string() }),
+      run: (a) => tools.poolDeposit(a as Parameters<typeof tools.poolDeposit>[0]),
+    },
+    {
+      name: "pool_withdraw",
+      title: "Take principal out of the pool",
+      description:
+        "Same amount rules as pool_deposit: a figure, or a reference from pool_position with " +
+        "an optional :half or :percent=. Use \"pool_1\" to take everything out. Asking for more " +
+        "than the position holds succeeds and moves nothing — that is deliberate, because a " +
+        "failed transaction would be visible on chain.",
+      schema: objectSchema({
+        amount: {
+          type: "string",
+          description: 'a figure, or a reference like "pool_1" or "pool_1:half"',
+        },
+      }),
+      validate: z.object({ amount: z.string() }),
+      run: (a) => tools.poolWithdraw(a as Parameters<typeof tools.poolWithdraw>[0]),
+    },
+    {
+      name: "pool_position",
+      title: "What the holder has in the pool",
+      description:
+        "Returns three opaque references rather than numbers: what is in the pool, what has " +
+        "been won all time, and what is won but not yet compounded. They are separate facts and " +
+        "adding them together misstates the odds. Pass any of them to pool_deposit or " +
+        "pool_withdraw. Set reveal true only when the user asked for actual figures — it makes " +
+        "them click a confirmation on the local console.",
+      schema: objectSchema({
+        reveal: { type: "boolean", description: "ask the user to reveal the numbers to you" },
+      }),
+      validate: z.object({ reveal: z.boolean() }),
+      run: (a) => tools.poolPosition(a as Parameters<typeof tools.poolPosition>[0]),
+    },
+    {
+      name: "pool_status",
+      title: "The current draw",
+      description:
+        "Round number, whether it is open or revealed, the prize, and when weights were frozen. " +
+        "All of this is public on chain — no confirmation needed and nothing here belongs to " +
+        "anyone. Nobody claims a prize in this pool: credits are applied to every participant, " +
+        "winner or not, so there is never anything for the user to press.",
+      schema: objectSchema({}),
+      validate: z.object({}),
+      run: () => tools.poolStatus(),
+    },
   ];
 }
 

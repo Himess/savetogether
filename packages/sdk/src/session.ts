@@ -11,6 +11,7 @@ import type { Signer } from "ethers";
 
 import { erc7984, ghostKey, type GhostKeyContract } from "./contracts";
 import { AmountExpr, AmountRef, attachResolver } from "./amounts";
+import { PoolClient } from "./pool";
 import {
   BalanceNotVisibleError,
   OperatorNotGrantedError,
@@ -107,6 +108,24 @@ class SessionImpl {
 
   get sessionKeyAddress(): string {
     return this.ctx.sessionKeyAddress;
+  }
+
+  /**
+   * A client for a prize pool this session can act in.
+   *
+   * The session hands one out rather than exposing its context, because the
+   * pool needs the session key and the relayer instance and neither should
+   * leave this object. It is a capability of a session, not a separate client
+   * that happens to share its key.
+   */
+  poolClient(poolAddress: string, tokenAddress: string): PoolClient {
+    return new PoolClient({
+      fhevm: this.ctx.fhevm,
+      sessionKey: this.ctx.sessionKey,
+      sessionKeyAddress: this.ctx.sessionKeyAddress,
+      poolAddress,
+      tokenAddress,
+    });
   }
 
   get owner(): string {

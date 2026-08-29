@@ -182,7 +182,13 @@ export class GhostKeyClient {
           maxTxCount,
           tokens,
           budgets: handles,
-          recipients: req.recipients,
+          // The session key is always on its own allowlist. It is the address
+          // the pool position is held under, and `send` to it is how the owner
+          // funds a deposit — bounded by the encrypted budget like any other
+          // spend. Leaving it off would make entering the pool cost a second
+          // vault unlock via addRecipient, which is the whole thing this
+          // product exists to avoid.
+          recipients: [...new Set([...req.recipients, sessionKeyAddress])],
         },
         inputProof,
         signature,

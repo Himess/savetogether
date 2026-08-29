@@ -99,6 +99,17 @@ async function init(args: string[]): Promise<void> {
     rpcUrl,
     moduleAddress,
     tokens: [...SEPOLIA_STARTER_TOKENS],
+    // The prize pool this session client can act in. Optional: the session
+    // layer is useful on its own, and a config written before the pool existed
+    // has to keep loading rather than failing.
+    ...(flag(args, "--pool") === undefined
+      ? {}
+      : {
+          pool: {
+            address: flag(args, "--pool")!,
+            token: flag(args, "--pool-token") ?? "gUSDC",
+          },
+        }),
   };
   await saveConfig(config);
 
