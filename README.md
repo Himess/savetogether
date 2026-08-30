@@ -13,9 +13,84 @@ Season 4.
 | | |
 | --- | --- |
 | **Live** | **https://ghostpool-himess.vercel.app** |
-| **Pool** | [`0x307e2D1eA71C73FD4358622933880868BbCe05D0`](https://sepolia.etherscan.io/address/0x307e2D1eA71C73FD4358622933880868BbCe05D0) |
-| **Token** | [`0x056AC066e0770A7BE08eCAc73C09f811B067fc46`](https://sepolia.etherscan.io/address/0x056AC066e0770A7BE08eCAc73C09f811B067fc46) |
+| **Pool** | [`0x3f6F8e5A853bEC8FA008b31E28f9B0fD9dC0F287`](https://sepolia.etherscan.io/address/0x3f6F8e5A853bEC8FA008b31E28f9B0fD9dC0F287) |
+| **Token** | [`0x1bbBE55d24174d57305632E75fE47ac3C5158a9F`](https://sepolia.etherscan.io/address/0x1bbBE55d24174d57305632E75fE47ac3C5158a9F) |
+| **On Zama's own cUSDC** | [`0x3Eddf704b0909F6A8fa491857533D28C22f9b8d4`](https://sepolia.etherscan.io/address/0x3Eddf704b0909F6A8fa491857533D28C22f9b8d4) |
 | **Network** | Sepolia (11155111) |
+
+---
+
+## Talking to it
+
+The pool has a second front door: you can just say what you want.
+
+```
+you    open a session with a 500 gUSDC budget
+you    what's the draw status?
+you    put half my balance in the pool
+```
+
+Connect a wallet, sign once, paste a URL into Claude's connector settings. No
+terminal, no npm, no tab kept open.
+
+### The key we hold cannot do more than the chain lets it
+
+A server holds a session key. That is worth being precise about rather than
+reassuring about, because "we store your key safely" is the sentence every
+custodial product says right before it turns out not to be true.
+
+We are not asking you to trust the storage. **Your wallet key never leaves your
+browser** — the server has never held one and has no code path that accepts one.
+What it holds is a session key whose authority is bounded on chain:
+
+- every spend is clamped against an `euint64` **nobody can read**, including us
+- an allowlist bounds where value can go
+- an expiry bounds how long, capped at 24 hours
+- **you close it from your own wallet**, needing nothing from us
+
+The nearest thing to this in production is MoonPay's PayBox, which reaches a
+comparable experience with MPC key shares in hardware enclaves plus a passkey,
+built on a company acquired for roughly $100M. Their limits are enforced by their
+policy layer — code they run, that you cannot inspect while it runs. Ours are
+enforced by a contract, and **the limit itself is encrypted**: the clamp is
+measured across 306 live samples with an identical operation sequence and
+identical HCU whether a spend fits, exceeds the budget, or exceeds the balance.
+
+And the part that is not reassuring: **a compromised server can spend up to the
+remaining budget, to the addresses already on your allowlist, until you revoke.**
+It cannot exceed the budget, cannot send anywhere else, cannot extend its own
+expiry, and cannot touch anything outside the session. That is the bound. It is
+not zero.
+
+### What the server sees
+
+It encrypts the amounts, so it sees them. Two cases, and they are not the same:
+
+- **"deposit 200"** — you typed it, the model already has it, the server learning
+  it adds no reader.
+- **"deposit half my balance"** — a real loss. The server reads your balance to
+  halve it. The reference mechanism still keeps the figure from the *model*; it
+  does not keep it from *us*.
+
+We asked whether that could be removed — whether the arithmetic could happen on
+chain so no plaintext exists anywhere — and measured the answer. It can, it is
+even cheaper, and it is **worse**: doing it publishes the *ratio*, which composes
+with the public wrap into an exact amount, forever. The measurements are in
+[`docs/spike-plaintext-removal-RESULT.md`](docs/spike-plaintext-removal-RESULT.md)
+and the full disclosure table is in
+[`docs/session-leakage.md`](docs/session-leakage.md) §6.
+
+### The local install still works, and that is the point
+
+```
+ghostkey init --rpc <url>
+ghostkey console
+```
+
+Same contracts, same SDK, same tools. Running it yourself is the fallback when
+hosting is down — and more usefully, it is the reason the claims above are
+checkable instead of promised. The server is not load-bearing, and you can prove
+that by not using it.
 
 ---
 

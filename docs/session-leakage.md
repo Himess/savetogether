@@ -134,3 +134,68 @@ In sealed mode the model receives `{status, ok_ref, sent_ref}` and no number, ev
 - **`--dev-unlock` skips the human step.** It is hard-gated to chainId 11155111 and refuses to run anywhere else. Asserted in `test/mcp.ts`, including the case where the vault exists and is loadable.
 - **A leaked session key costs the remaining budget**, to addresses already on the allowlist, until expiry. That is the designed bound, not an accident — but it is a real loss, and the budget and allowlist are the only things limiting it.
 - **The operator grant outlives the session.** `token.setOperator(module, expiry)` is set outside `GhostKeySession` and expires on its own schedule. Closing a session does not clear it; the module simply has no live session to act under. `revoke_all` says this in as many words rather than implying the grant is gone.
+
+---
+
+## 6. What the hosted server sees
+
+Everything above describes a session client running on the user's own machine.
+Hosting moves that process onto a server, and **the process that encrypts an
+amount necessarily knows it**. That is not a weakness of the encryption; it is
+where the plaintext has to exist for `createEncryptedInput` to have anything to
+encrypt. The spike in `docs/spike-plaintext-removal-RESULT.md` asked whether the
+plaintext could be removed entirely and the answer was no — not for a hosted
+budget, because `GhostKeySession.send` takes an `externalEuint64` and the change
+that would let it take a handle costs the owner a signature before every
+transfer.
+
+So the honest table, in the same register as §4:
+
+|                                    | local install               | hosted                            |
+| ---------------------------------- | --------------------------- | --------------------------------- |
+| the model                          | never, without a click      | **unchanged** — never, no click available |
+| the chain                          | ciphertext only             | **unchanged** — ciphertext only   |
+| the session client                 | your machine                | **our server**                    |
+| an amount you typed in chat        | your machine                | our server (the model had it too) |
+| an amount you did NOT type ("half") | your machine                | **our server. This is a real loss.** |
+
+Two rows deserve separating rather than being averaged into one claim.
+
+**Absolute amounts leak nothing new.** "Deposit 200" was already in the
+conversation, and the model has it whether or not we host anything. The server
+learning 200 adds no reader who did not already have it.
+
+**Relative amounts are a genuine loss.** "Put half my balance in" is resolved by
+the session client: it reads the balance, halves it, encrypts the result. Locally
+that arithmetic happens on your machine and the number exists for microseconds in
+a process you control. Hosted, the server learns your balance and your deposit,
+and it learns them for every user of the service. The reference mechanism still
+keeps the figure away from the **model** — that part is unchanged and is what
+`pool_deposit` claims — but it does not keep it away from **us**.
+
+`pool_deposit` used to say the amount "never left this machine". That sentence is
+true of a local install and false of a hosted one, and it has been replaced with
+the narrower claim that holds in both: the figure was encrypted before it reached
+the chain, and the model was never given it.
+
+### What bounds the server, since it is not blindness
+
+- every spend is clamped against an `euint64` nobody — including the server — can
+  read
+- the recipient allowlist bounds where value can go
+- the expiry bounds how long, at a 24-hour ceiling
+- the owner closes the session from their own wallet, needing nothing from us
+
+**A compromised server can spend up to the remaining budget, to the allowlisted
+addresses, until the owner revokes.** It cannot exceed the budget, cannot send
+elsewhere, cannot extend its own expiry, and never held a wallet key. That is the
+bound; it is not zero, and describing it as zero would be a lie.
+
+### The local path is the control
+
+The local install still works and is not a legacy path. It is the fallback when
+hosting is down, and more importantly it is the evidence that the server is not
+load-bearing: the same contracts, the same SDK, the same tool surface minus three
+tools that need a wallet. Anyone who does not want a server in the loop can run
+the same product without one, and the fact that they can is what makes the hosted
+claims checkable rather than promised.

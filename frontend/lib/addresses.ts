@@ -31,3 +31,12 @@ export const EXPLORER = "https://sepolia.etherscan.io";
 export const VAULT_ADAPTER = "0xc5120E26aafdD76D324E62cF19c391C367Cf99Ba" as const;
 export const VAULT_SHARE = "0x13F7d34A4f0102734F19E3Ff16e068Fe194B28c4" as const;
 export const DEPOSIT_BATCHER = "0x48758559c14d4d92b4C74A99660B6a8dbe85F53b" as const;
+
+/**
+ * The hosted server, when one is configured.
+ *
+ * Empty by default and the session panel simply does not render, because the
+ * local install is a complete product on its own and a dead `Open a session`
+ * button would say otherwise.
+ */
+export const HOSTED_URL = process.env.NEXT_PUBLIC_HOSTED_URL ?? "";
