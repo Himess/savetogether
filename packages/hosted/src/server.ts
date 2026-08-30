@@ -15,19 +15,21 @@
  * and the server must already know the owner's address at that moment — which is
  * why `prepare` takes it and why the whole open is one round trip.
  *
- * `adopt` is not a formality. Between prepare and adopt the only thing tying a
- * caller to a session is their own assertion, and an assertion is worthless.
- * `sessionOf` says who opened it, and nothing is served until that agrees.
+ * NOTHING IS STORED. The bearer token is the session record, sealed under a
+ * master key held only in the environment, so a restart costs nothing and any
+ * process with the same key can serve a URL a user pasted into a chat client
+ * days ago. The consequence worth naming: with no record to mark closed, every
+ * request asks the chain whether the session is still live, so revocation takes
+ * effect immediately and without this server being told.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import * as crypto from "node:crypto";
 
 import { GhostKeyClient, type ReadScope } from "@ghostkey/sdk";
 import { Contract, JsonRpcProvider, getAddress, isAddress } from "ethers";
 
-import { ServerKeystore } from "./keystore";
-import { SessionStore, type SessionRecord } from "./store";
+import { MemoryKeystore } from "./keystore";
 import { McpEndpoints } from "./mcp";
+import { TokenSealer, type SessionToken } from "./token";
 
 const MODULE_ABI = [
   "function sessionOf(address sessionKey) view returns ((address owner,uint48 expiry,uint24 maxTxCount,uint24 txCount))",
@@ -36,7 +38,6 @@ const MODULE_ABI = [
 const TOKEN_ABI = ["function setOperator(address operator, uint48 until)"];
 const ACL_ABI = ["function revokeDelegationForUserDecryption(address delegate, address contract_)"];
 
-/** Sessions die after this unless the caller asks for less. */
 const DEFAULT_TTL_HOURS = 24;
 const MAX_TTL_HOURS = 24;
 
@@ -50,64 +51,66 @@ export interface HostedConfig {
   readonly aclAddress?: string;
   readonly chainId: number;
   readonly port: number;
-  /** How the MCP URL is spelled back to the user. */
+  /** How the MCP URL is spelled back to the user, including any path prefix. */
   readonly publicUrl: string;
+  /**
+   * Origins allowed to call the session routes.
+   *
+   * Explicit rather than `*`: two origins exist now, the frontend and this
+   * server, and a wildcard would let any page start a session-opening flow
+   * against a user's wallet. The MCP route needs no CORS at all — it is fetched
+   * by a chat client's servers, not by a browser.
+   */
+  readonly allowedOrigins: readonly string[];
   readonly pool?: { readonly address: string; readonly token: string };
   readonly tokens: ReadonlyArray<{ symbol: string; address: string; decimals: number }>;
 }
 
-interface PreparedPending {
-  readonly token: string;
-  readonly sessionKeyAddress: string;
-  readonly ownerAddress: string;
-  readonly calls: ReadonlyArray<{ to: string; data: string; value?: string }>;
-  readonly expiry: number;
-  readonly readScope: ReadScope;
-  readonly tokens: readonly string[];
-}
-
 export class HostedServer {
   private server: Server | null = null;
-  private readonly store = new SessionStore();
   private readonly provider: JsonRpcProvider;
+  private readonly keystore = new MemoryKeystore();
   private readonly client: GhostKeyClient;
   private readonly mcp: McpEndpoints;
-  /** Prepared but not yet confirmed on chain. Never served from. */
-  private readonly pending = new Map<string, PreparedPending>();
+  private readonly sealer: TokenSealer;
+  /** Session-scoped rate limits. Losing these on restart is acceptable. */
+  private readonly rate = new Map<string, { count: number; windowStart: number }>();
 
-  constructor(private readonly config: HostedConfig) {
+  constructor(
+    private readonly config: HostedConfig,
+    sealer: TokenSealer = TokenSealer.fromEnv(),
+  ) {
+    this.sealer = sealer;
     this.provider = new JsonRpcProvider(config.rpcUrl, config.chainId);
     this.client = new GhostKeyClient({
       provider: this.provider,
       rpcUrl: config.rpcUrl,
       moduleAddress: config.moduleAddress,
-      keystore: new ServerKeystore(this.store),
+      keystore: this.keystore,
       chainId: config.chainId,
       ...(config.aclAddress === undefined ? {} : { aclAddress: config.aclAddress }),
     });
     this.mcp = new McpEndpoints({
       client: this.client,
-      store: this.store,
+      keystore: this.keystore,
       config,
     });
   }
 
-  async start(): Promise<{ url: string; masterKeySource: string }> {
-    const { masterKeySource } = await this.store.init();
-    await this.store.sweep();
-
+  async start(): Promise<{ url: string }> {
     this.server = createServer((req, res) => {
       void this.route(req, res).catch((e: unknown) => {
         // A hosted server that swallows its own failures is undebuggable, and
-        // the one thing never logged here is anything secret.
-        process.stderr.write(`[hosted] ${req.method} ${req.url} failed: ${(e as Error).stack ?? String(e)}
-`);
+        // nothing secret is ever written here.
+        process.stderr.write(
+          `[hosted] ${req.method} ${req.url} failed: ${(e as Error).stack ?? String(e)}\n`,
+        );
         if (!res.headersSent) this.json(res, 500, { error: (e as Error).message });
         else res.end();
       });
     });
     await new Promise<void>((resolve) => this.server!.listen(this.config.port, resolve));
-    return { url: this.config.publicUrl, masterKeySource };
+    return { url: this.config.publicUrl };
   }
 
   async stop(): Promise<void> {
@@ -117,29 +120,25 @@ export class HostedServer {
 
   // -------------------------------------------------------------------------
 
-  private json(res: ServerResponse, status: number, body: unknown): void {
+  private cors(req: IncomingMessage): Record<string, string> {
+    const origin = req.headers.origin;
+    if (typeof origin !== "string" || !this.config.allowedOrigins.includes(origin)) return {};
+    return {
+      "access-control-allow-origin": origin,
+      vary: "Origin",
+      "access-control-allow-headers": "content-type",
+      "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
+    };
+  }
+
+  private json(res: ServerResponse, status: number, body: unknown, cors: Record<string, string> = {}): void {
     const text = JSON.stringify(body);
     res.writeHead(status, {
       "content-type": "application/json",
       "content-length": Buffer.byteLength(text),
-      ...this.cors(),
+      ...cors,
     });
     res.end(text);
-  }
-
-  /**
-   * The browser opening a session is on a different origin from this server, so
-   * these are load-bearing rather than decorative. Nothing here is authenticated
-   * by origin — the MCP routes carry a bearer token and the session routes are
-   * bounded by what the chain confirms.
-   */
-  private cors(): Record<string, string> {
-    return {
-      "access-control-allow-origin": "*",
-      "access-control-allow-headers": "content-type, authorization, mcp-session-id, mcp-protocol-version",
-      "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
-      "access-control-expose-headers": "mcp-session-id",
-    };
   }
 
   private async body(req: IncomingMessage): Promise<unknown> {
@@ -156,37 +155,31 @@ export class HostedServer {
 
   private async route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = new URL(req.url ?? "/", "http://localhost");
+    const cors = this.cors(req);
 
     if (req.method === "OPTIONS") {
-      res.writeHead(204, this.cors());
+      res.writeHead(204, cors);
       res.end();
       return;
     }
 
     if (url.pathname === "/api/health") {
-      this.json(res, 200, { ok: true, chainId: this.config.chainId });
+      this.json(res, 200, { ok: true, chainId: this.config.chainId }, cors);
       return;
     }
-
     if (url.pathname === "/api/session/prepare" && req.method === "POST") {
-      await this.prepare(req, res);
+      await this.prepare(req, res, cors);
       return;
     }
     if (url.pathname === "/api/session/adopt" && req.method === "POST") {
-      await this.adopt(req, res);
+      await this.adopt(req, res, cors);
       return;
     }
 
     const sessionMatch = /^\/api\/session\/([A-Za-z0-9_-]+)$/.exec(url.pathname);
-    if (sessionMatch !== null) {
-      if (req.method === "GET") {
-        await this.status(sessionMatch[1]!, res);
-        return;
-      }
-      if (req.method === "DELETE") {
-        await this.forget(sessionMatch[1]!, res);
-        return;
-      }
+    if (sessionMatch !== null && req.method === "GET") {
+      await this.status(sessionMatch[1]!, res, cors);
+      return;
     }
 
     const mcpMatch = /^\/mcp\/([A-Za-z0-9_-]+)$/.exec(url.pathname);
@@ -195,12 +188,16 @@ export class HostedServer {
       return;
     }
 
-    this.json(res, 404, { error: `no route for ${req.method} ${url.pathname}` });
+    this.json(res, 404, { error: `no route for ${req.method} ${url.pathname}` }, cors);
   }
 
   // ---------------------------------------------------------------- step 2 --
 
-  private async prepare(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  private async prepare(
+    req: IncomingMessage,
+    res: ServerResponse,
+    cors: Record<string, string>,
+  ): Promise<void> {
     const b = (await this.body(req)) as {
       ownerAddress?: string;
       budgets?: { token: string; amount: string }[];
@@ -210,17 +207,18 @@ export class HostedServer {
     };
 
     if (typeof b?.ownerAddress !== "string" || !isAddress(b.ownerAddress)) {
-      this.json(res, 400, { error: "ownerAddress must be an address" });
+      this.json(res, 400, { error: "ownerAddress must be an address" }, cors);
       return;
     }
     if (!Array.isArray(b.budgets) || b.budgets.length === 0) {
-      this.json(res, 400, { error: "budgets must name at least one token" });
+      this.json(res, 400, { error: "budgets must name at least one token" }, cors);
       return;
     }
 
     const ttl = Math.min(b.ttlHours ?? DEFAULT_TTL_HOURS, MAX_TTL_HOURS);
-    const expiry = new Date(Date.now() + ttl * 3600 * 1000);
-    const readScope: ReadScope = b.readScope === "balance-visible" ? "balance-visible" : "spend-only";
+    const expiryDate = new Date(Date.now() + ttl * 3600 * 1000);
+    const readScope: ReadScope =
+      b.readScope === "balance-visible" ? "balance-visible" : "spend-only";
 
     const budgets = b.budgets.map((x) => {
       const entry = this.config.tokens.find(
@@ -232,8 +230,6 @@ export class HostedServer {
       return { token: entry.address, amount: BigInt(x.amount) };
     });
 
-    // The pool is always an allowed recipient when one is configured: it is
-    // where a deposit goes, and a session that cannot reach it is inert.
     const recipients = [
       ...new Set([
         ...(b.recipients ?? []).filter(isAddress).map(getAddress),
@@ -245,85 +241,90 @@ export class HostedServer {
       ownerAddress: getAddress(b.ownerAddress),
       budgets,
       recipients,
-      expiry,
+      expiry: expiryDate,
       readScope,
       label: `hosted ${new Date().toISOString()}`,
     });
 
-    const token = crypto.randomBytes(32).toString("base64url");
-    this.pending.set(token, {
-      token,
-      sessionKeyAddress: prepared.sessionKeyAddress,
+    // Seal the key into the token and drop it. From here the server keeps
+    // nothing: the only copy that survives this request is the one in the URL
+    // the caller is about to receive.
+    const wallet = await this.keystore.load(prepared.sessionKeyAddress);
+    const token = this.sealer.seal({
+      privateKey: wallet.privateKey,
       ownerAddress: getAddress(b.ownerAddress),
-      calls: prepared.calls.map((c) => ({
-        to: c.to,
-        data: c.data,
-        ...(c.value === undefined ? {} : { value: `0x${c.value.toString(16)}` }),
-      })),
       expiry: prepared.expiry,
       readScope,
       tokens: prepared.tokens,
     });
+    this.keystore.forget(prepared.sessionKeyAddress);
 
-    this.json(res, 200, {
-      sessionToken: token,
-      sessionKeyAddress: prepared.sessionKeyAddress,
-      calls: this.pending.get(token)!.calls,
-      expiry: prepared.expiry,
-      // So the browser can show what it is about to authorise, rather than a
-      // wall of calldata.
-      summary: {
-        tokens: prepared.tokens,
-        recipients,
-        readScope,
-        ttlHours: ttl,
+    this.json(
+      res,
+      200,
+      {
+        sessionToken: token,
+        sessionKeyAddress: prepared.sessionKeyAddress,
+        calls: prepared.calls.map((c) => ({
+          to: c.to,
+          data: c.data,
+          ...(c.value === undefined ? {} : { value: `0x${c.value.toString(16)}` }),
+        })),
+        expiry: prepared.expiry,
+        summary: { tokens: prepared.tokens, recipients, readScope, ttlHours: ttl },
       },
-    });
+      cors,
+    );
   }
 
   // ---------------------------------------------------------------- step 6 --
 
-  private async adopt(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  private async adopt(
+    req: IncomingMessage,
+    res: ServerResponse,
+    cors: Record<string, string>,
+  ): Promise<void> {
     const b = (await this.body(req)) as { sessionToken?: string };
-    const pending = typeof b?.sessionToken === "string" ? this.pending.get(b.sessionToken) : undefined;
-    if (pending === undefined) {
-      this.json(res, 404, { error: "no prepared session with that token" });
+    if (typeof b?.sessionToken !== "string") {
+      this.json(res, 400, { error: "sessionToken is required" }, cors);
+      return;
+    }
+
+    let session: SessionToken;
+    try {
+      session = this.sealer.open(b.sessionToken);
+    } catch (e) {
+      this.json(res, 400, { error: (e as Error).message }, cors);
       return;
     }
 
     // The chain, not the caller. A claim is not evidence.
+    const address = await this.addressOf(session);
     try {
-      await this.client.adoptSession(
-        pending.sessionKeyAddress,
-        pending.ownerAddress,
-        pending.readScope,
-      );
+      this.keystore.put(address, session.privateKey);
+      await this.client.adoptSession(address, session.ownerAddress, session.readScope);
     } catch (e) {
-      this.json(res, 409, { error: (e as Error).message });
+      this.json(res, 409, { error: (e as Error).message }, cors);
       return;
+    } finally {
+      this.keystore.forget(address);
     }
 
-    const record: SessionRecord = {
-      token: pending.token,
-      sessionKeyAddress: pending.sessionKeyAddress,
-      ownerAddress: pending.ownerAddress,
-      moduleAddress: this.config.moduleAddress,
-      tokens: pending.tokens,
-      readScope: pending.readScope,
-      expiry: pending.expiry,
-      createdAt: Math.floor(Date.now() / 1000),
-      adopted: true,
-      callCount: 0,
-      windowStart: Math.floor(Date.now() / 1000),
-    };
-    await this.store.put(record);
-    this.pending.delete(pending.token);
+    this.json(
+      res,
+      200,
+      {
+        mcpUrl: `${this.config.publicUrl}/mcp/${b.sessionToken}`,
+        sessionKeyAddress: address,
+        expiry: session.expiry,
+      },
+      cors,
+    );
+  }
 
-    this.json(res, 200, {
-      mcpUrl: `${this.config.publicUrl}/mcp/${record.token}`,
-      sessionKeyAddress: record.sessionKeyAddress,
-      expiry: record.expiry,
-    });
+  private async addressOf(session: SessionToken): Promise<string> {
+    const { Wallet } = await import("ethers");
+    return new Wallet(session.privateKey).address;
   }
 
   // -------------------------------------------------------------------- P2 --
@@ -332,25 +333,34 @@ export class HostedServer {
    * Status, and the three transactions that end it.
    *
    * Handed back as calldata the user's own wallet sends, because a revocation
-   * that depends on this server being alive and honest is not a revocation. Each
-   * one stands alone and any of them is enough to stop value moving.
+   * that depends on this server being alive and honest is not a revocation.
    */
-  private async status(token: string, res: ServerResponse): Promise<void> {
-    const record = this.store.get(token);
-    if (record === undefined) {
-      this.json(res, 404, { error: "no such session" });
+  private async status(
+    token: string,
+    res: ServerResponse,
+    cors: Record<string, string>,
+  ): Promise<void> {
+    let session: SessionToken;
+    try {
+      session = this.sealer.open(token);
+    } catch (e) {
+      this.json(res, 404, { error: (e as Error).message }, cors);
       return;
     }
+    const address = await this.addressOf(session);
 
-    const module = new Contract(record.moduleAddress, MODULE_ABI, this.provider);
-    const s = await module.sessionOf!(record.sessionKeyAddress);
+    const module = new Contract(this.config.moduleAddress, MODULE_ABI, this.provider);
+    const s = await module.sessionOf!(address);
     const live = BigInt(s.expiry) > 0n;
 
-    const moduleIface = new Contract(record.moduleAddress, MODULE_ABI, this.provider).interface;
-    const tokenIface = new Contract(record.tokens[0] ?? record.moduleAddress, TOKEN_ABI, this.provider)
-      .interface;
+    const moduleIface = module.interface;
+    const tokenIface = new Contract(
+      session.tokens[0] ?? this.config.moduleAddress,
+      TOKEN_ABI,
+      this.provider,
+    ).interface;
     const aclIface = new Contract(
-      this.config.aclAddress ?? record.moduleAddress,
+      this.config.aclAddress ?? this.config.moduleAddress,
       ACL_ABI,
       this.provider,
     ).interface;
@@ -358,58 +368,38 @@ export class HostedServer {
     const revoke = [
       {
         what: "closeSession — the session stops existing",
-        to: record.moduleAddress,
-        data: moduleIface.encodeFunctionData("closeSession", [record.sessionKeyAddress]),
+        to: this.config.moduleAddress,
+        data: moduleIface.encodeFunctionData("closeSession", [address]),
       },
-      ...record.tokens.map((t) => ({
+      ...session.tokens.map((t) => ({
         what: `setOperator(module, 0) on ${t} — the module loses move authority`,
         to: t,
-        data: tokenIface.encodeFunctionData("setOperator", [record.moduleAddress, 0]),
+        data: tokenIface.encodeFunctionData("setOperator", [this.config.moduleAddress, 0]),
       })),
-      ...(record.readScope === "balance-visible" && this.config.aclAddress !== undefined
-        ? record.tokens.map((t) => ({
+      ...(session.readScope === "balance-visible" && this.config.aclAddress !== undefined
+        ? session.tokens.map((t) => ({
             what: `revokeDelegationForUserDecryption on ${t} — the key loses read authority`,
             to: this.config.aclAddress!,
-            data: aclIface.encodeFunctionData("revokeDelegationForUserDecryption", [
-              record.sessionKeyAddress,
-              t,
-            ]),
+            data: aclIface.encodeFunctionData("revokeDelegationForUserDecryption", [address, t]),
           }))
         : []),
     ];
 
-    this.json(res, 200, {
-      sessionKeyAddress: record.sessionKeyAddress,
-      ownerAddress: record.ownerAddress,
-      live,
-      onChainExpiry: Number(s.expiry),
-      txCount: Number(s.txCount),
-      readScope: record.readScope,
-      tokens: record.tokens,
-      revoke,
-    });
-  }
-
-  /** Housekeeping. The chain already stopped the key; this drops the key too. */
-  private async forget(token: string, res: ServerResponse): Promise<void> {
-    const record = this.store.get(token);
-    if (record === undefined) {
-      this.json(res, 404, { error: "no such session" });
-      return;
-    }
-    const module = new Contract(record.moduleAddress, MODULE_ABI, this.provider);
-    const s = await module.sessionOf!(record.sessionKeyAddress);
-    if (BigInt(s.expiry) > 0n) {
-      this.json(res, 409, {
-        error:
-          "that session is still open on chain. Close it from your own wallet first — " +
-          "forgetting the key here would leave a live session nobody is watching.",
-      });
-      return;
-    }
-    await this.mcp.close(token);
-    await this.store.forget(token);
-    this.json(res, 200, { forgotten: true });
+    this.json(
+      res,
+      200,
+      {
+        sessionKeyAddress: address,
+        ownerAddress: session.ownerAddress,
+        live,
+        onChainExpiry: Number(s.expiry),
+        txCount: Number(s.txCount),
+        readScope: session.readScope,
+        tokens: session.tokens,
+        revoke,
+      },
+      cors,
+    );
   }
 
   // ------------------------------------------------------------------- MCP --
@@ -419,31 +409,51 @@ export class HostedServer {
     req: IncomingMessage,
     res: ServerResponse,
   ): Promise<void> {
-    const record = this.store.get(token);
-    if (record === undefined || !record.adopted) {
-      this.json(res, 401, { error: "unknown session" });
+    let session: SessionToken;
+    try {
+      session = this.sealer.open(token);
+    } catch (e) {
+      this.json(res, 401, { error: (e as Error).message });
       return;
     }
 
     const now = Math.floor(Date.now() / 1000);
-    if (record.expiry <= now) {
-      await this.store.forget(token);
+    if (session.expiry <= now) {
       this.json(res, 401, { error: "this session has expired" });
       return;
     }
 
-    if (now - record.windowStart >= RATE_WINDOW_SECONDS) {
-      record.windowStart = now;
-      record.callCount = 0;
+    // No record to consult, so the chain is asked every time. That is the point:
+    // an owner who revoked a minute ago is not relying on this process having
+    // been told about it.
+    const address = await this.addressOf(session);
+    const module = new Contract(this.config.moduleAddress, MODULE_ABI, this.provider);
+    const s = await module.sessionOf!(address);
+    if (BigInt(s.expiry) === 0n) {
+      await this.mcp.close(token);
+      this.json(res, 401, {
+        error: "this session has been closed by its owner and can no longer act",
+      });
+      return;
     }
-    record.callCount += 1;
-    if (record.callCount > RATE_LIMIT) {
+    if (s.owner.toLowerCase() !== session.ownerAddress.toLowerCase()) {
+      this.json(res, 401, { error: "this token does not match the session on chain" });
+      return;
+    }
+
+    const window = this.rate.get(token) ?? { count: 0, windowStart: now };
+    if (now - window.windowStart >= RATE_WINDOW_SECONDS) {
+      window.windowStart = now;
+      window.count = 0;
+    }
+    window.count += 1;
+    this.rate.set(token, window);
+    if (window.count > RATE_LIMIT) {
       this.json(res, 429, { error: `more than ${RATE_LIMIT} calls in a minute` });
       return;
     }
 
-    for (const [k, v] of Object.entries(this.cors())) res.setHeader(k, v);
-    await this.mcp.handle(record, req, res, await this.bodyOrUndefined(req));
+    await this.mcp.handle(token, session, address, req, res, await this.bodyOrUndefined(req));
   }
 
   private async bodyOrUndefined(req: IncomingMessage): Promise<unknown> {

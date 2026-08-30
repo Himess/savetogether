@@ -40,14 +40,27 @@ async function post(route: string, body: unknown): Promise<Record<string, unknow
 /** One MCP call over streamable HTTP, the way a chat client makes it. */
 let mcpId = 0;
 async function mcp(url: string, method: string, params: unknown): Promise<unknown> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      accept: "application/json, text/event-stream",
-    },
-    body: JSON.stringify({ jsonrpc: "2.0", id: ++mcpId, method, params }),
-  });
+  const send = (): Promise<Response> =>
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json, text/event-stream",
+        // Node's fetch pools connections, so the first call after a server
+        // restart is made on a socket the old process owned and comes back as
+        // ECONNRESET. A real client retries; so does this, once.
+        connection: "close",
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: ++mcpId, method, params }),
+    });
+
+  let res: Response;
+  try {
+    res = await send();
+  } catch {
+    await new Promise((r) => setTimeout(r, 1000));
+    res = await send();
+  }
   const text = await res.text();
   if (!res.ok) throw new Error(`mcp ${method} -> ${res.status} ${text}`);
   // enableJsonResponse gives plain JSON; be tolerant of an SSE frame anyway.
@@ -64,18 +77,24 @@ async function main(): Promise<void> {
   const ownerAddress = await owner!.getAddress();
   console.log(`owner (the browser wallet)  ${ownerAddress}\n`);
 
-  const server = new HostedServer({
-    rpcUrl: RPC,
-    chainId: 11155111,
-    port: PORT,
-    publicUrl: BASE,
-    moduleAddress: MODULE,
-    aclAddress: "0xf0Ffdc93b7E186bC2f8CB3dAA75D86d1930A433D",
-    pool: { address: POOL, token: "gUSDC" },
-    tokens: [{ symbol: "gUSDC", address: TOKEN, decimals: 0 }],
-  });
-  const { masterKeySource } = await server.start();
-  console.log(`server up, session keys sealed with the key from ${masterKeySource}\n`);
+  process.env["GHOSTPOOL_MASTER_KEY"] ??= require("crypto").randomBytes(32).toString("hex");
+
+  const makeServer = (): HostedServer =>
+    new HostedServer({
+      rpcUrl: RPC,
+      chainId: 11155111,
+      port: PORT,
+      publicUrl: BASE,
+      moduleAddress: MODULE,
+      aclAddress: "0xf0Ffdc93b7E186bC2f8CB3dAA75D86d1930A433D",
+      pool: { address: POOL, token: "gUSDC" },
+      tokens: [{ symbol: "gUSDC", address: TOKEN, decimals: 0 }],
+      allowedOrigins: ["http://localhost:3000"],
+    });
+
+  let server = makeServer();
+  await server.start();
+  console.log("server up, holding nothing\n");
 
   try {
     // Make sure the owner has something to deposit.
@@ -168,6 +187,19 @@ async function main(): Promise<void> {
     })) as { content: { text: string }[] };
     console.log(`   pool_position -> ${position.content[0]!.text.slice(0, 110)}`);
 
+    // ------------------------------------------------------------ restart --
+    console.log(`
+8b. RESTART the server — the URL must survive it`);
+    await server.stop();
+    server = makeServer();
+    await server.start();
+    console.log(`   restarted, holding nothing from before`);
+    const afterRestart = (await mcp(adopted.mcpUrl, "tools/call", {
+      name: "pool_status",
+      arguments: {},
+    })) as { content: { text: string }[] };
+    console.log(`   same URL still works -> ${afterRestart.content[0]!.text.slice(0, 70)}`);
+
     // ------------------------------------------------------------- revoke --
     console.log(`\n9. the user kills it from their own wallet`);
     const info = (await (
@@ -212,6 +244,7 @@ async function main(): Promise<void> {
       forgedRejected,
       deadEndpointRejected,
       hostedTools: names,
+      survivedRestart: true,
     });
     fs.mkdirSync(path.join(__dirname, "out"), { recursive: true });
     fs.writeFileSync(path.join(__dirname, "out", "hosted-e2e.json"), JSON.stringify(out, null, 2));

@@ -1,4 +1,4 @@
 export { HostedServer, type HostedConfig } from "./server";
-export { SessionStore, type SessionRecord } from "./store";
-export { ServerKeystore } from "./keystore";
+export { MemoryKeystore } from "./keystore";
 export { McpEndpoints } from "./mcp";
+export { TokenSealer, type SessionToken } from "./token";

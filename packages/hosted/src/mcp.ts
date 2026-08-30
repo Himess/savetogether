@@ -25,13 +25,14 @@ import type { GhostKeyClient } from "@ghostkey/sdk";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { JsonRpcProvider } from "ethers";
 
-import type { SessionRecord, SessionStore } from "./store";
+import type { MemoryKeystore } from "./keystore";
+import type { SessionToken } from "./token";
 
 const WITHHELD = new Set(["open_session", "wrap", "add_recipient"]);
 
 export interface McpEndpointsConfig {
   readonly client: GhostKeyClient;
-  readonly store: SessionStore;
+  readonly keystore: MemoryKeystore;
   readonly config: {
     readonly rpcUrl: string;
     readonly chainId: number;
@@ -63,12 +64,15 @@ export class McpEndpoints {
   constructor(private readonly deps: McpEndpointsConfig) {}
 
   async handle(
-    record: SessionRecord,
+    token: string,
+    session: SessionToken,
+    sessionKeyAddress: string,
     req: IncomingMessage,
     res: ServerResponse,
     body: unknown,
   ): Promise<void> {
-    const { defs } = this.attached.get(record.token) ?? (await this.build(record));
+    const { defs } =
+      this.attached.get(token) ?? (await this.build(token, session, sessionKeyAddress));
 
     const server = new Server(
       { name: "ghostpool", version: "0.1.0" },
@@ -120,7 +124,11 @@ export class McpEndpoints {
     });
   }
 
-  private async build(record: SessionRecord): Promise<Attached> {
+  private async build(
+    token: string,
+    session: SessionToken,
+    sessionKeyAddress: string,
+  ): Promise<Attached> {
     const cfg: GhostKeyConfig = {
       chainId: this.deps.config.chainId,
       rpcUrl: this.deps.config.rpcUrl,
@@ -142,18 +150,22 @@ export class McpEndpoints {
       client: this.deps.client,
     });
 
-    // The session already exists on chain, opened by the owner's own wallet and
-    // confirmed by `adoptSession` before this endpoint was ever addressable.
-    const session = await this.deps.client.resumeSession(
-      record.sessionKeyAddress,
-      record.readScope,
-    );
-    tools.attachSession(session, record.readScope);
+    // The key comes out of the token the caller presented, is used to build the
+    // session, and is dropped again. Nothing here outlives the process, and the
+    // process holding nothing is what lets it be restarted or moved.
+    this.deps.keystore.put(sessionKeyAddress, session.privateKey);
+    let live;
+    try {
+      live = await this.deps.client.resumeSession(sessionKeyAddress, session.readScope);
+    } finally {
+      this.deps.keystore.forget(sessionKeyAddress);
+    }
+    tools.attachSession(live, session.readScope);
 
     const defs = toolDefinitions(tools).filter((d) => !WITHHELD.has(d.name));
 
     const attached: Attached = { tools, defs };
-    this.attached.set(record.token, attached);
+    this.attached.set(token, attached);
     return attached;
   }
 

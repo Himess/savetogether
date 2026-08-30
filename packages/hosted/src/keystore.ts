@@ -1,57 +1,57 @@
 /**
- * The SDK's keystore interface, backed by the server's store.
+ * The SDK's keystore interface, held in memory for the length of a request.
  *
- * The SDK already takes a `SessionKeystore`, so hosting needs no change to how a
- * session is opened — only a different place for the key to live. Locally that
- * is the OS keychain; here it is an AES-GCM blob under a master key the process
- * holds. The interface is the seam that made this a swap rather than a fork.
+ * The SDK already takes a `SessionKeystore`, so hosting needed no change to how
+ * a session is opened — only a different place for the key to live. Locally that
+ * is the OS keychain. Here it is nowhere: the key is generated during `prepare`,
+ * sealed into the bearer token, and forgotten. On a later request it comes back
+ * out of the token the caller presented, is used, and is forgotten again.
+ *
+ * That is what makes the server disposable. There is no file of private keys to
+ * move between hosts, back up, or leak, and a restart costs nothing because
+ * nothing was being kept.
  */
 import type { SessionKeystore, StoredSessionKey } from "@ghostkey/sdk";
 import { Wallet } from "ethers";
 
-import type { SessionStore } from "./store";
+export class MemoryKeystore implements SessionKeystore {
+  private readonly keys = new Map<string, string>();
 
-export class ServerKeystore implements SessionKeystore {
-  private labels = new Map<string, { label: string; createdAt: string }>();
-
-  constructor(private readonly store: SessionStore) {}
-
-  /**
-   * Generates a key and hands back only the address.
-   *
-   * The private key exists as a string for the length of this function and is
-   * sealed before it is returned from. Nothing logs it, and there is no accessor
-   * that returns it in the clear.
-   */
-  async create(label: string): Promise<string> {
+  /** Generates a key. The caller is expected to seal it and then forget it. */
+  async create(_label: string): Promise<string> {
     const wallet = Wallet.createRandom();
-    await this.store.putKey(wallet.address, wallet.privateKey);
-    this.labels.set(wallet.address.toLowerCase(), {
-      label,
-      createdAt: new Date().toISOString(),
-    });
+    this.keys.set(wallet.address.toLowerCase(), wallet.privateKey);
     return wallet.address;
   }
 
+  /** Puts a key back, from a token the caller presented. */
+  put(address: string, privateKey: string): void {
+    this.keys.set(address.toLowerCase(), privateKey);
+  }
+
   async load(address: string): Promise<Wallet> {
-    return new Wallet(await this.store.getKey(address));
+    const key = this.keys.get(address.toLowerCase());
+    if (key === undefined) {
+      throw new Error(`no session key in memory for ${address}`);
+    }
+    return new Wallet(key);
+  }
+
+  /**
+   * Drops a key once the caller has what it needs.
+   *
+   * Without this the map is an ever-growing pile of private keys in a long-lived
+   * process, which is the exact thing this design set out not to have.
+   */
+  forget(address: string): void {
+    this.keys.delete(address.toLowerCase());
   }
 
   async list(): Promise<readonly StoredSessionKey[]> {
-    return this.store.all().map((r) => ({
-      address: r.sessionKeyAddress,
-      label: this.labels.get(r.sessionKeyAddress.toLowerCase())?.label ?? "hosted session",
-      createdAt:
-        this.labels.get(r.sessionKeyAddress.toLowerCase())?.createdAt ??
-        new Date(r.createdAt * 1000).toISOString(),
-      // There is no file for one key here; they share a sealed store. Saying so
-      // beats inventing a path that nobody could open.
-      file: "(sealed in the hosted session store)",
-    }));
+    return [];
   }
 
   async destroy(address: string): Promise<void> {
-    const record = this.store.bySessionKey(address);
-    if (record !== undefined) await this.store.forget(record.token);
+    this.forget(address);
   }
 }

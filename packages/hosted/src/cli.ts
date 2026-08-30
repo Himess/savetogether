@@ -2,9 +2,10 @@
 /**
  * `ghostpool-hosted` — the server behind the website.
  *
- * Deliberately boring to start: no database, no accounts, no secrets in the
- * repository. It needs an RPC URL and a public origin, and it tells you where it
- * put the key that seals session keys at rest.
+ * Holds nothing. Session keys are sealed into the bearer token under
+ * `GHOSTPOOL_MASTER_KEY`, so this process can be restarted, redeployed or moved
+ * to another machine and every URL a user has already pasted into a chat client
+ * keeps working. There is no database and no file of private keys.
  */
 import { HostedServer } from "./server";
 
@@ -15,18 +16,35 @@ function flag(name: string): string | undefined {
   return i >= 0 ? process.argv[i + 1] : undefined;
 }
 
+function list(name: string, fallback: string[]): string[] {
+  const raw = flag(name) ?? process.env[name.replace(/^--/, "").toUpperCase().replace(/-/g, "_")];
+  if (raw === undefined || raw === "") return fallback;
+  return raw.split(",").map((s) => s.trim()).filter((s) => s !== "");
+}
+
 async function main(): Promise<void> {
   const rpcUrl = flag("--rpc") ?? process.env["SEPOLIA_RPC_URL"] ?? "";
   if (rpcUrl === "") throw new Error("pass --rpc <url> or set SEPOLIA_RPC_URL");
 
   const port = Number(flag("--port") ?? process.env["PORT"] ?? 8787);
+
+  // Includes any path prefix, because behind a reverse proxy the URL a user
+  // pastes is not the one this process sees. Getting it wrong produces an MCP
+  // URL that 404s, which is a confusing failure to debug from a chat client.
   const publicUrl = flag("--public-url") ?? process.env["PUBLIC_URL"] ?? `http://localhost:${port}`;
+
+  const allowedOrigins = list("--allowed-origins", [
+    "https://ghostpool-himess.vercel.app",
+    "https://ghostpool-himess-projects.vercel.app",
+    "http://localhost:3000",
+  ]);
 
   const server = new HostedServer({
     rpcUrl,
     chainId: SEPOLIA,
     port,
     publicUrl,
+    allowedOrigins,
     moduleAddress: flag("--module") ?? "0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6",
     aclAddress: "0xf0Ffdc93b7E186bC2f8CB3dAA75D86d1930A433D",
     pool: {
@@ -42,7 +60,7 @@ async function main(): Promise<void> {
     ],
   });
 
-  const { url, masterKeySource } = await server.start();
+  const { url } = await server.start();
   process.stdout.write(
     [
       "",
@@ -50,14 +68,16 @@ async function main(): Promise<void> {
       "",
       `  listening      :${port}`,
       `  public url     ${url}`,
-      `  session keys   sealed with the key from ${masterKeySource}`,
+      `  cors           ${allowedOrigins.join(", ")}`,
       "",
-      "  The server holds session keys. It has never held a wallet key and has no",
-      "  code path that accepts one. Every session is bounded on chain by an",
-      "  encrypted budget, an allowlist and an expiry, and the owner can close it",
-      "  from their own wallet without asking this process for anything.",
+      "  Stateless. Session keys are sealed into the bearer token, so this process",
+      "  can restart or move and existing MCP URLs keep working. There is no",
+      "  database and no key file to lose or leak.",
       "",
-      "  Ctrl-C to stop.",
+      "  It has never held a wallet key and has no code path that accepts one.",
+      "  Every session is bounded on chain by an encrypted budget, an allowlist and",
+      "  an expiry, and the owner closes it from their own wallet without asking",
+      "  this process for anything — which is why every request re-checks the chain.",
       "",
     ].join("\n"),
   );
