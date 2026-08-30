@@ -52,7 +52,7 @@ type JsonSchema = Record<string, unknown>;
  * definition below carries both, and the unit tests assert that each validator
  * accepts exactly the shape its schema advertises.
  */
-interface ToolDef {
+export interface ToolDef {
   readonly name: string;
   readonly title: string;
   readonly description: string;

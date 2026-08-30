@@ -53,7 +53,11 @@ export interface ToolContext {
   readonly config: GhostKeyConfig;
   readonly provider: Provider;
   readonly client: GhostKeyClient;
-  readonly vault: Vault;
+  /**
+   * Absent when hosted. The server holds session keys, never a vault key, so
+   * every tool that would unlock one is withheld rather than made to fail late.
+   */
+  readonly vault?: Vault;
   readonly console?: ConsoleServer;
 }
 
@@ -143,6 +147,36 @@ export class GhostKeyTools {
    * spent a vault unlock on the round trip. Cheap and specific before expensive
    * and situational — and never after something the user has to physically click.
    */
+  /** The vault, or an explanation of why there isn't one. */
+  private requireVault(): Vault {
+    if (this.ctx.vault === undefined) {
+      throw new Error(
+        "this is a hosted session: the server holds a session key bounded by your encrypted " +
+          "budget, never your wallet key. Anything needing your wallet — opening a session, " +
+          "widening the allowlist, wrapping tokens — happens in your browser.",
+      );
+    }
+    return this.ctx.vault;
+  }
+
+  /**
+   * Adopts a session opened somewhere else.
+   *
+   * Hosted sessions are opened by the user's own wallet in the browser, so by
+   * the time the tools exist the session is already live on chain and no unlock
+   * was ever spent here. The unlock counter starts at zero and stays there,
+   * which is the honest number rather than a flattering one.
+   */
+  attachSession(session: Session, tier: "spend-only" | "balance-visible"): void {
+    this.live = {
+      session,
+      tier,
+      vaultUnlocks: 0,
+      unlocks: [],
+      refs: new Map(),
+    };
+  }
+
   private requireLive(): Live {
     if (this.live === null) throw new Error("no session is open; call open_session first");
     return this.live;
@@ -173,7 +207,7 @@ export class GhostKeyTools {
       session: p.expiry !== 0,
       vaultUnlocks: this.live.vaultUnlocks,
       unlocks: this.live.unlocks.map((u) => ({ ...u })),
-      vault: (await this.ctx.vault.address()) ?? undefined,
+      vault: (await this.ctx.vault?.address()) ?? undefined,
       sessionKey: this.live.session.sessionKeyAddress,
       expiry: p.expiry,
       txCount: p.txCount,
@@ -217,7 +251,7 @@ export class GhostKeyTools {
     }
 
     const summary = entries.map((t, i) => `${args.budgets[i]} ${t.symbol}`).join(", ");
-    const owner = await this.ctx.vault.unlock(
+    const owner = await this.requireVault().unlock(
       `Open a session: ${summary} to ${args.allowlist.length} recipient(s), for ${args.ttlHours}h.` +
         (args.delegation ? " The session will also be able to read your balance." : ""),
     );
@@ -239,7 +273,7 @@ export class GhostKeyTools {
     // authorised, so nothing extra is needed here.
 
     // Locked again immediately. Everything after this runs on the session key.
-    this.ctx.vault.lock();
+    this.requireVault().lock();
 
     this.live = {
       session: result.session,
@@ -494,9 +528,9 @@ export class GhostKeyTools {
   async addRecipient(args: { to: string }): Promise<ToolResult> {
     const to = this.recipient(args.to);
     const live = this.requireLive();
-    const owner = await this.ctx.vault.unlock(`Allow this session to send to ${to}.`);
+    const owner = await this.requireVault().unlock(`Allow this session to send to ${to}.`);
     const hash = await live.session.addRecipient(to, owner);
-    this.ctx.vault.lock();
+    this.requireVault().lock();
     this.recordUnlock("recipient");
     await this.pushStatus();
     return {
@@ -524,7 +558,7 @@ export class GhostKeyTools {
     const decimals = Number((await underlying.decimals?.()) ?? t.decimals);
     const amount = parseAmount(args.amount, decimals);
 
-    const owner = await this.ctx.vault.unlock(
+    const owner = await this.requireVault().unlock(
       `Wrap ${args.amount} into ${t.symbol}. This moves a public balance, so it needs the vault.`,
     );
     const approveTx = await (underlying.connect(owner) as Contract).approve?.(t.address, amount);
@@ -534,7 +568,7 @@ export class GhostKeyTools {
       amount,
     );
     const receipt = await wrapTx?.wait();
-    this.ctx.vault.lock();
+    this.requireVault().lock();
     if (this.live !== null) {
       this.recordUnlock("wrap");
       await this.pushStatus();
@@ -611,7 +645,7 @@ export class GhostKeyTools {
     tokens: string[];
     canMint: boolean;
   }> {
-    const address = (await this.ctx.vault.address()) ?? "";
+    const address = (await this.requireVault().address()) ?? "";
     const ethBalance =
       address === "" ? "0" : formatEther(await this.ctx.provider.getBalance(address));
     const chainId = this.ctx.config.chainId;
@@ -644,7 +678,7 @@ export class GhostKeyTools {
     const value = parseAmount(amount, t.decimals);
     if (value === 0n) throw new Error("mint an amount greater than zero");
 
-    const owner = await this.ctx.vault.unlock(
+    const owner = await this.requireVault().unlock(
       `Mint ${amount} ${t.symbol} to your vault. Test tokens, Sepolia only.`,
     );
     try {
@@ -657,13 +691,13 @@ export class GhostKeyTools {
       await tx.wait();
       return tx.hash;
     } finally {
-      this.ctx.vault.lock();
+      this.requireVault().lock();
     }
   }
 
   /** @internal for the CLI's status command */
   async vaultSummary(): Promise<{ address: string | null; balance: string }> {
-    const address = await this.ctx.vault.address();
+    const address = await this.requireVault().address();
     if (address === null) return { address: null, balance: "0" };
     return { address, balance: formatEther(await this.ctx.provider.getBalance(address)) };
   }
@@ -782,8 +816,15 @@ export class GhostKeyTools {
     return {
       ok: true,
       text:
-        `Done: ${steps.join(", ")}. The amount was encrypted before it left this machine and ` +
-        `I did not see it. The deposited figure is available as ${id}.`,
+        // Careful with this sentence. "It never left this machine" is true of a
+        // local install and FALSE of a hosted one, where the session client is a
+        // server that resolved the reference and therefore saw the number. What
+        // holds in both is the narrower claim: the model was never told it, and
+        // the chain never carried it in the clear. Overstating it here would put
+        // a lie in front of the user at the exact moment they are deciding
+        // whether to trust the thing.
+        `Done: ${steps.join(", ")}. The figure was encrypted before it reached the chain, and ` +
+        `it was never given to me. The deposited amount is available as ${id}.`,
       data: { tx: hash, ref: id, steps },
     };
   }

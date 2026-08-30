@@ -16,6 +16,9 @@ export { DEFAULT_SESSION_GAS, GhostKeyClient } from "./client";
 export type {
   GhostKeyClientConfig,
   OpenSessionRequest,
+  OwnerCall,
+  PreparedSession,
+  PrepareSessionRequest,
   OpenSessionResult,
   ReadScope,
 } from "./client";

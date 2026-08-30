@@ -15,7 +15,14 @@
  *
  * The fallback is not a degraded path. For the product it is the path.
  */
-import { parseEther, recoverAddress, type Provider, type Signer } from "ethers";
+import {
+  getAddress,
+  parseEther,
+  recoverAddress,
+  ZeroAddress,
+  type Provider,
+  type Signer,
+} from "ethers";
 
 import { EIP712_DOMAIN_NAME, EIP712_DOMAIN_VERSION, OPEN_SESSION_TYPES } from "./abi";
 import { acl as aclAt, erc7984, ghostKey } from "./contracts";
@@ -71,6 +78,50 @@ export interface OpenSessionRequest {
   readonly gasForSessionKey?: bigint;
 }
 
+/**
+ * An open request with the owner's ADDRESS in place of their key.
+ *
+ * This is the hosted shape. `openSession` recovers the session key's own
+ * signature over a digest that binds the owner (GhostKeySession.sol:133 and
+ * :381), so the key has to exist and sign before the user touches anything —
+ * and the server therefore has to know who the owner is at that moment. The
+ * budget ciphertext binds to (module, owner) and needs the address rather than
+ * the key, which is what keeps this to one round trip and keeps the WASM prover
+ * out of the browser entirely.
+ */
+export interface PrepareSessionRequest {
+  readonly ownerAddress: string;
+  readonly budgets: ReadonlyArray<{ token: string; amount: bigint }>;
+  readonly recipients: readonly string[];
+  readonly expiry: Date;
+  readonly maxTxCount?: number;
+  readonly readScope: ReadScope;
+  readonly label?: string;
+  /**
+   * Included in the batch as a value transfer so the session key can pay for its
+   * own transactions. Measured rather than guessed: 0.002 ETH was not enough for
+   * a single `send` on Sepolia. Pass 0n to fund it separately.
+   */
+  readonly gasForSessionKey?: bigint;
+}
+
+/** One call for the owner's wallet to make. `value` funds the session key. */
+export interface OwnerCall {
+  readonly to: string;
+  readonly data: string;
+  readonly value?: bigint;
+}
+
+export interface PreparedSession {
+  readonly sessionKeyAddress: string;
+  /** For the owner's wallet, in order. Batchable under EIP-5792. */
+  readonly calls: readonly OwnerCall[];
+  readonly expiry: number;
+  readonly maxTxCount: number;
+  readonly tokens: readonly string[];
+  readonly readScope: ReadScope;
+}
+
 export interface OpenSessionResult {
   readonly session: Session;
   readonly sessionKeyAddress: string;
@@ -104,6 +155,76 @@ export class GhostKeyClient {
 
   /** Opens a session. Generates the session key locally; it never leaves the process. */
   async openSession(req: OpenSessionRequest): Promise<OpenSessionResult> {
+    const ownerAddress = await req.owner.getAddress();
+    const chainId =
+      this.config.chainId ?? Number((await this.config.provider.getNetwork()).chainId);
+
+    // One code path. The local flow is the hosted flow with the owner's signer
+    // in the same process, and keeping two implementations of an opening
+    // handshake this sharp would be a way to have them drift.
+    const prepared = await this.prepareSession({
+      ownerAddress,
+      budgets: req.budgets,
+      recipients: req.recipients,
+      expiry: req.expiry,
+      readScope: req.readScope,
+      ...(req.maxTxCount === undefined ? {} : { maxTxCount: req.maxTxCount }),
+      ...(req.label === undefined ? {} : { label: req.label }),
+      // Locally the owner is right here, so gas is forwarded after the open
+      // rather than inside the batch — that keeps the existing behaviour, and
+      // the reporting of `gasForwarded`, exactly as it was.
+      gasForSessionKey: 0n,
+    });
+
+    const { hashes, batched, authorisations } = await submitOwnerCalls(
+      req.owner,
+      prepared.calls,
+      chainId,
+    );
+
+    // Fund the session key while the owner is still authorised. Doing it here
+    // rather than leaving it to the caller is the difference between a session
+    // that works and one that fails opaquely on its first send.
+    const target = req.gasForSessionKey ?? DEFAULT_SESSION_GAS;
+    let gasForwarded = 0n;
+    if (target > 0n) {
+      const balance = await this.config.provider.getBalance(prepared.sessionKeyAddress);
+      if (balance < target / 2n) {
+        const top = target - balance;
+        const tx = await req.owner.sendTransaction({
+          to: prepared.sessionKeyAddress,
+          value: top,
+        });
+        await tx.wait();
+        hashes.push(tx.hash);
+        gasForwarded = top;
+      }
+    }
+
+    const session = await this.adoptSession(
+      prepared.sessionKeyAddress,
+      ownerAddress,
+      req.readScope,
+    );
+
+    return {
+      session,
+      sessionKeyAddress: prepared.sessionKeyAddress,
+      hashes,
+      batched,
+      gasForwarded,
+      ownerAuthorisations: authorisations,
+    };
+  }
+
+  /**
+   * Everything a server can do before the user signs anything.
+   *
+   * Generates the session key, encrypts the budgets against the owner's address,
+   * signs the opener's digest with the key, and returns the calls for the
+   * owner's wallet. Holds no owner key and never asks for one.
+   */
+  async prepareSession(req: PrepareSessionRequest): Promise<PreparedSession> {
     if (req.budgets.length === 0) throw new Error("a session must fund at least one token");
     if (req.recipients.length === 0) {
       throw new Error(
@@ -112,7 +233,7 @@ export class GhostKeyClient {
     }
 
     const fhevm = await this.fhevm();
-    const ownerAddress = await req.owner.getAddress();
+    const ownerAddress = getAddress(req.ownerAddress);
     const expiry = Math.floor(req.expiry.getTime() / 1000);
     const maxTxCount = req.maxTxCount ?? 0;
 
@@ -166,7 +287,7 @@ export class GhostKeyClient {
     const ercIface = erc7984(tokens[0]!, this.config.provider).interface;
     const aclIface = aclAt(this.acl, this.config.provider).interface;
 
-    const calls: { to: string; data: string }[] = [];
+    const calls: OwnerCall[] = [];
     for (const t of tokens) {
       calls.push({
         to: t,
@@ -216,44 +337,54 @@ export class GhostKeyClient {
       }
     }
 
-    const { hashes, batched, authorisations } = await submitOwnerCalls(req.owner, calls, chainId);
-
-    // Fund the session key while the owner is still authorised. Doing it here
-    // rather than leaving it to the caller is the difference between a session
-    // that works and one that fails opaquely on its first send.
-    const target = req.gasForSessionKey ?? DEFAULT_SESSION_GAS;
-    let gasForwarded = 0n;
-    if (target > 0n) {
-      const balance = await this.config.provider.getBalance(sessionKeyAddress);
-      if (balance < target / 2n) {
-        const top = target - balance;
-        const tx = await req.owner.sendTransaction({ to: sessionKeyAddress, value: top });
-        await tx.wait();
-        hashes.push(tx.hash);
-        gasForwarded = top;
-      }
+    // Gas rides in the batch when the owner is not in this process. A session key
+    // that cannot pay for a transaction is not a session, and the open is the
+    // only moment the owner is at the keyboard.
+    const gas = req.gasForSessionKey ?? DEFAULT_SESSION_GAS;
+    if (gas > 0n) {
+      const held = await this.config.provider.getBalance(sessionKeyAddress);
+      if (held < gas / 2n) calls.push({ to: sessionKeyAddress, data: "0x", value: gas - held });
     }
 
-    const ctx: SessionContext = {
-      moduleAddress: this.config.moduleAddress,
-      sessionKey,
-      sessionKeyAddress,
-      owner: ownerAddress,
-      fhevm,
-    };
-    const session =
-      req.readScope === "balance-visible"
-        ? new BalanceVisibleSession(ctx)
-        : new SpendOnlySession(ctx);
-
     return {
-      session,
       sessionKeyAddress,
-      hashes,
-      batched,
-      gasForwarded,
-      ownerAuthorisations: authorisations,
+      calls,
+      expiry,
+      maxTxCount,
+      tokens,
+      readScope: req.readScope,
     };
+  }
+
+  /**
+   * Takes ownership of a prepared session, but only on the chain's say-so.
+   *
+   * A hosted server hands out an MCP endpoint on the strength of this, so the
+   * claim has to be checked rather than believed: anyone can assert that a
+   * session key is theirs. `sessionOf` says who actually opened it.
+   */
+  async adoptSession(
+    sessionKeyAddress: string,
+    claimedOwner: string,
+    readScope: ReadScope,
+  ): Promise<Session> {
+    const moduleRead = ghostKey(this.config.moduleAddress, this.config.provider);
+    const params = await moduleRead.sessionOf(sessionKeyAddress);
+    const onChainOwner: string = params[0];
+
+    if (onChainOwner === ZeroAddress) {
+      throw new Error(`no session was opened for ${sessionKeyAddress}`);
+    }
+    if (onChainOwner.toLowerCase() !== getAddress(claimedOwner).toLowerCase()) {
+      throw new Error(
+        `${claimedOwner} does not own the session for ${sessionKeyAddress}; the chain says ${onChainOwner}`,
+      );
+    }
+    if (BigInt(params[1]) === 0n) {
+      throw new Error(`the session for ${sessionKeyAddress} is closed`);
+    }
+
+    return this.resumeSession(sessionKeyAddress, readScope);
   }
 
   /** Rebuilds a session object for a key already in the keystore. */
@@ -304,7 +435,7 @@ export class GhostKeyClient {
  */
 async function submitOwnerCalls(
   owner: Signer,
-  calls: readonly { to: string; data: string }[],
+  calls: readonly OwnerCall[],
   chainId: number,
 ): Promise<{ hashes: string[]; batched: boolean; authorisations: number }> {
   const provider = owner.provider as
@@ -329,7 +460,11 @@ async function submitOwnerCalls(
             version: "2.0.0",
             from,
             chainId: key,
-            calls: calls.map((c) => ({ to: c.to, data: c.data })),
+            calls: calls.map((c) => ({
+              to: c.to,
+              data: c.data,
+              ...(c.value === undefined ? {} : { value: `0x${c.value.toString(16)}` }),
+            })),
           },
         ])) as string | { id: string };
         return {
@@ -349,7 +484,11 @@ async function submitOwnerCalls(
   // authorisation from the user's point of view.
   const hashes: string[] = [];
   for (const c of calls) {
-    const tx = await owner.sendTransaction({ to: c.to, data: c.data });
+    const tx = await owner.sendTransaction({
+      to: c.to,
+      data: c.data,
+      ...(c.value === undefined ? {} : { value: c.value }),
+    });
     await tx.wait();
     hashes.push(tx.hash);
   }
