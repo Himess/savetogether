@@ -12,6 +12,8 @@ import type { Signer } from "ethers";
 import { erc7984, ghostKey, type GhostKeyContract } from "./contracts";
 import { AmountExpr, AmountRef, attachResolver } from "./amounts";
 import { PoolClient } from "./pool";
+import { VaultClient } from "./vault";
+import { WrapClient } from "./wrap";
 import {
   BalanceNotVisibleError,
   OperatorNotGrantedError,
@@ -118,6 +120,32 @@ class SessionImpl {
    * leave this object. It is a capability of a session, not a separate client
    * that happens to share its key.
    */
+  /**
+   * A client for turning this session's public money into confidential money.
+   *
+   * Same reasoning as `poolClient`: the session hands out a capability rather
+   * than its context, so the key and the relayer instance never leave it. The
+   * account being wrapped for is the session key, which is the account a hosted
+   * session acts as and holds its position under.
+   */
+  wrapClient(wrapperAddress: string): WrapClient {
+    return new WrapClient({
+      fhevm: this.ctx.fhevm,
+      signer: this.ctx.sessionKey,
+      signerAddress: this.ctx.sessionKeyAddress,
+      wrapperAddress,
+    });
+  }
+
+  /** A client for the vault adapter. Joining and claiming are permissionless. */
+  vaultClient(adapterAddress: string, batcherAddress?: string): VaultClient {
+    return new VaultClient({
+      signer: this.ctx.sessionKey,
+      adapterAddress,
+      ...(batcherAddress === undefined ? {} : { batcherAddress }),
+    });
+  }
+
   poolClient(poolAddress: string, tokenAddress: string): PoolClient {
     return new PoolClient({
       fhevm: this.ctx.fhevm,

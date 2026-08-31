@@ -68,3 +68,23 @@ export const VAULT_SOURCE_ABI = [
   { type: "function", name: "joinVault", stateMutability: "nonpayable", inputs: [], outputs: [{ type: "uint256" }] },
   { type: "function", name: "claimShares", stateMutability: "nonpayable", inputs: [{ type: "uint256" }], outputs: [] },
 ] as const;
+
+/**
+ * The session module.
+ *
+ * `remainingOf` is the number the owner most wants to see and CAN see: the
+ * budget handle is granted to the owner as well as the session key at open, so
+ * this decrypts with the same permit as everything else. The session key's own
+ * token balance is NOT readable by the owner, which is correct rather than a
+ * gap -- the ACL grants that one to the key alone.
+ */
+export const MODULE_ABI = [
+  { type: "function", name: "remainingOf", stateMutability: "view", inputs: [{ type: "address" }, { type: "address" }], outputs: [{ type: "bytes32" }] },
+  {
+    type: "function", name: "sessionOf", stateMutability: "view", inputs: [{ type: "address" }],
+    outputs: [{ type: "tuple", components: [
+      { name: "owner", type: "address" }, { name: "expiry", type: "uint48" },
+      { name: "maxTxCount", type: "uint24" }, { name: "txCount", type: "uint24" },
+    ] }],
+  },
+] as const;

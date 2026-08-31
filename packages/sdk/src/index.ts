@@ -56,3 +56,6 @@ export type { PoolContext, PoolPosition, PoolStatus } from "./pool";
 
 export { ACL_ABI, ERC7984_ABI, GHOSTKEY_ABI } from "./abi";
 export { isTransient, withRetry } from "./fhe";
+
+export { WrapClient, type WrapResult } from "./wrap";
+export { VaultClient, type VaultStatus } from "./vault";

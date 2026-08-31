@@ -1,9 +1,11 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
-import { useAccount, useSendTransaction } from "wagmi";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAccount, useBalance, useReadContract, useSendTransaction } from "wagmi";
 import { css } from "@/lib/css";
 import { shortAddr } from "@/lib/format";
-import { EXPLORER, HOSTED_URL } from "@/lib/addresses";
+import { useDecryptValues, useGrantPermit, useHasPermit } from "@zama-fhe/react-sdk";
+import { EXPLORER, HOSTED_URL, MODULE, TOKEN } from "@/lib/addresses";
+import { MODULE_ABI } from "@/lib/abis";
 import { useOnSepolia } from "@/lib/chain";
 import { humanise } from "@/lib/tx";
 import { useToast } from "@/components/Toast";
@@ -23,6 +25,7 @@ interface Status {
 }
 
 const STORAGE_KEY = "ghostpool.hosted.session";
+const ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 /**
  * Handing a key to something that cannot misuse it.
@@ -76,6 +79,36 @@ export function ChatScreen() {
   useEffect(() => {
     if (token !== null) void refresh(token);
   }, [token, refresh]);
+
+  // What the session key has to work with. The budget handle is granted to the
+  // owner at open as well as to the key, so this is the one confidential number
+  // about the session that the person who created it can actually read.
+  const key = status?.sessionKeyAddress as `0x${string}` | undefined;
+  const { data: gas } = useBalance({ address: key, query: { enabled: !!key } });
+  const { data: remainingHandle } = useReadContract({
+    abi: MODULE_ABI, address: MODULE, functionName: "remainingOf",
+    args: key ? [key, TOKEN] : undefined,
+    query: { enabled: !!key, refetchInterval: 20_000 },
+  });
+  const { data: hasPermit } = useHasPermit({ contractAddresses: [MODULE] }, { enabled: !!key });
+  const { mutate: grantPermit, isPending: granting } = useGrantPermit();
+  const budgetInputs = useMemo(
+    () =>
+      remainingHandle && remainingHandle !== ZERO
+        ? [{ encryptedValue: remainingHandle as `0x${string}`, contractAddress: MODULE }]
+        : [],
+    [remainingHandle],
+  );
+  const { data: budgetClear, isFetching: readingBudget } = useDecryptValues(budgetInputs, {
+    enabled: hasPermit === true && budgetInputs.length > 0,
+  });
+  const remaining = useMemo(() => {
+    if (!remainingHandle || remainingHandle === ZERO) return "0";
+    if (hasPermit !== true) return "•••";
+    if (readingBudget) return "…";
+    const v = budgetClear?.[remainingHandle as `0x${string}`];
+    return v === undefined ? "•••" : String(v);
+  }, [remainingHandle, hasPermit, readingBudget, budgetClear]);
 
   if (!HOSTED_URL) return null;
 
@@ -215,6 +248,38 @@ export function ChatScreen() {
                   </button>
                 )}
               </div>
+
+              {/* What the session key actually has. The budget is the number that
+                  matters and the owner CAN read it — it is granted to them as
+                  well as to the key at open. Gas is public. The key's own token
+                  balance is deliberately absent: the ACL grants that to the key
+                  alone, and showing a blank where it would go would suggest a
+                  gap rather than a rule. */}
+              {status.live && (
+                <div style={css("margin-top:12px;padding-top:11px;border-top:1px solid rgba(0,0,0,.07)")}>
+                  <div style={css("display:flex;justify-content:space-between;align-items:baseline")}>
+                    <span style={css("font:500 11.5px var(--display);color:var(--ink-2)")}>Budget left</span>
+                    <span style={css("font:750 15px var(--display);font-variant-numeric:tabular-nums")}>
+                      {remaining} <span style={css("font:600 11px var(--mono);color:var(--ink-3)")}>gUSDC</span>
+                    </span>
+                  </div>
+                  <div style={css("display:flex;justify-content:space-between;align-items:baseline;margin-top:4px")}>
+                    <span style={css("font:500 11.5px var(--display);color:var(--ink-2)")}>Gas it can spend</span>
+                    <span style={css("font:650 12.5px var(--mono);font-variant-numeric:tabular-nums;color:var(--ink-2)")}>
+                      {gas === undefined ? "…" : `${Number(gas.formatted).toFixed(4)} ETH`}
+                    </span>
+                  </div>
+                  {hasPermit !== true && (
+                    <button
+                      onClick={() => grantPermit([MODULE])}
+                      disabled={granting || !onSepolia}
+                      style={css("width:100%;margin-top:10px;padding:8px;border-radius:9px;border:1px solid var(--line-2);background:var(--surface);font:650 11.5px var(--display);color:var(--ink);cursor:pointer")}
+                    >
+                      {granting ? "Waiting for signature…" : "Decrypt the budget"}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

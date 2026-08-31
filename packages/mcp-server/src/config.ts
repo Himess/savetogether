@@ -38,6 +38,11 @@ export interface GhostKeyConfig {
    * working rather than failing to load.
    */
   readonly pool?: { readonly address: string; readonly token: string };
+  /**
+   * The adapter on Zama's confidential vault, when one is deployed. Optional:
+   * the pool works without it, and the composition is a separate claim.
+   */
+  readonly vault?: { readonly adapter: string; readonly batcher?: string };
 }
 
 export const DEFAULT_CONFIG_PATH = path.join(os.homedir(), ".ghostkey", "config.json");

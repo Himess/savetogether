@@ -217,6 +217,30 @@ export function toolDefinitions(tools: GhostKeyTools): ToolDef[] {
       run: () => tools.revokeAll(),
     },
     {
+      name: "vault_status",
+      title: "Where the vault batch is",
+      description:
+        "GhostPool's adapter on Zama's own confidential vault: which batch it has joined and " +
+        "where that batch is in its cycle. Say plainly, if asked, that this vault pays NO " +
+        "yield — it is Zama's Sepolia mock, not the mainnet Steakhouse/Morpho vault. What it " +
+        "demonstrates is that the confidential layer composes, not a return.",
+      schema: objectSchema({}),
+      validate: z.object({}),
+      run: () => tools.vaultStatus(),
+    },
+    {
+      name: "vault_join",
+      title: "Put the adapter's balance into the next vault batch",
+      description:
+        "Permissionless, and it moves the ADAPTER's own holding rather than anyone's personal " +
+        "balance — there is no amount to get wrong. Shares come back when Zama's keeper " +
+        "dispatches the batch, on their clock. Do not describe this as earning anything: the " +
+        "Sepolia vault is a mock and pays nothing.",
+      schema: objectSchema({}),
+      validate: z.object({}),
+      run: () => tools.vaultJoin(),
+    },
+    {
       name: "pool_deposit",
       title: "Put money into the prize pool",
       description:

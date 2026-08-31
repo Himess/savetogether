@@ -63,7 +63,15 @@ export interface HostedConfig {
    */
   readonly allowedOrigins: readonly string[];
   readonly pool?: { readonly address: string; readonly token: string };
-  readonly tokens: ReadonlyArray<{ symbol: string; address: string; decimals: number }>;
+  /** The adapter on Zama's confidential vault, when one is deployed. */
+  readonly vault?: { readonly adapter: string; readonly batcher?: string };
+  readonly tokens: ReadonlyArray<{
+    symbol: string;
+    address: string;
+    decimals: number;
+    /** The public ERC-20 this wraps, when it is a wrapper. Wrapping needs it. */
+    underlying?: string;
+  }>;
 }
 
 export class HostedServer {

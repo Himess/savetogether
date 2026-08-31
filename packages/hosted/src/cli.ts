@@ -11,6 +11,10 @@ import { HostedServer } from "./server";
 
 const SEPOLIA = 11155111;
 
+/** Zama's deployed confidential vault, reached through GhostPool's adapter. */
+const ZAMA_VAULT_ADAPTER = "0xc5120E26aafdD76D324E62cF19c391C367Cf99Ba";
+const ZAMA_DEPOSIT_BATCHER = "0x48758559c14d4d92b4C74A99660B6a8dbe85F53b";
+
 function flag(name: string): string | undefined {
   const i = process.argv.indexOf(name);
   return i >= 0 ? process.argv[i + 1] : undefined;
@@ -51,12 +55,22 @@ async function main(): Promise<void> {
       address: flag("--pool") ?? "0x3f6F8e5A853bEC8FA008b31E28f9B0fD9dC0F287",
       token: "gUSDC",
     },
+    vault: { adapter: ZAMA_VAULT_ADAPTER, batcher: ZAMA_DEPOSIT_BATCHER },
     tokens: [
       // Whole units. The frontend once scaled withdraw by 1e6 and deposit not at
       // all, and the pool clamped the difference to an encrypted zero without
       // failing, so this number is load-bearing.
       { symbol: "gUSDC", address: "0x1bbBE55d24174d57305632E75fE47ac3C5158a9F", decimals: 0 },
       { symbol: "gkUSD", address: "0xCFf87b42b916f7aA0F61CD060C9f48772F303D37", decimals: 6 },
+      {
+        // Zama's own wrapper. `underlying` is what makes it wrappable at all --
+        // without that link the wrap tool has nothing to turn into it, and would
+        // refuse with "not a wrapper" on a contract that plainly is one.
+        symbol: "cUSDC",
+        address: "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639",
+        decimals: 6,
+        underlying: "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF",
+      },
     ],
   });
 

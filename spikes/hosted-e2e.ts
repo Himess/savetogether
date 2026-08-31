@@ -88,7 +88,21 @@ async function main(): Promise<void> {
       moduleAddress: MODULE,
       aclAddress: "0xf0Ffdc93b7E186bC2f8CB3dAA75D86d1930A433D",
       pool: { address: POOL, token: "gUSDC" },
-      tokens: [{ symbol: "gUSDC", address: TOKEN, decimals: 0 }],
+      tokens: [
+        { symbol: "gUSDC", address: TOKEN, decimals: 0 },
+        {
+          // `underlying` is what makes wrap possible at all — without the link
+          // the tool refuses with "not a wrapper" on a contract that plainly is.
+          symbol: "cUSDC",
+          address: "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639",
+          decimals: 6,
+          underlying: "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF",
+        },
+      ],
+      vault: {
+        adapter: "0xc5120E26aafdD76D324E62cF19c391C367Cf99Ba",
+        batcher: "0x48758559c14d4d92b4C74A99660B6a8dbe85F53b",
+      },
       allowedOrigins: ["http://localhost:3000"],
     });
 
@@ -162,16 +176,42 @@ async function main(): Promise<void> {
     };
     const names = listed.tools.map((t) => t.name).sort();
     console.log(`   ${names.length} tools: ${names.join(", ")}`);
-    for (const withheld of ["open_session", "wrap", "add_recipient"]) {
+    // wrap is no longer withheld: it wraps for the account this session acts as,
+    // which hosted is the session key holding its own position.
+    for (const withheld of ["open_session", "add_recipient"]) {
       if (names.includes(withheld)) throw new Error(`${withheld} should not be hosted`);
     }
-    console.log(`   the vault-needing tools are absent, as intended`);
+    console.log(`   the wallet-needing tools are absent, as intended`);
+    for (const wanted of ["wrap", "vault_status", "vault_join"]) {
+      if (!names.includes(wanted)) throw new Error(`${wanted} should be hosted`);
+    }
+    console.log(`   wrap and the vault tools are present`);
 
     const status = (await mcp(adopted.mcpUrl, "tools/call", {
       name: "pool_status",
       arguments: {},
     })) as { content: { text: string }[] };
     console.log(`   pool_status -> ${status.content[0]!.text.slice(0, 90)}`);
+
+    // The two tools that complete the chain, exercised rather than assumed.
+    // vault_status is a read; wrap mints the test underlying to the session key
+    // and wraps it, which is the "make this cUSDC" step and had never run hosted.
+    console.log(`\n7b. the composition tools`);
+    const vs = (await mcp(adopted.mcpUrl, "tools/call", {
+      name: "vault_status",
+      arguments: {},
+    })) as { content: { text: string }[]; isError?: boolean };
+    console.log(`   vault_status -> ${vs.content[0]!.text.slice(0, 160)}`);
+    if (vs.isError === true) throw new Error("vault_status failed");
+
+    const wrapped = (await mcp(adopted.mcpUrl, "tools/call", {
+      name: "wrap",
+      arguments: { token: "cUSDC", amount: "5" },
+    })) as { content: { text: string }[]; isError?: boolean };
+    console.log(`   wrap -> ${wrapped.content[0]!.text.slice(0, 200)}`);
+    if (wrapped.isError === true) {
+      throw new Error(`wrap failed: ${wrapped.content[0]!.text}`);
+    }
 
     console.log(`\n8. the deposit, made from the conversation`);
     const deposit = (await mcp(adopted.mcpUrl, "tools/call", {

@@ -24,6 +24,7 @@ import {
   ref,
   revealAmount,
   PoolClient,
+  VaultClient,
   type AmountExpr,
   type AmountRef,
   type Session,
@@ -541,9 +542,19 @@ export class GhostKeyTools {
   }
 
   /**
-   * Wrapping needs the vault, which the brief's tool list did not note: `wrap`
-   * moves a PUBLIC ERC-20 balance the owner holds, so it is `approve` plus `wrap`
-   * signed by the vault key, not by the session key.
+   * Public money into confidential money, for whoever this session acts as.
+   *
+   * TWO MODES, ONE MEANING. Locally the owner holds the public balance and a
+   * vault unlock is the honest price of moving it. Hosted there is no vault and
+   * no owner key, so the account that acts is the session key -- it holds its
+   * own position, and wrapping into that position is an ordinary thing for it to
+   * do. The tool means the same in both: make the money this session can spend
+   * confidential.
+   *
+   * The faucet step exists because the underlying here is a testnet mock with a
+   * permissionless mint. On a real deployment the caller brings their own and it
+   * never runs -- which is why it is a precondition handled quietly rather than
+   * a feature announced.
    */
   async wrap(args: { token: string; amount: string }): Promise<ToolResult> {
     const t = this.token(args.token);
@@ -553,6 +564,25 @@ export class GhostKeyTools {
         text: `${t.symbol} is not a wrapper — there is no public token to wrap into it.`,
       };
     }
+
+    // Hosted: no vault, so the session key wraps for itself.
+    if (this.ctx.vault === undefined) {
+      const live = this.requireLive();
+      const client = live.session.wrapClient(t.address);
+      const { decimals } = await client.publicBalance();
+      const amount = parseAmount(args.amount, decimals);
+
+      const { hashes, steps } = await client.wrap(amount, { faucet: true });
+      return {
+        ok: true,
+        text:
+          `Done: ${steps.join(", ")}. That amount was public before and is confidential now — ` +
+          `and wrapping itself is a public act, so the figure IS readable in this transaction. ` +
+          `Nothing you do with it afterwards is.`,
+        data: { tx: hashes[hashes.length - 1], hashes, steps },
+      };
+    }
+
     const wrapper = new Contract(t.address, WRAPPER_ABI, this.ctx.provider);
     const underlying = new Contract(t.underlying, ERC20_ABI, this.ctx.provider);
     const decimals = Number((await underlying.decimals?.()) ?? t.decimals);
@@ -577,6 +607,67 @@ export class GhostKeyTools {
       ok: true,
       text: `Wrapped ${args.amount} into ${t.symbol}. The amount was public before and is confidential now.`,
       data: { tx: receipt?.hash },
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // the vault
+  //
+  // Composition, not yield. Joining moves the adapter's balance into Zama's next
+  // deposit batch and real shares come back when their keeper dispatches it --
+  // and it earns NOTHING, because Zama's Sepolia vault is a mock. Both tools say
+  // so, because a model that told someone their money was earning in there would
+  // be making the one claim that discredits everything else this product says.
+  // -------------------------------------------------------------------------
+
+  private requireVaultSource(live: Live): VaultClient {
+    const cfg = this.ctx.config.vault;
+    if (cfg === undefined) {
+      throw new Error("no vault adapter is configured for this deployment");
+    }
+    return live.session.vaultClient(cfg.adapter, cfg.batcher);
+  }
+
+  /** Where the adapter is in the vault's batch cycle. */
+  async vaultStatus(): Promise<ToolResult> {
+    const live = this.requireLive();
+    const client = this.requireVaultSource(live);
+    const s = await client.status();
+
+    const where =
+      s.currentBatchId === null
+        ? "The batcher's own state is not configured here."
+        : `The vault's current batch is #${s.currentBatchId} and it is ${s.currentState}.`;
+
+    return {
+      ok: true,
+      text:
+        `${where} The adapter has ${s.openBatches.length} batch(es) it has joined and not yet ` +
+        `claimed${s.openBatches.length > 0 ? ` (${s.openBatches.join(", ")})` : ""}. ` +
+        `Worth being straight about: this vault is Zama's Sepolia mock and pays no yield. ` +
+        `Joining it proves the confidential layer composes; it does not make anyone money.`,
+      data: { ...s },
+    };
+  }
+
+  /**
+   * Puts the adapter's balance into the vault's next batch.
+   *
+   * Permissionless, and it moves the ADAPTER's holding rather than anyone's
+   * personal balance — there is no argument to get wrong and no way for it to
+   * send value somewhere the adapter had not already chosen.
+   */
+  async vaultJoin(): Promise<ToolResult> {
+    const live = this.requireLive();
+    const client = this.requireVaultSource(live);
+    const hash = await client.join();
+    return {
+      ok: true,
+      text:
+        `Joined the next deposit batch. Shares arrive when Zama's keeper dispatches it, which is ` +
+        `their clock rather than ours — ask for the vault status to see where it is. This earns ` +
+        `nothing: the Sepolia vault is a mock, and what this demonstrates is composition.`,
+      data: { tx: hash },
     };
   }
 

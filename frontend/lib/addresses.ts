@@ -51,4 +51,7 @@ export const YIELD_SOURCE = "0x5D402A5D1dD70E4499B68379C7e343323E11E1eC" as cons
 /** The same pool contract, unmodified, running on Zama's own cUSDC. */
 export const CUSDC_POOL = "0x3Eddf704b0909F6A8fa491857533D28C22f9b8d4" as const;
 
+/** GhostKeySession — the module that holds the encrypted budget. */
+export const MODULE = "0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6" as const;
+
 export const HOSTED_URL = process.env.NEXT_PUBLIC_HOSTED_URL ?? "";

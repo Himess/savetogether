@@ -153,6 +153,8 @@ describe("MCP layer", () => {
           "revoke_all",
           "send",
           "session_status",
+          "vault_join",
+          "vault_status",
           "wrap",
         ].sort(),
       );

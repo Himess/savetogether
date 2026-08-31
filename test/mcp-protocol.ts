@@ -38,6 +38,8 @@ const EXPECTED_TOOLS = [
   "revoke_all",
   "send",
   "session_status",
+  "vault_join",
+  "vault_status",
   "wrap",
 ];
 

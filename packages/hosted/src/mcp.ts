@@ -10,7 +10,8 @@
  * WHAT IS WITHHELD, and why each one:
  *
  *   open_session    the browser did it. There is no vault here to unlock.
- *   wrap            wrapping is public and needs the owner's own tokens.
+ *   (wrap is NOT withheld any more: it now wraps for the account this session
+ *   acts as, which hosted is the session key holding its own position.)
  *   add_recipient   widening the allowlist is exactly the authority the owner
  *                   kept. It belongs in their wallet, not in a chat message.
  *
@@ -28,7 +29,7 @@ import { JsonRpcProvider } from "ethers";
 import type { MemoryKeystore } from "./keystore";
 import type { SessionToken } from "./token";
 
-const WITHHELD = new Set(["open_session", "wrap", "add_recipient"]);
+const WITHHELD = new Set(["open_session", "add_recipient"]);
 
 export interface McpEndpointsConfig {
   readonly client: GhostKeyClient;
@@ -39,7 +40,14 @@ export interface McpEndpointsConfig {
     readonly moduleAddress: string;
     readonly aclAddress?: string;
     readonly pool?: { readonly address: string; readonly token: string };
-    readonly tokens: ReadonlyArray<{ symbol: string; address: string; decimals: number }>;
+    readonly vault?: { readonly adapter: string; readonly batcher?: string };
+    readonly tokens: ReadonlyArray<{
+    symbol: string;
+    address: string;
+    decimals: number;
+    /** The public ERC-20 this wraps, when it is a wrapper. Wrapping needs it. */
+    underlying?: string;
+  }>;
   };
 }
 
@@ -138,6 +146,7 @@ export class McpEndpoints {
         ? {}
         : { aclAddress: this.deps.config.aclAddress }),
       ...(this.deps.config.pool === undefined ? {} : { pool: { ...this.deps.config.pool } }),
+      ...(this.deps.config.vault === undefined ? {} : { vault: { ...this.deps.config.vault } }),
     };
 
     // No vault, and no way to acquire one. The tools that would have unlocked it
