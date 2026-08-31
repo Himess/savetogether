@@ -94,6 +94,19 @@ export function Balances() {
         </div>
       )}
 
+      {/* An empty position and an undecrypted one both look like a number you
+          cannot act on, and the first person to reach this screen read three
+          zeros as "the decryption failed". They are real: the handles on chain
+          are literally zero, so there is nothing to decrypt yet. Saying so is
+          cheaper than letting someone conclude the app is broken. */}
+      {handles.length === 0 && (
+        <p className="note note--plain" style={{ marginTop: 12 }}>
+          Nothing here yet — these are real zeros, not hidden numbers. You have not
+          deposited, so there is nothing encrypted to decrypt. Deposit below and
+          they start moving.
+        </p>
+      )}
+
       <p className="note">
         These live encrypted on chain. Nobody — not the pool, not the keeper, not
         another depositor — can read them. Anything won is credited automatically;
