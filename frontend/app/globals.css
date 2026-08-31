@@ -244,3 +244,8 @@ input:focus {
   .masthead-inner { padding: 16px; }
   .chain-pill { margin-left: 0; }
 }
+
+/* The route table carries two lines per cell, so it needs room the compact
+   key/value table does not give it. */
+.kv.route td { padding-top: 12px; padding-bottom: 12px; vertical-align: top; }
+.kv.route .val { font-size: 15px; }

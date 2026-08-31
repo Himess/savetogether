@@ -5,6 +5,8 @@ import { Connect } from "./Connect";
 import { Deposit } from "./Deposit";
 import { DrawStatus } from "./DrawStatus";
 import { HostedSession } from "./HostedSession";
+import { Route } from "./Route";
+import { Wrap } from "./Wrap";
 import { Withdraw } from "./Withdraw";
 import Link from "next/link";
 import { POOL } from "../lib/addresses";
@@ -35,8 +37,10 @@ export function App() {
         )}
 
         <Connect />
+        <Route />
         <DrawStatus />
         <HostedSession />
+        <Wrap />
         <Balances />
         <Deposit />
         <Withdraw />
