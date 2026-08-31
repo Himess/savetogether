@@ -6,6 +6,8 @@ import { POOL } from "../lib/addresses";
 import { POOL_ABI } from "../lib/abis";
 import { useOnSepolia } from "../lib/chain";
 import { useEncrypt } from "@zama-fhe/react-sdk";
+import { useAction } from "../lib/tx";
+import { TxStatus } from "./TxStatus";
 
 /**
  * Taking money out.
@@ -26,8 +28,9 @@ export function Withdraw() {
   const [amount, setAmount] = useState("50");
   const { writeContractAsync } = useWriteContract();
   const { mutateAsync: encrypt, isPending: encrypting } = useEncrypt();
-  const [busy, setBusy] = useState(false);
   const onSepolia = useOnSepolia();
+  const { state, run } = useAction();
+  const busy = state.phase === "wallet" || state.phase === "pending";
 
   const units = useMemo(() => {
     const n = Number(amount);
@@ -39,22 +42,25 @@ export function Withdraw() {
 
   if (!address || !POOL) return null;
 
-  const submit = async () => {
-    setBusy(true);
-    try {
-      const enc = await encrypt({
-        contractAddress: POOL,
-        userAddress: address,
-        values: [{ type: "euint64", value: units }],
-      });
-      await writeContractAsync({
-        abi: POOL_ABI, address: POOL, functionName: "withdraw",
-        args: [enc.encryptedValues[0] as `0x${string}`, enc.inputProof],
-      });
-    } finally {
-      setBusy(false);
-    }
-  };
+  const submit = () =>
+    void run(
+      "Withdrawing",
+      // Careful with this sentence: the contract clamps rather than reverting,
+      // so a successful transaction is NOT proof the amount moved. Promising it
+      // did would contradict the paragraph directly below it.
+      "The transaction landed. If you asked for more than you hold it moved nothing, by design — check your position above.",
+      async () => {
+        const enc = await encrypt({
+          contractAddress: POOL,
+          userAddress: address,
+          values: [{ type: "euint64", value: units }],
+        });
+        return writeContractAsync({
+          abi: POOL_ABI, address: POOL, functionName: "withdraw",
+          args: [enc.encryptedValues[0] as `0x${string}`, enc.inputProof],
+        });
+      },
+    );
 
   return (
     <div className="panel">
@@ -63,10 +69,12 @@ export function Withdraw() {
         <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
         <span className="dim">gUSDC</span>
         <button disabled={busy || encrypting || units === 0n || !onSepolia} onClick={submit}>
-          {encrypting ? "Encrypting…" : busy ? "Sending…" : "Withdraw"}
+          {encrypting ? "Encrypting…" : "Withdraw"}
         </button>
         {!onSepolia && <span className="warn">Switch your wallet to Sepolia first.</span>}
       </div>
+      <TxStatus state={state} />
+
       <p className="note">
         Your principal is never at risk — only the yield funds prizes. Asking for
         more than you hold succeeds and moves nothing, on purpose: a failed
