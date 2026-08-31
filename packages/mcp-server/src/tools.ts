@@ -612,9 +612,18 @@ export class GhostKeyTools {
     const r = live.refs.get(id);
     if (r === undefined) throw new Error(`unknown reference ${id}`);
     if (this.ctx.console === undefined) {
+      // Hosted. There is no local console to click, so the answer is no — and
+      // that is the design rather than a missing feature: a reveal has to be a
+      // physical act by the holder, and a hosted session has nowhere to put one.
+      // The earlier wording said "the local console is not running", which reads
+      // as a fault to someone who never had one.
       return {
         ok: false,
-        text: "Revealing a number needs a click on the local console, and it is not running.",
+        text:
+          "I cannot see that number. Revealing one takes a deliberate click by you, and this " +
+          "is a hosted session with nowhere to put that click — so the figure stays a reference " +
+          "I can spend but not read. Your own balances are on the site, decrypted with your " +
+          "wallet: https://ghostpool-himess.vercel.app",
       };
     }
     const answer = await this.ctx.console.ask("reveal", question);
