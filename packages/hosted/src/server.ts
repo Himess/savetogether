@@ -163,6 +163,32 @@ export class HostedServer {
       return;
     }
 
+    // A person who pastes the base URL into a browser gets an explanation, not
+    // `no route for GET /`. They are not lost — there is genuinely no page here
+    // — but an API that answers a human with an error reads as broken, and the
+    // first person to try it did exactly that and asked whether it was down.
+    if (url.pathname === "/" || url.pathname === "") {
+      this.json(
+        res,
+        200,
+        {
+          service: "ghostpool-hosted",
+          what: "The server behind GhostPool's conversational layer. There is no page here.",
+          openASession: "https://ghostpool-himess.vercel.app",
+          endpoints: {
+            "GET /api/health": "liveness",
+            "POST /api/session/prepare": "generate a session key and return the calls your wallet signs",
+            "POST /api/session/adopt": "confirm on chain, then issue the MCP URL",
+            "GET /api/session/:token": "status, and the calls that revoke it",
+            "ALL /mcp/:token": "MCP over streamable HTTP — for a chat client, not a browser",
+          },
+          holds: "session keys, sealed into the bearer token. No wallet keys, no database.",
+        },
+        cors,
+      );
+      return;
+    }
+
     if (url.pathname === "/api/health") {
       this.json(res, 200, { ok: true, chainId: this.config.chainId }, cors);
       return;
