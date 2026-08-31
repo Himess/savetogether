@@ -53,3 +53,18 @@ export const SHARE_ABI = [
   { type: "function", name: "symbol", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
   { type: "function", name: "confidentialBalanceOf", stateMutability: "view", inputs: [{ type: "address" }], outputs: [{ type: "bytes32" }] },
 ] as const;
+
+/** The yield engine. rateBps is immutable, so the APY on screen is read, not written. */
+export const YIELD_ABI = [
+  { type: "function", name: "rateBps", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
+  { type: "function", name: "principal", stateMutability: "view", inputs: [], outputs: [{ type: "bytes32" }] },
+  { type: "function", name: "pending", stateMutability: "view", inputs: [], outputs: [{ type: "bytes32" }] },
+  { type: "function", name: "asset", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+] as const;
+
+/** The adapter that joined a real Zama vault batch and holds real shares. */
+export const VAULT_SOURCE_ABI = [
+  { type: "function", name: "openBatches", stateMutability: "view", inputs: [], outputs: [{ type: "uint256[]" }] },
+  { type: "function", name: "joinVault", stateMutability: "nonpayable", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "claimShares", stateMutability: "nonpayable", inputs: [{ type: "uint256" }], outputs: [] },
+] as const;

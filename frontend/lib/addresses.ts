@@ -39,4 +39,16 @@ export const DEPOSIT_BATCHER = "0x48758559c14d4d92b4C74A99660B6a8dbe85F53b" as c
  * local install is a complete product on its own and a dead `Open a session`
  * button would say otherwise.
  */
+/**
+ * The engine that actually funds prizes.
+ *
+ * Ours, not Zama's. Its rate is on chain and immutable, so the APY the Vault
+ * screen shows is read rather than written into the page -- and it is a
+ * deliberately theatrical rate, which the screen says out loud.
+ */
+export const YIELD_SOURCE = "0x5D402A5D1dD70E4499B68379C7e343323E11E1eC" as const;
+
+/** The same pool contract, unmodified, running on Zama's own cUSDC. */
+export const CUSDC_POOL = "0x3Eddf704b0909F6A8fa491857533D28C22f9b8d4" as const;
+
 export const HOSTED_URL = process.env.NEXT_PUBLIC_HOSTED_URL ?? "";

@@ -70,11 +70,9 @@ a { color: inherit; }
   padding: 6px 11px;
 }
 
-main {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 36px 24px 96px;
-}
+/* The shell owns the layout now. This used to centre a single 760px column,
+   which collapsed the two-column screens and pushed them off to the right. */
+main { width: 100%; }
 
 .lede {
   font: 500 17px/1.6 var(--display);

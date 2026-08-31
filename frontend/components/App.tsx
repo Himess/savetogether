@@ -1,60 +1,45 @@
 "use client";
 
-import { Balances } from "./Balances";
-import { Connect } from "./Connect";
-import { Deposit } from "./Deposit";
-import { DrawStatus } from "./DrawStatus";
-import { HostedSession } from "./HostedSession";
-import { Route } from "./Route";
-import { Wrap } from "./Wrap";
-import { Withdraw } from "./Withdraw";
-import Link from "next/link";
-import { POOL } from "../lib/addresses";
+import { css } from "@/lib/css";
+import { NavProvider, useNav } from "@/lib/nav";
+import { ToastProvider } from "@/components/Toast";
+import { Sidebar } from "@/components/Sidebar";
+import { PoolScreen } from "@/components/screens/Pool";
+import { WrapScreen } from "@/components/screens/Wrap";
+import { VaultScreen } from "@/components/screens/Vault";
+import { ChatScreen } from "@/components/screens/Chat";
+import { BalancesScreen } from "@/components/screens/Balances";
+
+/**
+ * The shell.
+ *
+ * Five screens in the order the product argues for itself: money comes in and
+ * becomes confidential, it earns, it becomes a prize, and an agent can do the
+ * whole thing on your behalf. The page used to be one column of panels with no
+ * relationship between them, which made it impossible to tell what any of it was
+ * for — the sidebar is not decoration, it is the argument.
+ */
+function Screen() {
+  const { route } = useNav();
+  if (route === "wrap") return <WrapScreen />;
+  if (route === "vault") return <VaultScreen />;
+  if (route === "chat") return <ChatScreen />;
+  if (route === "balances") return <BalancesScreen />;
+  return <PoolScreen />;
+}
 
 export function App() {
   return (
-    <>
-      <header className="masthead">
-        <div className="masthead-inner">
-          <div className="wordmark">
-            Ghost<span>Pool</span>
-          </div>
-          <div className="masthead-note">Confidential prize savings</div>
-          <div className="chain-pill">SEPOLIA</div>
+    <ToastProvider>
+      <NavProvider>
+        <div style={css("display:flex;gap:22px;padding:14px;min-height:100vh;align-items:flex-start")}>
+          <Sidebar />
+          <main style={css("flex:1;min-width:0;padding:14px 10px 60px")}>
+            <Screen />
+          </main>
         </div>
-      </header>
-
-      <main>
-        <p className="lede">
-          <strong>No-loss prize savings.</strong> Your deposit is never at risk; the yield
-          funds a prize, and your balance, your odds and whether you won all stay encrypted.
-        </p>
-
-        {!POOL && (
-          <div className="banner">
-            No pool address configured. Set <span className="mono">NEXT_PUBLIC_POOL</span> and rebuild.
-          </div>
-        )}
-
-        <Connect />
-        <Route />
-        <DrawStatus />
-        <HostedSession />
-        <Wrap />
-        <Balances />
-        <Deposit />
-        <Withdraw />
-
-        {/* Reached deliberately, never on the primary path: the vault-backed
-            pool pays no prize, and a judge who wanders into it by accident
-            would read the product as broken. */}
-        <p className="note note--plain" style={{ marginTop: 24 }}>
-          <Link href="/vault" style={{ color: "var(--ink-2)", textDecoration: "underline" }}>
-            See the Zama vault integration →
-          </Link>
-        </p>
-      </main>
-    </>
+      </NavProvider>
+    </ToastProvider>
   );
 }
 
