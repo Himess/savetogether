@@ -199,6 +199,11 @@ export function PoolScreen() {
               <li><b style={css("color:var(--ink);font-weight:650")}>The winner is picked on chain.</b> FHE randomness, weighted by an encrypted time-weighted balance. In both live rounds so far the earliest and smallest depositor won, which is the time weighting doing its job.</li>
               <li><b style={css("color:var(--ink);font-weight:650")}>There is no claim step.</b> A voluntary claim would announce the winner — anyone can compute their own outcome off chain, so only winners would bother. Accrual is permissionless and unconditional instead.</li>
               <li><b style={css("color:var(--ink);font-weight:650")}>Winner and loser look identical on chain.</b> 306 live accruals: one operation sequence, one HCU figure, and gas that tracks the address rather than the outcome.</li>
+              {/* The first thing a judge alone will notice, said before they
+                  notice it. Winning every round looks rigged until you are told
+                  it is arithmetic — and the alternative, making a lone holder
+                  lose, would be the actually wrong behaviour. */}
+              <li><b style={css("color:var(--ink);font-weight:650")}>If you are the only depositor, you win every round.</b> That is the weighted draw being correct, not a special case: you hold all of the weight, so your threshold is always below it. Odds only become interesting once someone else is in.</li>
             </ol>
           </div>
 

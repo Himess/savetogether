@@ -27,7 +27,7 @@ import type { Contract, EventLog } from "ethers";
 
 const POOL = process.env.POOL ?? "";
 const ONESHOT = process.env.ONESHOT === "1";
-const CHUNK = Number(process.env.CHUNK ?? 6); // measured: 7 accruals fit in one transaction
+const CHUNK = Number(process.env.CHUNK ?? 4); // see accrueAll: six COLD accruals do not fit
 const PERIOD_SECONDS = Number(process.env.PERIOD ?? 300);
 const TICK_MS = Number(process.env.TICK_MS ?? 30_000);
 
@@ -63,9 +63,13 @@ async function reveal(pool: Contract, drawId: number): Promise<boolean> {
 /**
  * Accrues everyone who is still owed this draw.
  *
- * Chunked at the measured limit rather than a guessed one: `accrue` costs about
- * 2.58M HCU in steady state against a 20M per-transaction ceiling, so seven fit
- * and six leaves headroom for the cold-cache case at 3.54M.
+ * Chunked at the measured limit, and the limit here was wrong until it was run.
+ * This comment used to say six left headroom for a cold cache. It does not:
+ * cold accrual is 3,537,224 HCU (findings §11.1) and six of those is 21.2M
+ * against a 20M per-transaction ceiling. Six WARM ones fit at 2.58M each; six
+ * cold ones revert with a bare `execution reverted` out of `estimateGas`, which
+ * is exactly what happened while seeding the V2 pool. Four cold is 14.1M and
+ * fits with room, so four is the default.
  */
 async function accrueAll(pool: Contract, drawId: number): Promise<number> {
   const users = await participants(pool);

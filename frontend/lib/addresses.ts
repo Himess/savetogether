@@ -12,9 +12,9 @@ export const SEPOLIA_CHAIN_ID = 11155111;
 
 /** Deployed by scripts/deploy.ts — see out/deployment.json. */
 export const POOL = (process.env.NEXT_PUBLIC_POOL ??
-  "0x3f6F8e5A853bEC8FA008b31E28f9B0fD9dC0F287") as `0x${string}`;
+  "0x121D3a0c8108d2eB79F0BD0854713ac870d6F62B") as `0x${string}`;
 export const TOKEN = (process.env.NEXT_PUBLIC_TOKEN ??
-  "0x1bbBE55d24174d57305632E75fE47ac3C5158a9F") as `0x${string}`;
+  "0x546B3c9AF3c243c2Ccc378731c28BF1322d600b0") as `0x${string}`;
 
 /** Zama's Confidential Vault staging deployment — the production path. */
 export const CUSDC = "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639" as const;
@@ -46,7 +46,7 @@ export const DEPOSIT_BATCHER = "0x48758559c14d4d92b4C74A99660B6a8dbe85F53b" as c
  * screen shows is read rather than written into the page -- and it is a
  * deliberately theatrical rate, which the screen says out loud.
  */
-export const YIELD_SOURCE = "0x5D402A5D1dD70E4499B68379C7e343323E11E1eC" as const;
+export const YIELD_SOURCE = "0x3C67550f7B9c16fbC2a0E45e2c547B6e24298e53" as const;
 
 /** The same pool contract, unmodified, running on Zama's own cUSDC. */
 export const CUSDC_POOL = "0x3Eddf704b0909F6A8fa491857533D28C22f9b8d4" as const;

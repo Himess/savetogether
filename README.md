@@ -13,8 +13,8 @@ Season 4.
 | | |
 | --- | --- |
 | **Live** | **https://ghostpool-himess.vercel.app** |
-| **Pool** | [`0x3f6F8e5A853bEC8FA008b31E28f9B0fD9dC0F287`](https://sepolia.etherscan.io/address/0x3f6F8e5A853bEC8FA008b31E28f9B0fD9dC0F287) |
-| **Token** | [`0x1bbBE55d24174d57305632E75fE47ac3C5158a9F`](https://sepolia.etherscan.io/address/0x1bbBE55d24174d57305632E75fE47ac3C5158a9F) |
+| **Pool** | [`0x121D3a0c8108d2eB79F0BD0854713ac870d6F62B`](https://sepolia.etherscan.io/address/0x121D3a0c8108d2eB79F0BD0854713ac870d6F62B) |
+| **Token** | [`0x546B3c9AF3c243c2Ccc378731c28BF1322d600b0`](https://sepolia.etherscan.io/address/0x546B3c9AF3c243c2Ccc378731c28BF1322d600b0) |
 | **On Zama's own cUSDC** | [`0x3Eddf704b0909F6A8fa491857533D28C22f9b8d4`](https://sepolia.etherscan.io/address/0x3Eddf704b0909F6A8fa491857533D28C22f9b8d4) |
 | **Network** | Sepolia (11155111) |
 
@@ -163,6 +163,16 @@ no separate withdrawal whose timing could be correlated with a draw.
 
 ---
 
+### If you are the only depositor, you win every round
+
+Worth saying before it is noticed, because it looks rigged and is not. The
+threshold is drawn uniformly from [0, totalWeight), and a lone holder's weight IS
+the total — so it is always above their threshold. That is the weighted draw
+being correct: they hold all of the weight. Odds only start meaning anything once
+somebody else is in.
+
+Making a sole participant lose would be the wrong behaviour, not a fix.
+
 ## Where the prize comes from
 
 Yield, on the pool's own deposits. Principal does not sit in the pool — it goes
@@ -265,7 +275,7 @@ outcomes and the reserve stay encrypted.
 
 ```bash
 npm install
-npm test                      # 30 tests, local
+npm test                      # 143 tests, local
 npx hardhat run scripts/deploy.ts --network sepolia
 POOL=0x... npm run keeper     # reveals draws, accrues everyone
 

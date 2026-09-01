@@ -83,7 +83,7 @@ async function writeClaudeConfig(): Promise<string> {
 }
 
 /** The prize pool, and the token it settles in. One product, one config. */
-const POOL_ADDRESS = "0x3f6F8e5A853bEC8FA008b31E28f9B0fD9dC0F287";
+const POOL_ADDRESS = "0x121D3a0c8108d2eB79F0BD0854713ac870d6F62B";
 const POOL_TOKEN = "gUSDC";
 
 const SEPOLIA_STARTER_TOKENS: readonly TokenEntry[] = [
@@ -99,7 +99,7 @@ const SEPOLIA_STARTER_TOKENS: readonly TokenEntry[] = [
     // moved nothing -- silent, because the clamp is a privacy feature. Six
     // decimals here would rebuild that trap one layer up.
     symbol: POOL_TOKEN,
-    address: "0x1bbBE55d24174d57305632E75fE47ac3C5158a9F",
+    address: "0x546B3c9AF3c243c2Ccc378731c28BF1322d600b0",
     decimals: 0,
   },
 ];

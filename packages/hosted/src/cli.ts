@@ -52,7 +52,7 @@ async function main(): Promise<void> {
     moduleAddress: flag("--module") ?? "0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6",
     aclAddress: "0xf0Ffdc93b7E186bC2f8CB3dAA75D86d1930A433D",
     pool: {
-      address: flag("--pool") ?? "0x3f6F8e5A853bEC8FA008b31E28f9B0fD9dC0F287",
+      address: flag("--pool") ?? "0x121D3a0c8108d2eB79F0BD0854713ac870d6F62B",
       token: "gUSDC",
     },
     vault: { adapter: ZAMA_VAULT_ADAPTER, batcher: ZAMA_DEPOSIT_BATCHER },
@@ -60,7 +60,7 @@ async function main(): Promise<void> {
       // Whole units. The frontend once scaled withdraw by 1e6 and deposit not at
       // all, and the pool clamped the difference to an encrypted zero without
       // failing, so this number is load-bearing.
-      { symbol: "gUSDC", address: "0x1bbBE55d24174d57305632E75fE47ac3C5158a9F", decimals: 0 },
+      { symbol: "gUSDC", address: "0x546B3c9AF3c243c2Ccc378731c28BF1322d600b0", decimals: 0 },
       { symbol: "gkUSD", address: "0xCFf87b42b916f7aA0F61CD060C9f48772F303D37", decimals: 6 },
       {
         // Zama's own wrapper. `underlying` is what makes it wrappable at all --
