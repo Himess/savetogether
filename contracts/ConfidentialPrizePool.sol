@@ -180,6 +180,8 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
     error PrizeNotSet();
 
     event Accrued(address indexed user, uint32 indexed drawId);
+    /// A pending credit was folded into a balance. Says nothing about who won.
+    event Claimed(address indexed user, uint40 timestamp);
     event ReserveFunded(uint40 timestamp);
     event YieldSourceSet(address indexed source);
     event Harvested(uint40 timestamp);
@@ -721,6 +723,37 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
         FHE.allowThis(computed);
         _cumAt[drawId][user] = computed;
         return computed;
+    }
+
+    /**
+     * Folds a pending credit into the balance, for anyone, from anyone.
+     *
+     * WHAT THIS IS NOT. It is not a claim in the sense the word usually carries
+     * in a lottery, and the difference is the design's whole security argument:
+     * nobody has to call this to be paid. `accrue` already credited the winner
+     * without their participation, and an ordinary deposit or withdrawal folds
+     * the credit in on its own (`_drain`, both paths). If claiming were the ONLY
+     * way to be paid, only winners would ever call it and "who claimed" would
+     * become "who won".
+     *
+     * So this exists for two smaller reasons. It lets a holder realise a credit
+     * without moving money in or out, and it is permissionless in the same way
+     * `accrue` is — anyone may call it for anyone, so the call reveals nothing
+     * about its subject. A keeper sweeping every participant is indistinguishable
+     * from a winner claiming, which is the property that matters.
+     *
+     * Idempotent: an empty pending credit costs one branch and changes nothing.
+     */
+    function claim(address user) public {
+        _drain(user);
+        emit Claimed(user, uint40(block.timestamp));
+    }
+
+    /// Sweeps several at once, so a keeper can settle everyone in one transaction.
+    function claimMany(address[] calldata users) external {
+        for (uint256 i = 0; i < users.length; i++) {
+            claim(users[i]);
+        }
     }
 
     function pendingOf(address user) external view returns (euint64) {

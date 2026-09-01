@@ -13,8 +13,8 @@ Season 4.
 | | |
 | --- | --- |
 | **Live** | **https://ghostpool-himess.vercel.app** |
-| **Pool** | [`0x121D3a0c8108d2eB79F0BD0854713ac870d6F62B`](https://sepolia.etherscan.io/address/0x121D3a0c8108d2eB79F0BD0854713ac870d6F62B) |
-| **Token** | [`0x546B3c9AF3c243c2Ccc378731c28BF1322d600b0`](https://sepolia.etherscan.io/address/0x546B3c9AF3c243c2Ccc378731c28BF1322d600b0) |
+| **Pool** | [`0x4728F94D12f04C7aCB1fEC278A59F3275C396865`](https://sepolia.etherscan.io/address/0x4728F94D12f04C7aCB1fEC278A59F3275C396865) |
+| **Token** | [`0x8738E041D06cb1263A475a6495cCBB408F4731B8`](https://sepolia.etherscan.io/address/0x8738E041D06cb1263A475a6495cCBB408F4731B8) |
 | **On Zama's own cUSDC** | [`0x3Eddf704b0909F6A8fa491857533D28C22f9b8d4`](https://sepolia.etherscan.io/address/0x3Eddf704b0909F6A8fa491857533D28C22f9b8d4) |
 | **Network** | Sepolia (11155111) |
 
