@@ -295,3 +295,93 @@ than any feature:
   not a dependency; a third deployment is surface without a claim.
 - **Any change to `accrue` for G1.** Making a lone participant *not* win would be
   wrong: they hold all the weight. The gap is explanatory, not arithmetic.
+
+---
+
+# V1 — `openDraw()` can be ground. Measured, not argued.
+
+**Answer: yes, and it is the same class as `setYieldSource`. Both close in one redeploy.**
+
+## What the code enforces
+
+`openDraw` (:367) has exactly two guards:
+
+```solidity
+if (drawCount != 0 && _draws[drawCount].status != DrawStatus.Revealed) revert PreviousDrawUnresolved();
+if (_totalObs.length == 0) revert NothingStaked();
+```
+
+There is **no minimum interval**. A draw may be opened in the block after the
+previous one is revealed.
+
+## Why that pays
+
+`prize` is a fixed plaintext amount (:98) and nothing in `accrue` scales it by how
+long the window was. The threshold is `_uniform(keccak(r, drawId, user), totalWeight)`
+(:466), so a holder's probability is `w/total` **per draw** — independent of the
+window's length. Therefore expected extraction per cycle is `p × prize`, and the
+cycle count is unbounded.
+
+Measured with `spikes/v1-draw-grinding.ts`:
+
+```
+10 draws in 10 simulated minutes
+alice won 250 with a prize of 25 per draw     ← payout tracks DRAW COUNT
+
+window between two draws: ~2s
+after a full day:        25
+after a 2-second window: 50                   ← a 2s window pays what a day pays
+```
+
+The second line is the finding in one number. A window two seconds long pays
+exactly what a window of a full day pays, because nothing connects the prize to
+the time the money was actually at work.
+
+## Severity, and why it is not only an attack
+
+An attacker with weight share `p` extracts `p × prize` per cycle, bounded only by
+the KMS reveal latency (12.0s measured, findings §16.2) and gas.
+
+For a lone depositor `p = 1`. **They win every draw**, so they drain the entire
+reserve at `prize` per cycle — and that is not an attack, it is what a judge
+trying the live app produces if they or the keeper open draws freely. G1 and V1
+are the same hole seen from two directions.
+
+`FHESafeMath.tryDecrease` (:611) stops the reserve going negative, so the loss is
+bounded by the reserve. It is not bounded by anything else.
+
+## A correction to my own first attempt
+
+My initial test asserted that a zero-length window pays nothing, on the reasoning
+that every weight would be zero and `FHE.gt` is strict. **It failed** — the second
+draw paid another 25. Two mistakes in one:
+
+- draws cannot in fact have a zero-length window, because `periodStart` is the
+  previous draw's **open** timestamp and a reveal takes real time in between;
+- and I had forced `totalWeight = 0` in the harness, which makes
+  `_uniform(entropy, 0)` return 0 (:477) and hands the win to anyone with any
+  weight at all. That is an artifact of `forceReveal`, not of a real KMS reveal,
+  and asserting on it would have overstated the finding.
+
+The corrected test passes a `totalWeight` a genuine reveal would publish. The
+conclusion survives and is narrower: short windows pay full prizes.
+
+## What the fix is, and what it must not touch
+
+A minimum interval in `openDraw`, as an immutable set at construction:
+
+```solidity
+if (drawCount != 0 && block.timestamp < _draws[drawCount].snapshotAt + minPeriod) revert TooSoon();
+```
+
+This keeps draws permissionless, which the design values, and bounds payout to
+one prize per period.
+
+**Rejected: scaling the prize by window length.** That changes `accrue`, which is
+the frozen surface, and would void the 306-sample equality result — the strongest
+evidence in the submission — to fix something a four-line guard fixes.
+
+`openDraw` is not among the five frozen functions, and R3 already measured that
+adding a whole new function leaves `accrue` at 426,105/426,093 unchanged. The
+filtered diff still has to be re-run against the old bytecode before shipping,
+because that is the rule and assuming it is how it would break.
