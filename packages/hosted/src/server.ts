@@ -28,6 +28,7 @@ import { SaveTogetherClient, type ReadScope } from "@savetogether/sdk";
 import { Contract, JsonRpcProvider, getAddress, isAddress } from "ethers";
 
 import { MemoryKeystore } from "./keystore";
+import { parseAmount } from "@savetogether/mcp-server";
 import { McpEndpoints } from "./mcp";
 import { TokenSealer, type SessionToken } from "./token";
 
@@ -261,7 +262,13 @@ export class HostedServer {
           t.address.toLowerCase() === x.token.toLowerCase(),
       );
       if (entry === undefined) throw new Error(`unknown token ${x.token}`);
-      return { token: entry.address, amount: BigInt(x.amount) };
+      // parseAmount, not BigInt. Every token entry carries `decimals` and this
+      // line ignored them: a budget of "800" became 800 BASE units, so on a
+      // six-decimal token the session was funded with 0.0008 of what the caller
+      // asked for and the first real deposit came back "more than the remaining
+      // budget". It was invisible while the pool token had 0 decimals, which is
+      // exactly how long it survived. BigInt("800.5") also threw outright.
+      return { token: entry.address, amount: parseAmount(x.amount, entry.decimals) };
     });
 
     const recipients = [

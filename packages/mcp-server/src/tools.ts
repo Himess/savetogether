@@ -1000,15 +1000,21 @@ export class SaveTogetherTools {
       s.state === "open"
         ? " The randomness is drawn and still encrypted — nobody knows the outcome yet."
         : s.state === "revealed"
-          ? " Credits are applied to every participant, winner or not; there is nothing to claim."
+          ? " Credits reach every participant, winner or not. Claiming is optional and reveals nothing."
           : "";
+    // Formatted, with the symbol. This printed the raw base units, so a 1 cUSDC
+    // prize read as "Prize 1000000" — a number the model has every reason to
+    // repeat to the user as a million.
+    const pt = this.token(this.ctx.config.pool!.token);
+    const prize = `${formatAmount(s.prize, pt.decimals)} ${pt.symbol}`;
     return {
       ok: true,
-      text: `Round ${s.round}, ${s.state}. Prize ${s.prize}. Weights frozen at ${when}.${tail}`,
+      text: `Round ${s.round}, ${s.state}. Prize ${prize}. Weights frozen at ${when}.${tail}`,
       data: {
         round: s.round,
         state: s.state,
         prize: s.prize.toString(),
+        prizeFormatted: prize,
         snapshotAt: s.snapshotAt,
       },
     };

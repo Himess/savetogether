@@ -11,8 +11,16 @@ import { HostedServer } from "./server";
 
 const SEPOLIA = 11155111;
 
-/** Zama's deployed confidential vault, reached through SaveTogether's adapter. */
-const ZAMA_VAULT_ADAPTER = "0xc5120E26aafdD76D324E62cF19c391C367Cf99Ba";
+/**
+ * Zama's deployed confidential vault, reached through the POOL'S OWN source.
+ *
+ * Not `0xc5120E26…`. That was the standalone adapter from the earlier design,
+ * and pointing here at it made `vault_status` report a batch the pool has no
+ * stake in — batch 271, joined by a contract holding none of the pool's money —
+ * while the pool's actual principal sat in 281. The number was real and the
+ * subject was wrong, which is worse than an error.
+ */
+const ZAMA_VAULT_ADAPTER = "0x15331b79E80EF6606a1aD4C0b13F7EA49482e8A5";
 const ZAMA_DEPOSIT_BATCHER = "0x48758559c14d4d92b4C74A99660B6a8dbe85F53b";
 
 function flag(name: string): string | undefined {

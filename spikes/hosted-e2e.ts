@@ -24,8 +24,10 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const RPC = process.env["SEPOLIA_RPC_URL"] ?? "";
 if (RPC === "") throw new Error("set SEPOLIA_RPC_URL");
 const MODULE = "0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6";
-const TOKEN = "0x1bbBE55d24174d57305632E75fE47ac3C5158a9F";
-const POOL = "0x3f6F8e5A853bEC8FA008b31E28f9B0fD9dC0F287";
+/** The composed deployment: Zama's own cUSDC, six decimals, wrapper-only mint. */
+const TOKEN = "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639";
+const UNDERLYING = "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF";
+const POOL = "0x1d8A0d653027833E4e8eA4DE67B90512Aad7B85f";
 
 const out: Record<string, unknown> = {};
 
@@ -90,20 +92,22 @@ async function main(): Promise<void> {
       publicUrl: BASE,
       moduleAddress: MODULE,
       aclAddress: "0xf0Ffdc93b7E186bC2f8CB3dAA75D86d1930A433D",
-      pool: { address: POOL, token: "gUSDC" },
+      pool: { address: POOL, token: "cUSDC" },
       tokens: [
-        { symbol: "gUSDC", address: TOKEN, decimals: 0 },
         {
           // `underlying` is what makes wrap possible at all — without the link
           // the tool refuses with "not a wrapper" on a contract that plainly is.
           symbol: "cUSDC",
-          address: "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639",
+          address: TOKEN,
           decimals: 6,
-          underlying: "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF",
+          underlying: UNDERLYING,
         },
       ],
       vault: {
-        adapter: "0xc5120E26aafdD76D324E62cF19c391C367Cf99Ba",
+        // The pool's own source, not the standalone adapter this used to name.
+        // That one reported batch 271 — a real number about a contract holding
+        // none of the pool's money, while the pool's principal sat in 281.
+        adapter: "0x15331b79E80EF6606a1aD4C0b13F7EA49482e8A5",
         batcher: "0x48758559c14d4d92b4C74A99660B6a8dbe85F53b",
       },
       allowedOrigins: ["http://localhost:3000"],
@@ -114,19 +118,29 @@ async function main(): Promise<void> {
   console.log("server up, holding nothing\n");
 
   try {
-    // Make sure the owner has something to deposit.
-    const token = new ethers.Contract(
-      TOKEN,
-      ["function mint(address to, uint64 amount) returns (bytes32)"],
+    // Make sure the owner has something to deposit. cUSDC is a wrapper with no
+    // mint of its own, so this is three calls where the old demo token was one —
+    // which is the real cost of settling in the token Zama's vault takes.
+    const amt = 2_000n * 1_000_000n;
+    const under = new ethers.Contract(
+      UNDERLYING,
+      ["function mint(address,uint256)", "function approve(address,uint256) returns (bool)"],
       owner!,
     );
-    await (await token.mint!(ownerAddress, 2_000n)).wait();
+    const wrapper = new ethers.Contract(
+      TOKEN,
+      ["function wrap(address,uint256) returns (bytes32)"],
+      owner!,
+    );
+    await (await under.mint!(ownerAddress, amt)).wait();
+    await (await under.approve!(TOKEN, amt)).wait();
+    await (await wrapper.wrap!(ownerAddress, amt)).wait();
 
     // --------------------------------------------------------------- open --
     console.log("1-2. browser asks; server generates the key and signs the digest");
     const prepared = (await post("/api/session/prepare", {
       ownerAddress,
-      budgets: [{ token: "gUSDC", amount: "800" }],
+      budgets: [{ token: "cUSDC", amount: "800" }],
       recipients: [],
       ttlHours: 24,
       readScope: "balance-visible",
@@ -209,7 +223,7 @@ async function main(): Promise<void> {
 
     const wrapped = (await mcp(adopted.mcpUrl, "tools/call", {
       name: "wrap",
-      arguments: { token: "cUSDC", amount: "5" },
+      arguments: { token: "cUSDC", amount: "500" },
     })) as { content: { text: string }[]; isError?: boolean };
     console.log(`   wrap -> ${wrapped.content[0]!.text.slice(0, 200)}`);
     if (wrapped.isError === true) {

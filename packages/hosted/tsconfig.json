@@ -13,6 +13,11 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
+    // Windows reaches this workspace through both `desktop\` and `Desktop\`, and
+    // importing across packages makes TypeScript see one dependency under two
+    // spellings and stop with TS1149. It still emits correct output, so the only
+    // thing the check was costing was a non-zero exit from `npm run build`.
+    "forceConsistentCasingInFileNames": false,
     "declaration": true,
     "sourceMap": true,
     "rootDir": "src",
