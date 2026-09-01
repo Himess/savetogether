@@ -288,12 +288,35 @@ outcomes and the reserve stay encrypted.
 
 ```bash
 npm install
-npm test                      # 143 tests, local
-npx hardhat run scripts/deploy.ts --network sepolia
-POOL=0x... npm run keeper     # reveals draws, accrues everyone
+npm test                      # 154 tests, local
+npx hardhat run scripts/deploy-composed.ts --network sepolia
+POOL=0x... npm run keeper     # harvests, reveals draws, accrues everyone
 
 cd frontend && npm install && npm run dev
 ```
+
+### Two numbers an operator has to know
+
+**Break-even principal.** The reserve fills from `harvest()` and nothing else, so
+a prize the reserve cannot cover credits the winner **zero** — and a declined
+`tryDecrease` is indistinguishable from losing, by design. That makes underfunding
+silent, and this pool ran for hours paying nothing before it was caught.
+
+```
+yield = principal × rateBps × elapsed / (10000 × 365 days)
+break-even principal = prize × 10000 × 365 days / (rateBps × period)
+```
+
+At 1000%/yr, a **300s** round needs **~10,512 cUSDC** of principal behind a 1 cUSDC
+prize; a **1800s** round needs **~1,752**. The keeper prints this number every time
+it harvests, so the figure that has to be beaten sits next to the round that has to
+beat it.
+
+**Gas.** A full keeper round — harvest, open, reveal, accrue — is roughly 1.5M gas.
+At 2 gwei that is ~0.003 ETH, so a 300-second cadence costs **~0.95 ETH a day** and
+a 1800-second cadence **~0.16 ETH**. The deployed keeper runs at 1800s for exactly
+this reason. Fund the keeper wallet accordingly: it stops silently when it runs
+out, leaving the current draw Open and every later one blocked behind it.
 
 Sepolia credentials go in `probe/secrets.json` (git-ignored) as
 `{ "privateKey": "0x…", "sepoliaRpcUrl": "https://…" }`.
@@ -317,11 +340,26 @@ machine, its self-healing keeper, and four KMS traps it paid to discover.
   type-checks, every panel is in the bundle, and the contract path under each is
   covered by tests and a live round — but connecting a wallet and signing a permit
   is a manual pass that has not happened.
-- **The demo runs on simulated yield, and the vault adapter is not wired into
-  the deployed pool.** It is tested live but one constructor argument away, and
-  redeeming through it would make withdrawal asynchronous — it serves
-  redemptions from its own liquidity instead, which is a limitation rather than
-  a design.
+- **`joinVault` is repeatable, and repeating it drains the withdrawal buffer.**
+  It sends `FHE.shr(_principal, 1)` and does not decrement `_principal`, so the
+  "half" is half of the same number every time, and the function is
+  permissionless. Two calls move the whole principal; more calls reach the pot.
+  Nothing is stolen — the batcher credits this contract and `claimShares`
+  recovers the position — but the money becomes illiquid until batches settle,
+  and *principal is withdrawable at any time* is a liquidity claim. Pinned by
+  `test/withdraw-buffer.ts`. Live exposure today is small: the buffer is the
+  900,000 cUSDC pot plus principal against ~12,600 of deposits, and `joinVault`
+  has been called once. **The fix is to track what has been joined and bound the
+  function; it needs a redeploy and has not been made.**
+- **Withdrawal is all-or-nothing when the buffer is short.** ERC-7984's transfer
+  clamps to zero rather than paying out partially, so asking for more than the
+  source holds moves **nothing** and the transaction still succeeds. Nothing is
+  lost — the position is untouched and a smaller ask goes through — but it is a
+  silent failure with a cause the interface does not name.
+- **The replica's yield is pre-funded, not earned.** The 900,000 cUSDC pot is
+  where prizes come from; the rate decides how much, the pot decides for how
+  long. Zama's Sepolia vault has no yield adapter, so the composition is real and
+  the appreciation is not.
 - **`euint128` for the cumulative accumulator is required, not optional.** A
   6-decimal balance of 1e12 held for a year overflows `2^64` in about seven months.
 - **No confirmation-depth policy.** Fine on Sepolia; not on mainnet.

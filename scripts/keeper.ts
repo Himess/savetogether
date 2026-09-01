@@ -113,8 +113,48 @@ async function accrueAll(pool: Contract, drawId: number): Promise<number> {
 async function harvest(pool: Contract): Promise<void> {
   try {
     await (await pool.harvest()).wait();
+    await logBreakEven(pool);
   } catch (e) {
     log(`harvest failed, opening anyway: ${(e as Error).message.slice(0, 80)}`);
+  }
+}
+
+/**
+ * Prints the principal this round needed, every round.
+ *
+ * Whether a harvest actually covered the prize is not knowable off chain — both
+ * numbers are encrypted, and that is the point of the contract. But the
+ * THRESHOLD is entirely public: `yield = principal x rateBps x elapsed / (10000 x
+ * 365 days)`, so the principal at which a round breaks even follows from the
+ * rate, the elapsed time and the prize, all of them readable.
+ *
+ * This exists because the alternative already happened. The reserve fills from
+ * harvest alone, a prize the reserve cannot cover credits the winner ZERO, and
+ * `tryDecrease` declining looks exactly like losing — so the pool ran for hours
+ * paying nothing while every log line said it was healthy. A number that has to
+ * be beaten, printed next to the round that has to beat it, is the cheapest way
+ * to stop that from being invisible a second time.
+ */
+async function logBreakEven(pool: Contract): Promise<void> {
+  try {
+    const src = new ethers.Contract(
+      await pool.yieldSource(),
+      ["function rateBps() view returns (uint64)", "function lastAccrual() view returns (uint40)"],
+      ethers.provider,
+    );
+    const rate = BigInt(await src.rateBps());
+    const prize = BigInt(await pool.prize());
+    const now = BigInt(Math.floor(Date.now() / 1000));
+    const elapsed = now - BigInt(await src.lastAccrual());
+    const seconds = elapsed === 0n ? BigInt(PERIOD_SECONDS) : elapsed;
+    const YEAR = 31_536_000n;
+    const breakEven = (prize * 10_000n * YEAR) / (rate * seconds);
+    log(
+      `harvest ok — over ${seconds}s at ${Number(rate) / 100}%/yr this round needs ` +
+        `~${(Number(breakEven) / 1e6).toLocaleString("en-US")} cUSDC of principal to fund the prize`,
+    );
+  } catch {
+    // Never let a log line take the keeper down.
   }
 }
 
