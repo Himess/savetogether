@@ -112,10 +112,29 @@ async function accrueAll(pool: Contract, drawId: number): Promise<number> {
  */
 async function harvest(pool: Contract): Promise<void> {
   try {
+    // Read the clock BEFORE harvesting. `harvest` settles the source, so asking
+    // afterwards returns an elapsed of about one second and a break-even of
+    // three million — a diagnostic that cries wolf every round, which is worse
+    // than not having one.
+    const since = await elapsedSinceSettle(pool);
     await (await pool.harvest()).wait();
-    await logBreakEven(pool);
+    await logBreakEven(pool, since);
   } catch (e) {
     log(`harvest failed, opening anyway: ${(e as Error).message.slice(0, 80)}`);
+  }
+}
+
+async function elapsedSinceSettle(pool: Contract): Promise<bigint> {
+  try {
+    const src = new ethers.Contract(
+      await pool.yieldSource(),
+      ["function lastAccrual() view returns (uint40)"],
+      ethers.provider,
+    );
+    const now = BigInt(Math.floor(Date.now() / 1000));
+    return now - BigInt(await src.lastAccrual());
+  } catch {
+    return BigInt(PERIOD_SECONDS);
   }
 }
 
@@ -135,18 +154,18 @@ async function harvest(pool: Contract): Promise<void> {
  * be beaten, printed next to the round that has to beat it, is the cheapest way
  * to stop that from being invisible a second time.
  */
-async function logBreakEven(pool: Contract): Promise<void> {
+async function logBreakEven(pool: Contract, elapsed: bigint): Promise<void> {
   try {
     const src = new ethers.Contract(
       await pool.yieldSource(),
-      ["function rateBps() view returns (uint64)", "function lastAccrual() view returns (uint40)"],
+      ["function rateBps() view returns (uint64)"],
       ethers.provider,
     );
     const rate = BigInt(await src.rateBps());
     const prize = BigInt(await pool.prize());
-    const now = BigInt(Math.floor(Date.now() / 1000));
-    const elapsed = now - BigInt(await src.lastAccrual());
-    const seconds = elapsed === 0n ? BigInt(PERIOD_SECONDS) : elapsed;
+    // A backlog catch-up can settle seconds apart; the number worth printing is
+    // the one for a normal round, so the period is the floor.
+    const seconds = elapsed < BigInt(PERIOD_SECONDS) ? BigInt(PERIOD_SECONDS) : elapsed;
     const YEAR = 31_536_000n;
     const breakEven = (prize * 10_000n * YEAR) / (rate * seconds);
     log(
