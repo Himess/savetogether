@@ -21,10 +21,10 @@ import { ACL_ABI, ERC7984_ABI, GHOSTKEY_ABI } from "./abi";
 /** Plaintext session tuple as `sessionOf` returns it. */
 export type SessionTuple = [owner: string, expiry: bigint, maxTxCount: bigint, txCount: bigint];
 
-export interface GhostKeyContract {
+export interface SaveTogetherContract {
   readonly interface: Interface;
   readonly target: string;
-  connect(runner: Signer | Provider): GhostKeyContract;
+  connect(runner: Signer | Provider): SaveTogetherContract;
 
   sessionOf(sessionKey: string): Promise<SessionTuple>;
   remainingOf(sessionKey: string, token: string): Promise<string>;
@@ -91,8 +91,8 @@ export interface AclContract {
   multicall(data: readonly string[]): Promise<TransactionResponse>;
 }
 
-export function ghostKey(address: string, runner: Signer | Provider): GhostKeyContract {
-  return new Contract(address, GHOSTKEY_ABI, runner) as unknown as GhostKeyContract;
+export function ghostKey(address: string, runner: Signer | Provider): SaveTogetherContract {
+  return new Contract(address, GHOSTKEY_ABI, runner) as unknown as SaveTogetherContract;
 }
 
 export function erc7984(address: string, runner: Signer | Provider): Erc7984Contract {

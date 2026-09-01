@@ -11,7 +11,7 @@
  * move between hosts, back up, or leak, and a restart costs nothing because
  * nothing was being kept.
  */
-import type { SessionKeystore, StoredSessionKey } from "@ghostkey/sdk";
+import type { SessionKeystore, StoredSessionKey } from "@savetogether/sdk";
 import { Wallet } from "ethers";
 
 export class MemoryKeystore implements SessionKeystore {

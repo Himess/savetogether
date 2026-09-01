@@ -1,7 +1,7 @@
 /**
  * Amounts that are opaque by construction.
  *
- * The whole point of GhostKey is that a plaintext amount is a thing you have to
+ * The whole point of SaveTogether is that a plaintext amount is a thing you have to
  * ask for, deliberately, at a site a reviewer can find. So an encrypted quantity
  * is an `AmountRef` that carries no numeric field, refuses to stringify to
  * anything numeric, and hands its plaintext only to `revealAmount` — a free
@@ -16,7 +16,7 @@ import { BalanceNotVisibleError } from "./errors";
 /** Where an encrypted quantity came from. Useful for logging without leaking. */
 export type AmountSource = "budget" | "balance" | "sent";
 
-const BRAND: unique symbol = Symbol("GhostKeyAmountRef");
+const BRAND: unique symbol = Symbol("SaveTogetherAmountRef");
 
 /**
  * Resolvers live here rather than on the instance, so a consumer cannot reach a

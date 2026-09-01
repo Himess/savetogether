@@ -71,7 +71,7 @@ export function Sidebar() {
       <div style={css("display:flex;flex-direction:column;height:100%;padding:22px 15px 16px")}>
         <div style={css("display:flex;align-items:center;gap:9px;padding:2px 9px 6px")}>
           <svg width="23" height="25" viewBox="0 0 24 26" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12v11.4c0 1.3 1.5 2 2.5 1.1L6.6 22c.5-.5 1.4-.5 2 0l1.4 1.3c.6.5 1.4.5 2 0l1.4-1.3c.5-.5 1.4-.5 2 0l2.1 1.5c1 .9 2.5.2 2.5-1.1V12C22 6.48 17.52 2 12 2Z" fill="var(--ink)"/><circle cx="9" cy="12" r="1.55" fill="#fff"/><circle cx="15" cy="12" r="1.55" fill="#fff"/></svg>
-          <span style={css("font:800 21px var(--display);letter-spacing:-.03em;color:var(--ink)")}>GHOSTPOOL</span>
+          <span style={css("font:800 21px var(--display);letter-spacing:-.03em;color:var(--ink)")}>SAVETOGETHER</span>
         </div>
         <p style={css("margin:0 9px 18px;font:500 11.5px/1.45 var(--display);color:var(--ink-3)")}>
           No-loss prize savings.<br />Balance, odds and result all encrypted.

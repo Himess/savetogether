@@ -40,7 +40,7 @@ imports still fails, which places the fault inside Next's synthesized
 ## What is not affected
 
 - the contracts, and the live pool
-- `@ghostkey/sdk`, `@ghostkey/mcp-server`, `@ghostkey/hosted` — all build, 132 tests pass
+- `@savetogether/sdk`, `@savetogether/mcp-server`, `@savetogether/hosted` — all build, 132 tests pass
 - the hosted server, proved end to end on Sepolia in `spikes/out/hosted-e2e.json`
 - the deployed site, which was built before this appeared
 

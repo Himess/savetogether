@@ -18,7 +18,7 @@ export function consoleHtml(token: string): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GhostKey</title>
+<title>SaveTogether</title>
 <style>
   :root {
     --bg:#0b0c0e; --panel:#131519; --line:#23262d; --text:#e8eaed; --dim:#8b919c;
@@ -73,7 +73,7 @@ export function consoleHtml(token: string): string {
 </head>
 <body>
 <main>
-  <h1>GhostKey</h1>
+  <h1>SaveTogether</h1>
   <p class="sub">Local console &middot; 127.0.0.1 only</p>
 
   <div class="card counter">
@@ -157,7 +157,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
 async function post(path, body) {
   const r = await fetch(path, {
     method: "POST",
-    headers: { "content-type": "application/json", "x-ghostkey-token": TOKEN },
+    headers: { "content-type": "application/json", "x-savetogether-token": TOKEN },
     body: JSON.stringify(body ?? {}),
   });
   return r.json();
@@ -302,7 +302,7 @@ $("revoke").addEventListener("click", async () => {
 
 async function refresh() {
   try {
-    const s = await (await fetch("/api/state", { headers: { "x-ghostkey-token": TOKEN } })).json();
+    const s = await (await fetch("/api/state", { headers: { "x-savetogether-token": TOKEN } })).json();
     renderStatus(s.status);
     renderSettings(s.settings || {});
     renderVault(s.vault, s.vaultError);

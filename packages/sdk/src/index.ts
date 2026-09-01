@@ -1,9 +1,9 @@
 /**
- * GhostKey SDK — headless client for encrypted spending sessions on ERC-7984.
+ * SaveTogether SDK — headless client for encrypted spending sessions on ERC-7984.
  *
  * Usable with no MCP server and no language model. Nothing in this package
- * imports from `@ghostkey/mcp-server` or assumes a chat context; that separation
- * is what makes GhostKey infrastructure rather than a demo.
+ * imports from `@savetogether/mcp-server` or assumes a chat context; that separation
+ * is what makes SaveTogether infrastructure rather than a demo.
  *
  * TERMINOLOGY. Two principals, kept distinct throughout: the `session client` is
  * the process that holds the keys, builds ciphertexts and submits transactions —
@@ -12,9 +12,9 @@
  * references. The word "agent" is never used alone, because it conflates them and
  * the privacy claim depends on the distinction.
  */
-export { DEFAULT_SESSION_GAS, GhostKeyClient } from "./client";
+export { DEFAULT_SESSION_GAS, SaveTogetherClient } from "./client";
 export type {
-  GhostKeyClientConfig,
+  SaveTogetherClientConfig,
   OpenSessionRequest,
   OwnerCall,
   PreparedSession,
@@ -42,7 +42,7 @@ export type { SessionKeystore, StoredSessionKey } from "./keystore";
 
 export {
   BalanceNotVisibleError,
-  GhostKeyError,
+  SaveTogetherError,
   KeystoreError,
   OperatorNotGrantedError,
   ProtocolUnavailableError,

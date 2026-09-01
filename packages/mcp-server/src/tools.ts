@@ -10,9 +10,9 @@
  * is a deliberate disclosure decision. It stays outside session authority
  * entirely; if a user asks, `send` explains why and points at the console.
  */
-import type { ConsoleServer } from "@ghostkey/console";
+import type { ConsoleServer } from "@savetogether/console";
 import {
-  GhostKeyClient,
+  SaveTogetherClient,
   OperatorNotGrantedError,
   ProtocolUnavailableError,
   RecipientNotAllowedError,
@@ -28,12 +28,12 @@ import {
   type AmountExpr,
   type AmountRef,
   type Session,
-} from "@ghostkey/sdk";
+} from "@savetogether/sdk";
 import { Contract, getAddress, type Provider, formatEther } from "ethers";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { formatAmount, parseAmount, type GhostKeyConfig, type TokenEntry } from "./config";
+import { formatAmount, parseAmount, type SaveTogetherConfig, type TokenEntry } from "./config";
 import { sanitiseChainText, untrusted } from "./sanitize";
 import { Vault } from "./vault";
 
@@ -51,9 +51,9 @@ const WRAPPER_ABI = [
 ];
 
 export interface ToolContext {
-  readonly config: GhostKeyConfig;
+  readonly config: SaveTogetherConfig;
   readonly provider: Provider;
-  readonly client: GhostKeyClient;
+  readonly client: SaveTogetherClient;
   /**
    * Absent when hosted. The server holds session keys, never a vault key, so
    * every tool that would unlock one is withheld rather than made to fail late.
@@ -91,7 +91,7 @@ interface Live {
   pool?: PoolClient;
 }
 
-export class GhostKeyTools {
+export class SaveTogetherTools {
   private live: Live | null = null;
 
   constructor(private readonly ctx: ToolContext) {}
@@ -851,7 +851,7 @@ export class GhostKeyTools {
   private requirePool(live: Live): PoolClient {
     const cfg = this.ctx.config.pool;
     if (cfg === undefined) {
-      throw new Error("no prize pool is configured — set pool.address in the GhostKey config");
+      throw new Error("no prize pool is configured — set pool.address in the SaveTogether config");
     }
     if (live.pool === undefined) {
       // cfg.token is what the user calls it; the client needs the address.
@@ -1040,5 +1040,5 @@ function explainFailure(e: unknown, symbol: string): string {
 export function sessionKeystore(inMemory: boolean) {
   return inMemory
     ? memoryKeystore()
-    : osKeychainKeystore({ dir: path.join(os.homedir(), ".ghostkey", "sessions") });
+    : osKeychainKeystore({ dir: path.join(os.homedir(), ".savetogether", "sessions") });
 }

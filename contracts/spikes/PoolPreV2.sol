@@ -454,7 +454,7 @@ contract PoolPreV2 is ZamaEthereumConfig {
      * `TierCalculationLib` maps `keccak256(drawId, vault, user, ...)` uniformly
      * into `[0, vaultTwabTotalSupply)` and compares it against a zone scaled by
      * the user's own TWAB. Each user is evaluated independently, with no
-     * cross-user aggregation — which is why GhostPool needs no prefix sums and
+     * cross-user aggregation — which is why SaveTogether needs no prefix sums and
      * no global ordering.
      *
      * Because every input is public, the rejection sampling that removes modulo

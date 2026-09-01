@@ -228,7 +228,7 @@ export class ConsoleServer {
   }
 
   private authorised(req: IncomingMessage): boolean {
-    const header = req.headers["x-ghostkey-token"];
+    const header = req.headers["x-savetogether-token"];
     if (typeof header === "string" && header === this.token) return true;
     const url = new URL(req.url ?? "/", "http://127.0.0.1");
     return url.searchParams.get("t") === this.token || url.searchParams.get("token") === this.token;

@@ -1,6 +1,6 @@
-# GhostKey — Step 3 notes: `packages/sdk`
+# SaveTogether — Step 3 notes: `packages/sdk`
 
-Headless client for encrypted spending sessions. Usable with no MCP server and no language model; nothing in it imports from `@ghostkey/mcp-server` or assumes a chat context.
+Headless client for encrypted spending sessions. Usable with no MCP server and no language model; nothing in it imports from `@savetogether/mcp-server` or assumes a chat context.
 
 The decision log and the adversarial passes live in [`PROGRESS.md`](../PROGRESS.md). This file is the SDK's own record: what it exposes, what was verified live, and what is still open.
 
@@ -50,7 +50,7 @@ Step 1 measured 29s median end to end, of which 12.5s is client-side ZK proof ge
 
 ## 3. Verified live, not in mock mode
 
-Every claim below is asserted in `test/sdk.sepolia.ts`, which imports `@ghostkey/sdk` through the workspace link rather than reaching into `src/`, so what runs is the surface a consumer gets.
+Every claim below is asserted in `test/sdk.sepolia.ts`, which imports `@savetogether/sdk` through the workspace link rather than reaching into `src/`, so what runs is the surface a consumer gets.
 
 - opening a session with **one** owner authorisation, and `ownerAuthorisations` reporting it
 - readiness reporting the operator grant the open just made

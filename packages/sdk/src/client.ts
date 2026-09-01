@@ -9,7 +9,7 @@
  *
  *   - a consumer with a browser wallet gets them batched into one approval via
  *     EIP-5792 `wallet_sendCalls`, when the wallet advertises the capability;
- *   - the GhostKey product has no browser wallet — both keys are local — so
+ *   - the SaveTogether product has no browser wallet — both keys are local — so
  *     "one signature" means ONE VAULT UNLOCK, after which the local owner key
  *     signs the three transactions in sequence without asking again.
  *
@@ -51,7 +51,7 @@ export const DEFAULT_SESSION_GAS = parseEther("0.02");
 /** Which privacy tier a session runs in. Chosen at open; it is not a runtime flag. */
 export type ReadScope = "spend-only" | "balance-visible";
 
-export interface GhostKeyClientConfig {
+export interface SaveTogetherClientConfig {
   readonly provider: Provider;
   readonly rpcUrl: string;
   readonly moduleAddress: string;
@@ -82,7 +82,7 @@ export interface OpenSessionRequest {
  * An open request with the owner's ADDRESS in place of their key.
  *
  * This is the hosted shape. `openSession` recovers the session key's own
- * signature over a digest that binds the owner (GhostKeySession.sol:133 and
+ * signature over a digest that binds the owner (SaveTogetherSession.sol:133 and
  * :381), so the key has to exist and sign before the user touches anything —
  * and the server therefore has to know who the owner is at that moment. The
  * budget ciphertext binds to (module, owner) and needs the address rather than
@@ -139,10 +139,10 @@ export interface OpenSessionResult {
   readonly ownerAuthorisations: number;
 }
 
-export class GhostKeyClient {
+export class SaveTogetherClient {
   private fhevmPromise: Promise<FhevmInstance> | null = null;
 
-  constructor(readonly config: GhostKeyClientConfig) {}
+  constructor(readonly config: SaveTogetherClientConfig) {}
 
   private fhevm(): Promise<FhevmInstance> {
     this.fhevmPromise ??= createFhevm(this.config.rpcUrl);
@@ -238,7 +238,7 @@ export class GhostKeyClient {
     const maxTxCount = req.maxTxCount ?? 0;
 
     const sessionKeyAddress = await this.config.keystore.create(
-      req.label ?? `ghostkey-${new Date().toISOString()}`,
+      req.label ?? `savetogether-${new Date().toISOString()}`,
     );
     const sessionKey = (await this.config.keystore.load(sessionKeyAddress)).connect(
       this.config.provider,

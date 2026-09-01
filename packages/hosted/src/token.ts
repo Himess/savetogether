@@ -60,16 +60,16 @@ export class TokenSealer {
    * error says how to make one rather than making one silently.
    */
   static fromEnv(env: NodeJS.ProcessEnv = process.env): TokenSealer {
-    const raw = env["GHOSTPOOL_MASTER_KEY"];
+    const raw = env["SAVETOGETHER_MASTER_KEY"];
     if (raw === undefined || raw === "") {
       throw new Error(
-        "GHOSTPOOL_MASTER_KEY is not set. Sessions are sealed under it, so a server " +
+        "SAVETOGETHER_MASTER_KEY is not set. Sessions are sealed under it, so a server " +
           "without one would hand out URLs that stop working the moment it restarts. " +
           "Generate one with:  node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
       );
     }
     if (!/^[0-9a-fA-F]{64}$/.test(raw)) {
-      throw new Error("GHOSTPOOL_MASTER_KEY must be 64 hex characters (32 bytes)");
+      throw new Error("SAVETOGETHER_MASTER_KEY must be 64 hex characters (32 bytes)");
     }
     return new TokenSealer(Buffer.from(raw, "hex"));
   }

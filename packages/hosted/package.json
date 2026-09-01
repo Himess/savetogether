@@ -1,8 +1,8 @@
 {
-  "name": "@ghostkey/hosted",
+  "name": "@savetogether/hosted",
   "version": "0.1.0",
   "private": true,
-  "description": "Hosted GhostPool: session opening over HTTP and MCP over streamable HTTP",
+  "description": "Hosted SaveTogether: session opening over HTTP and MCP over streamable HTTP",
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -14,8 +14,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@ghostkey/mcp-server": "*",
-    "@ghostkey/sdk": "*",
+    "@savetogether/mcp-server": "*",
+    "@savetogether/sdk": "*",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "ethers": "^6.16.0",
     "zod": "^3.24.1"

@@ -97,6 +97,27 @@ async function accrueAll(pool: Contract, drawId: number): Promise<number> {
   return done;
 }
 
+/**
+ * Moves accrued yield into the reserve prizes are paid from.
+ *
+ * Without this the machine runs perfectly and pays nothing: the reserve starts
+ * empty and fills from `harvest()` alone, so every draw awards a prize the
+ * encrypted balance cannot cover, `tryDecrease` declines, and the winner is
+ * credited zero — silently, because a failed award is indistinguishable from a
+ * loss by design. The first live round on the composed pool did exactly that.
+ *
+ * Permissionless and idempotent, so a failure here is worth a line and not a
+ * stall: the next tick harvests again, and a draw with an unfunded reserve is
+ * still a valid draw.
+ */
+async function harvest(pool: Contract): Promise<void> {
+  try {
+    await (await pool.harvest()).wait();
+  } catch (e) {
+    log(`harvest failed, opening anyway: ${(e as Error).message.slice(0, 80)}`);
+  }
+}
+
 async function tick(pool: Contract): Promise<void> {
   const count = Number(await pool.drawCount());
 
@@ -114,9 +135,10 @@ async function tick(pool: Contract): Promise<void> {
     await accrueAll(pool, id);
   }
 
-  // 3) Only then open new work.
+  // 3) Only then open new work — and fund it first.
   if (count === 0) {
     try {
+      await harvest(pool);
       await (await pool.openDraw()).wait();
       log(`opened draw 1`);
     } catch (e) {
@@ -128,6 +150,7 @@ async function tick(pool: Contract): Promise<void> {
   const last = await pool.drawAt(count);
   const now = Math.floor(Date.now() / 1000);
   if (Number(last.status) === 2 && now >= Number(last.snapshotAt) + PERIOD_SECONDS) {
+    await harvest(pool);
     await (await pool.openDraw()).wait();
     log(`opened draw ${count + 1}`);
   }

@@ -4,8 +4,8 @@ pragma solidity ^0.8.27;
 import {ebool, euint64, externalEuint64} from "@fhevm/solidity/lib/FHE.sol";
 
 /**
- * @title  IGhostKeySession
- * @author GhostKey
+ * @title  ISaveTogetherSession
+ * @author SaveTogether
  * @notice Encrypted spending budgets for ERC-7984 confidential tokens.
  *
  * @dev TERMINOLOGY. Two principals are deliberately kept distinct throughout this
@@ -21,7 +21,7 @@ import {ebool, euint64, externalEuint64} from "@fhevm/solidity/lib/FHE.sol";
  *      The security model may treat the two as one principal. The privacy claim depends
  *      on separating them.
  */
-interface IGhostKeySession {
+interface ISaveTogetherSession {
     /**
      * @notice Plaintext parameters of a session. Deliberately public and auditable.
      * @dev Packs into a single storage slot. Sentinels, rather than extra flags, encode
@@ -164,10 +164,10 @@ interface IGhostKeySession {
     error DuplicateToken(address token);
     /// @notice The session key did not sign its consent to be opened by this owner.
     error InvalidSessionKeySignature();
-    /// @notice More tokens than {GhostKeySession-MAX_TOKENS}.
+    /// @notice More tokens than {SaveTogetherSession-MAX_TOKENS}.
     /// @param count The rejected count.
     error TooManyTokens(uint256 count);
-    /// @notice More recipients than {GhostKeySession-MAX_RECIPIENTS}.
+    /// @notice More recipients than {SaveTogetherSession-MAX_RECIPIENTS}.
     /// @param count The rejected count.
     error TooManyRecipients(uint256 count);
     /// @notice The recipient is already on the allowlist.

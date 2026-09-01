@@ -1,6 +1,7 @@
 "use client";
 import { useReadContract, useWriteContract, useAccount } from "wagmi";
 import { css } from "@/lib/css";
+import { fmtUnits6 } from "@/lib/format";
 import { shortAddr } from "@/lib/format";
 import { CUSDC, EXPLORER, POOL, VAULT_ADAPTER, VAULT_SHARE, YIELD_SOURCE } from "@/lib/addresses";
 import { POOL_ABI, VAULT_SOURCE_ABI, YIELD_ABI } from "@/lib/abis";
@@ -75,7 +76,7 @@ export function VaultScreen() {
   });
   const { data: prize } = useReadContract({ abi: POOL_ABI, address: POOL, functionName: "prize" });
   const { data: openBatches, refetch: refetchBatches } = useReadContract({
-    abi: VAULT_SOURCE_ABI, address: VAULT_ADAPTER, functionName: "openBatches",
+    abi: VAULT_SOURCE_ABI, address: YIELD_SOURCE, functionName: "openBatches",
     query: { refetchInterval: 20_000 },
   });
 
@@ -98,7 +99,7 @@ export function VaultScreen() {
           {/* ---------------------------------------------- the engine that pays -- */}
           <div style={css("display:flex;align-items:center;gap:14px;flex-wrap:wrap")}>
             <TokenIcon token="cUSDC" size={46} />
-            <h2 style={css("margin:0;font:800 26px/1.08 var(--display);letter-spacing:-.02em")}>GhostPool Yield Engine</h2>
+            <h2 style={css("margin:0;font:800 26px/1.08 var(--display);letter-spacing:-.02em")}>SaveTogether Yield Engine</h2>
             <span style={css("padding:5px 11px;border-radius:999px;background:var(--accent-soft);border:1px solid #f0d97a;font:700 11px var(--display);color:#7a5f00;white-space:nowrap")}>Demo rate</span>
           </div>
 
@@ -119,7 +120,7 @@ export function VaultScreen() {
 
           <div style={css("display:flex;flex-wrap:wrap;gap:22px 44px;margin-top:28px")}>
             <Metric label="Rate" value={`${apy}%`} />
-            <Metric label="Prize per draw" value={prize === undefined ? "—" : String(prize)} unit="gUSDC" />
+            <Metric label="Prize per draw" value={prize === undefined ? "—" : fmtUnits6(prize as bigint)} unit="cUSDC" />
             <Metric label="Reserve at start" value="0" unit="always" />
           </div>
 
@@ -139,7 +140,7 @@ export function VaultScreen() {
           </div>
 
           <p style={css("margin:13px 0 0;font:400 14.5px/1.55 var(--display);color:var(--ink-2);max-width:62ch")}>
-            GhostPool&apos;s adapter joined a real batch on Zama&apos;s deployed confidential vault and holds real
+            SaveTogether&apos;s adapter joined a real batch on Zama&apos;s deployed confidential vault and holds real
             shares. A contract cannot call <span style={css("font-family:var(--mono);font-size:13px")}>join</span> — it takes an
             externally encrypted input and a proof no contract can forge — so the way in is the ERC-7984 receiver hook.
           </p>
@@ -185,17 +186,17 @@ export function VaultScreen() {
 
           <p style={css("margin:14px 0 0;font:400 12.5px/1.55 var(--display);color:var(--ink-2)")}>
             Dispatch is driven by <b style={css("font-weight:600;color:var(--ink)")}>Zama&apos;s keeper</b>, not ours. Joining
-            puts the adapter&apos;s balance into the next batch; the shares arrive when that batch settles.
+            puts half the pool&apos;s principal into the next batch; the shares arrive when that batch settles. Half, because unwinding is a round trip too, so the rest stays here and withdrawals never wait on anyone else.
           </p>
 
           <button
             onClick={() =>
               void run(
                 "Joining the vault batch",
-                "The adapter is in the next batch. Shares arrive when Zama's keeper dispatches it.",
+                "The pool’s principal is in the next batch. Shares arrive when Zama's keeper dispatches it.",
                 async () =>
                   writeContractAsync({
-                    abi: VAULT_SOURCE_ABI, address: VAULT_ADAPTER, functionName: "joinVault",
+                    abi: VAULT_SOURCE_ABI, address: YIELD_SOURCE, functionName: "joinVault",
                   }),
               ).then(() => refetchBatches())
             }

@@ -12,14 +12,17 @@
  *   npx hardhat run spikes/hosted-e2e.ts --network sepolia
  */
 import { ethers } from "hardhat";
-import { HostedServer } from "@ghostkey/hosted";
+import { HostedServer } from "@savetogether/hosted";
 import * as fs from "fs";
 import * as path from "path";
 
 const PORT = 8791;
 const BASE = `http://127.0.0.1:${PORT}`;
 
-const RPC = process.env["SEPOLIA_RPC_URL"] ?? "${SEPOLIA_RPC_URL}";
+// No fallback on purpose: a hardcoded provider URL is a credential, and this
+// file is in a public repository.
+const RPC = process.env["SEPOLIA_RPC_URL"] ?? "";
+if (RPC === "") throw new Error("set SEPOLIA_RPC_URL");
 const MODULE = "0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6";
 const TOKEN = "0x1bbBE55d24174d57305632E75fE47ac3C5158a9F";
 const POOL = "0x3f6F8e5A853bEC8FA008b31E28f9B0fD9dC0F287";
@@ -77,7 +80,7 @@ async function main(): Promise<void> {
   const ownerAddress = await owner!.getAddress();
   console.log(`owner (the browser wallet)  ${ownerAddress}\n`);
 
-  process.env["GHOSTPOOL_MASTER_KEY"] ??= require("crypto").randomBytes(32).toString("hex");
+  process.env["SAVETOGETHER_MASTER_KEY"] ??= require("crypto").randomBytes(32).toString("hex");
 
   const makeServer = (): HostedServer =>
     new HostedServer({

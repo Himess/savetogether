@@ -4,7 +4,7 @@ import { useAccount, useBalance, useReadContract } from "wagmi";
 import { useDecryptValues, useGrantPermit, useHasPermit } from "@zama-fhe/react-sdk";
 import { css } from "@/lib/css";
 import { shortAddr } from "@/lib/format";
-import { CUSDC, EXPLORER, POOL, TOKEN, USDC, VAULT_SHARE } from "@/lib/addresses";
+import { CUSDC, EXPLORER, POOL, USDC, VAULT_SHARE } from "@/lib/addresses";
 import { ERC20_ABI, ERC7984_ABI, POOL_ABI } from "@/lib/abis";
 import { useOnSepolia } from "@/lib/chain";
 import { TokenIcon } from "@/components/TokenIcon";
@@ -31,20 +31,20 @@ export function BalancesScreen() {
     args: address ? [address] : undefined, query: { enabled },
   });
 
+  // Three rows, not four: the pool settles in cUSDC, so the wallet row and the
+  // pool's token row were the same contract read twice under two names.
   const conf = [
-    { label: "cUSDC", sub: "Zama's confidential wrapper", token: "cUSDC", contract: CUSDC, abi: ERC7984_ABI, fn: "confidentialBalanceOf", decimals: 6 },
-    { label: "gUSDC", sub: "the demo token this pool settles in", token: "gUSDC", contract: TOKEN, abi: ERC7984_ABI, fn: "confidentialBalanceOf", decimals: 0 },
-    { label: "In the pool", sub: "your position, earning weight over time", token: "gUSDC", contract: POOL, abi: POOL_ABI, fn: "confidentialBalanceOf", decimals: 0 },
-    { label: "Won, all time", sub: "credited automatically — there is nothing to claim", token: "gUSDC", contract: POOL, abi: POOL_ABI, fn: "winningsOf", decimals: 0 },
+    { label: "cUSDC", sub: "Zama's confidential wrapper — the token this pool settles in", token: "cUSDC", contract: CUSDC, abi: ERC7984_ABI, fn: "confidentialBalanceOf", decimals: 6 },
+    { label: "In the pool", sub: "your position, earning weight over time", token: "cUSDC", contract: POOL, abi: POOL_ABI, fn: "confidentialBalanceOf", decimals: 6 },
+    { label: "Won, all time", sub: "credited automatically — claiming is optional and reveals nothing", token: "cUSDC", contract: POOL, abi: POOL_ABI, fn: "winningsOf", decimals: 6 },
   ] as const;
 
   const h0 = useReadContract({ abi: conf[0].abi, address: conf[0].contract, functionName: conf[0].fn, args: address ? [address] : undefined, query: { enabled } });
   const h1 = useReadContract({ abi: conf[1].abi, address: conf[1].contract, functionName: conf[1].fn, args: address ? [address] : undefined, query: { enabled } });
   const h2 = useReadContract({ abi: conf[2].abi, address: conf[2].contract, functionName: conf[2].fn, args: address ? [address] : undefined, query: { enabled } });
-  const h3 = useReadContract({ abi: conf[3].abi, address: conf[3].contract, functionName: conf[3].fn, args: address ? [address] : undefined, query: { enabled } });
-  const raw = [h0.data, h1.data, h2.data, h3.data];
+  const raw = [h0.data, h1.data, h2.data];
 
-  const { data: hasPermit } = useHasPermit({ contractAddresses: [CUSDC, TOKEN, POOL] }, { enabled });
+  const { data: hasPermit } = useHasPermit({ contractAddresses: [CUSDC, POOL] }, { enabled });
   const { mutate: grantPermit, isPending: granting } = useGrantPermit();
 
   const inputs = useMemo(
@@ -54,7 +54,7 @@ export function BalancesScreen() {
         .filter((x) => !!x.h && x.h !== ZERO)
         .map((x) => ({ encryptedValue: x.h as `0x${string}`, contractAddress: x.c as string })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [h0.data, h1.data, h2.data, h3.data],
+    [h0.data, h1.data, h2.data],
   );
   const { data: clear, isFetching } = useDecryptValues(inputs, {
     enabled: enabled && hasPermit === true && inputs.length > 0,
@@ -120,7 +120,7 @@ export function BalancesScreen() {
           {hasPermit !== true ? (
             <>
               <button
-                onClick={() => grantPermit([CUSDC, TOKEN, POOL])}
+                onClick={() => grantPermit([CUSDC, POOL])}
                 disabled={granting || !onSepolia || !address}
                 style={css("padding:11px 18px;border-radius:12px;border:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,#ffdf5c,#ffd208);font:700 13px var(--display);color:#1a1a1a;cursor:pointer")}
               >

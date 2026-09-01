@@ -5,7 +5,7 @@ import {FHE, euint64, ebool, externalEuint64} from "@fhevm/solidity/lib/FHE.sol"
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 
 /**
- * Measurement scaffolding for GhostPool step 1. NOT production code.
+ * Measurement scaffolding for SaveTogether step 1. NOT production code.
  *
  * Three winner-selection designs, side by side, so their cost is measured rather
  * than argued:

@@ -9,10 +9,10 @@ import {IERC7984} from "@openzeppelin/confidential-contracts/interfaces/IERC7984
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {IGhostKeySession} from "./interfaces/IGhostKeySession.sol";
+import {ISaveTogetherSession} from "./interfaces/ISaveTogetherSession.sol";
 
 /// @title  IACLPausable
-/// @author GhostKey
+/// @author SaveTogether
 /// @notice The deployed ACL is pausable but `IACL` does not declare it. Selector 0x5c975abb
 ///         is present in the Sepolia implementation at 0xf4f793e6a2ef47de60a94c0bc412292da5f7ab98.
 interface IACLPausable {
@@ -22,8 +22,8 @@ interface IACLPausable {
 }
 
 /**
- * @title  GhostKeySession
- * @author GhostKey
+ * @title  SaveTogetherSession
+ * @author SaveTogether
  * @notice Gives an ERC-7984 operator an ENCRYPTED spending budget.
  *
  * @dev THE PROBLEM. `ERC7984.setOperator(spender, until)` grants unlimited spending
@@ -50,9 +50,9 @@ interface IACLPausable {
  *      allowlist is plaintext: encrypting it would be theatre. Only amounts are hidden.
  *
  *      TERMINOLOGY. `session client` and `model` are distinguished throughout. See
- *      {IGhostKeySession}. The word "agent" is never used alone.
+ *      {ISaveTogetherSession}. The word "agent" is never used alone.
  */
-contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, EIP712, ReentrancyGuard {
+contract SaveTogetherSession is ISaveTogetherSession, ZamaEthereumConfig, EIP712, ReentrancyGuard {
     /// @notice Maximum tokens fundable in one session.
     /// @dev Bounds {tokensOf}, which returns the whole array, so an oversized session
     ///      cannot make its own views uncallable. Well above any realistic session:
@@ -82,10 +82,24 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, EIP712, Reentr
     mapping(address sessionKey => address[] tokens) private _tokens;
 
     /// @notice Deploys the module.
+    /**
+     * The EIP-712 domain name is "GhostKeySession" and MUST NOT be changed.
+     *
+     * It is not a label. It is hashed into the domain separator, so every
+     * signature the SDK produces is verified against it — and the module already
+     * deployed at 0xE5c667c0…36Cf6 has this exact string in its bytecode. The
+     * project was renamed from GhostKey to SaveTogether after that deployment;
+     * renaming this too would make every `openSession` revert with
+     * `InvalidSessionKeySignature`, which is precisely what a blind rename did
+     * and what catching it before shipping was worth.
+     *
+     * Change it only alongside a redeployment of this module, and only with the
+     * SDK's `EIP712_DOMAIN_NAME` changed in the same commit.
+     */
     constructor() EIP712("GhostKeySession", "1") {}
 
     /**
-     * @inheritdoc IGhostKeySession
+     * @inheritdoc ISaveTogetherSession
      *
      * @dev FRONT-RUNNING. The session key travels in mempool calldata. Without proof of
      *      the key's consent, anyone could watch a pending `openSession`, resubmit the
@@ -175,7 +189,7 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, EIP712, Reentr
     }
 
     /**
-     * @inheritdoc IGhostKeySession
+     * @inheritdoc ISaveTogetherSession
      *
      * @dev THE CORE FUNCTION. Read the ordering carefully; it is forced, not chosen.
      *
@@ -263,7 +277,7 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, EIP712, Reentr
         emit Sent(msg.sender, token, to, within, sent);
     }
 
-    /// @inheritdoc IGhostKeySession
+    /// @inheritdoc ISaveTogetherSession
     function increaseBudget(
         address sessionKey,
         address token,
@@ -295,7 +309,7 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, EIP712, Reentr
     }
 
     /**
-     * @inheritdoc IGhostKeySession
+     * @inheritdoc ISaveTogetherSession
      *
      * @dev Owner only. This grants no authority the owner does not already hold — they
      *      could close the session and open a new one with a wider allowlist. What it
@@ -316,7 +330,7 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, EIP712, Reentr
     }
 
     /**
-     * @inheritdoc IGhostKeySession
+     * @inheritdoc ISaveTogetherSession
      *
      * @dev Owner OR session key. The session client must be able to narrow its own scope
      *      defensively — on detecting something wrong it should not have to choose between
@@ -347,7 +361,7 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, EIP712, Reentr
     }
 
     /**
-     * @inheritdoc IGhostKeySession
+     * @inheritdoc ISaveTogetherSession
      *
      * @dev Budgets are deliberately NOT zeroed. The plaintext guards in {send} already
      *      reject every call once `expiry` is 0, and a session key can never be reused, so
@@ -369,7 +383,7 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, EIP712, Reentr
         emit SessionClosed(sessionKey, msg.sender);
     }
 
-    /// @inheritdoc IGhostKeySession
+    /// @inheritdoc ISaveTogetherSession
     function openSessionDigest(
         address owner,
         address sessionKey,
@@ -382,12 +396,12 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, EIP712, Reentr
             );
     }
 
-    /// @inheritdoc IGhostKeySession
+    /// @inheritdoc ISaveTogetherSession
     function sessionOf(address sessionKey) external view override returns (Session memory) {
         return _sessions[sessionKey];
     }
 
-    /// @inheritdoc IGhostKeySession
+    /// @inheritdoc ISaveTogetherSession
     function remainingOf(
         address sessionKey,
         address token
@@ -395,7 +409,7 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, EIP712, Reentr
         return _remaining[sessionKey][token];
     }
 
-    /// @inheritdoc IGhostKeySession
+    /// @inheritdoc ISaveTogetherSession
     function isRecipientAllowed(
         address sessionKey,
         address to
@@ -403,18 +417,18 @@ contract GhostKeySession is IGhostKeySession, ZamaEthereumConfig, EIP712, Reentr
         return _recipientIndex[sessionKey][to] != 0;
     }
 
-    /// @inheritdoc IGhostKeySession
+    /// @inheritdoc ISaveTogetherSession
     function recipientsOf(address sessionKey) external view override returns (address[] memory) {
         return _recipients[sessionKey];
     }
 
-    /// @inheritdoc IGhostKeySession
+    /// @inheritdoc ISaveTogetherSession
     function tokensOf(address sessionKey) external view override returns (address[] memory) {
         return _tokens[sessionKey];
     }
 
     /**
-     * @inheritdoc IGhostKeySession
+     * @inheritdoc ISaveTogetherSession
      *
      * @dev The ACL address is resolved through `ZamaConfig.getEthereumCoprocessorConfig`,
      *      which despite its name dispatches on chainid across Ethereum mainnet, Sepolia

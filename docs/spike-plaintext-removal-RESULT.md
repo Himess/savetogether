@@ -4,7 +4,7 @@
 
 It removes a plaintext that only the local session client ever sees, and pays for
 that by disclosing the *ratio* to everyone, permanently, in the clear. And for
-GhostPool specifically it does not even remove the tab, because the budget hop
+SaveTogether specifically it does not even remove the tab, because the budget hop
 still needs an encrypted input.
 
 Run 30 August 2026. Everything below is measured on live Sepolia or on the local
@@ -184,10 +184,10 @@ assuming the conclusion.
 No `createEncryptedInput`, no WASM proof generation, no browser. A hosted service
 holding a session key could do all of this blind.
 
-**The budget leg is not, and that is the blocker.** GhostPool's deposit is two
+**The budget leg is not, and that is the blocker.** SaveTogether's deposit is two
 hops: the owner's funds move to the session key through the module's
-budget-bounded `send`, and only then into the pool. And `GhostKeySession.send`
-takes `externalEuint64 encAmount, bytes inputProof` (`GhostKeySession.sol:203`).
+budget-bounded `send`, and only then into the pool. And `SaveTogetherSession.send`
+takes `externalEuint64 encAmount, bytes inputProof` (`SaveTogetherSession.sol:203`).
 Making it accept a handle instead would require:
 
 - `FHE.isAllowed(handle, sessionKey)` on the **owner's** balance handle, which

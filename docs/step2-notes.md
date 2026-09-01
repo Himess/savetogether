@@ -1,10 +1,10 @@
-# GhostKey — Step 2 notes
+# SaveTogether — Step 2 notes
 
-`GhostKeySession.sol`, its interface, and the test suite. What was decided, what turned out wrong, what was measured.
+`SaveTogetherSession.sol`, its interface, and the test suite. What was decided, what turned out wrong, what was measured.
 
 - Date: 2026-08-26
-- Contracts: `contracts/GhostKeySession.sol`, `contracts/interfaces/IGhostKeySession.sol`, `contracts/mocks/MockERC7984.sol`
-- Tests: `test/GhostKeySession.ts` — 33 passing, 0 failing
+- Contracts: `contracts/SaveTogetherSession.sol`, `contracts/interfaces/ISaveTogetherSession.sol`, `contracts/mocks/MockERC7984.sol`
+- Tests: `test/SaveTogetherSession.ts` — 33 passing, 0 failing
 - `pnpm compile`, `pnpm typecheck`, `pnpm lint` all pass
 
 ---
@@ -52,7 +52,7 @@ It passes on 180 live Sepolia transactions, 60 per path: one operation sequence,
 
 The original criterion — execution gas exactly equal — is falsified on chain and cannot be satisfied by any change to this contract, because the 4 gas lives in `HCULimit`'s own accounting. Criterion (b) asserts hard equality exactly where the claim lives and bounds the rest rather than waving at it.
 
-**Sepolia, 2026-08-27.** The confirmation run happened, before any SDK code. Full report in `docs/step3-gate.md`. Summary: across 180 live transactions the FHE operation sequence and the HCU consumption are **identical** on every path — and HCU came out at exactly the 1,334,064 analytic estimate below. Execution gas is **not** constant: it takes two values four gas apart. That variance is intra-path — ten sends on one fixed path produced both values, and at 60 samples per path the three rates land within five points of each other — and a trace localises it to a single `HCULimit.checkHCUForFheGe` call, outside GhostKeySession, the token and the ACL, all three of which are bit-identical between the two values. It is uncorrelated with the outcome and no change to this contract could remove it. The gate criterion is criterion (b), below.
+**Sepolia, 2026-08-27.** The confirmation run happened, before any SDK code. Full report in `docs/step3-gate.md`. Summary: across 180 live transactions the FHE operation sequence and the HCU consumption are **identical** on every path — and HCU came out at exactly the 1,334,064 analytic estimate below. Execution gas is **not** constant: it takes two values four gas apart. That variance is intra-path — ten sends on one fixed path produced both values, and at 60 samples per path the three rates land within five points of each other — and a trace localises it to a single `HCULimit.checkHCUForFheGe` call, outside SaveTogetherSession, the token and the ACL, all three of which are bit-identical between the two values. It is uncorrelated with the outcome and no change to this contract could remove it. The gate criterion is criterion (b), below.
 
 Test 1's setup is deliberately symmetric: three separate owners, three separate session keys, and a recipient warmed beforehand so `_balances[to]` is initialized on every path. Every storage slot each path touches is cold in the same way.
 
@@ -104,7 +104,7 @@ See §1. Caught by an unrelated edit making the flap visible, then diagnosed by 
 
 **A2 — exact gas equality.** Done, §1, on execution gas.
 
-**A3 — terminology.** `session client` and `model` throughout the interface and contract natspec. The word "agent" appears nowhere on its own. Defined once at the top of `IGhostKeySession`.
+**A3 — terminology.** `session client` and `model` throughout the interface and contract natspec. The word "agent" appears nowhere on its own. Defined once at the top of `ISaveTogetherSession`.
 
 **A4 — multi-token `openSession` in one transaction.** `SessionParams` carries parallel `tokens` and `budgets` arrays under a single shared `inputProof`. Test 5 confirms the SDK side: one `createEncryptedInput` with two `add64` calls yields `handles.length === 2` under one proof, both budgets funded in one transaction. `FHE.fromExternal` consumes **no HCU** (no `checkHCUFor*` entry for `verifyCiphertext` in `HCULimit.sol`), so the ceiling is calldata and EVM gas. Capped at `MAX_TOKENS = 32`. Duplicates rejected with `DuplicateToken`.
 

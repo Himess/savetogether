@@ -1,4 +1,4 @@
-# GhostKey — step 5 report
+# SaveTogether — step 5 report
 
 Self-contained: it repeats the facts it depends on, so it reads without the repo.
 
@@ -133,7 +133,7 @@ The brief's "F waits for E" was too coarse; E changes tool descriptions and noth
 
 ## 5. Setup flow, so E can be run
 
-`ghostkey console` opens the page with no chat client attached. Funding a vault and minting test tokens is setup, and setup should not need a conversation open — you want the address before you have anything to say.
+`savetogether console` opens the page with no chat client attached. Funding a vault and minting test tokens is setup, and setup should not need a conversation open — you want the address before you have anything to say.
 
 The console gained a vault panel (address, gas, network, copy) and a mint control for test tokens. **Confidential balances are deliberately absent from the page**: reading one is a decryption, and a decryption is the act this product exists to make deliberate.
 

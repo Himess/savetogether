@@ -1,4 +1,4 @@
-# GhostKey — Step 4 notes: `packages/mcp-server` and `packages/console`
+# SaveTogether — Step 4 notes: `packages/mcp-server` and `packages/console`
 
 The chat surface, and the one page that exists because some things must not happen in chat.
 
@@ -90,5 +90,5 @@ Detail in [`PROGRESS.md`](../PROGRESS.md).
 1. **End-to-end against a live chat client.** Needs a human at the console by construction — that is the design, not a gap, but it means no automated test covers the full loop.
 2. **G3 — a `maxTxCount` control on the console.**
 3. **G6 — reclaiming a closed session key's leftover gas.** Every session costs the vault 0.02 ETH and nothing gives it back.
-4. **`npx ghostkey init` is untested end to end.** It writes the Claude config by merging rather than overwriting — deliberately, since that file usually has other servers in it — but nothing asserts the merge.
+4. **`npx savetogether init` is untested end to end.** It writes the Claude config by merging rather than overwriting — deliberately, since that file usually has other servers in it — but nothing asserts the merge.
 5. **The starter token list is a single Sepolia mock.** `docs/leakage.md` and `findings.md` §6 both record that no curated wrapper registry exists on Sepolia; the config format is ours and adapts if one appears.

@@ -6,7 +6,7 @@ import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 import {ERC7984} from "@openzeppelin/confidential-contracts/token/ERC7984/ERC7984.sol";
 
 /// @title  MockERC7984
-/// @author GhostKey
+/// @author SaveTogether
 /// @notice Minimal concrete ERC-7984 for tests. Open mint, no access control.
 /// @dev Test fixture only. Never deploy this anywhere that matters.
 contract MockERC7984 is ERC7984, ZamaEthereumConfig {

@@ -1,4 +1,4 @@
-# GhostPool — Step 1 interim: source verification, before the spike
+# SaveTogether — Step 1 interim: source verification, before the spike
 
 Self-contained: it repeats the facts it depends on, so it reads without the repos.
 
@@ -22,7 +22,7 @@ architecture.
 | `@zama-fhe/relayer-sdk` | ^0.4.1  | GhostLend `package.json` devDependencies              |
 | `@openzeppelin/confidential-contracts` | ^0.5.1 | GhostLend `package.json`                 |
 
-`@fhevm/host-contracts@0.10.0` is **the same version GhostKey read its HCU table
+`@fhevm/host-contracts@0.10.0` is **the same version SaveTogether read its HCU table
 from**. So A4's per-op costs carry over with no version drift and did not need
 re-deriving — one of the few places the eight-day schedule gets something for free.
 
@@ -114,7 +114,7 @@ Limits, from the same contract at the version installed here:
 :54   MAX_HOMOMORPHIC_COMPUTE_UNITS_PER_TX        = 20,000,000
 ```
 
-Per-op `euint64` costs, carried from GhostKey's A8 against the identical version:
+Per-op `euint64` costs, carried from SaveTogether's A8 against the identical version:
 
 | op                      | scalar operand | both ciphertext |
 | ----------------------- | -------------- | --------------- |
@@ -128,7 +128,7 @@ Per-op `euint64` costs, carried from GhostKey's A8 against the identical version
 
 **Read directly** in this pass: the power-of-two constraint, `rem`'s cost and its
 scalar-only revert, `rand`/`randBounded` costs, the existence of `mul`/`div`/`rem`
-scalar forms. **Carried** from GhostKey at the same version: `add`, `le`, `select`,
+scalar forms. **Carried** from SaveTogether at the same version: `add`, `le`, `select`,
 and both limits. **Assumed and flagged for the spike:** `lt` ciphertext-ciphertext
 equals `le` at 149,000, and `and(ebool, ebool)` ≈ 22,000. Both are cheap enough that
 being wrong shifts the ceilings by single digits, but neither is asserted.
@@ -182,7 +182,7 @@ should confirm as its third measurement.
 
 ### Why measure anyway
 
-GhostKey found a real discrepancy *inside `HCULimit`* — 181 identical calls in a trace
+SaveTogether found a real discrepancy *inside `HCULimit`* — 181 identical calls in a trace
 diff and exactly one differing — so the coprocessor's own accounting is not guaranteed
 to match the table it publishes. If reality diverges from the numbers above, that
 divergence is the finding, not the ceiling.
@@ -232,7 +232,7 @@ bounty's central goal fails on the cheapest possible observation. So a loser's c
 must execute a real transfer of an encrypted zero, and the claim path must be
 **gas-equal for winners and losers**.
 
-That is precisely the primitive GhostKey proved — 180 live Sepolia transactions, one
+That is precisely the primitive SaveTogether proved — 180 live Sepolia transactions, one
 distinct FHE operation sequence, one distinct HCU value, χ² 0.374 at p = 0.83, mutual
 information below its own noise floor. The methodology in that repo's `docs/leakage.md`
 transfers directly and should be applied here deliberately, as the differentiator it is.
@@ -315,7 +315,7 @@ any reviewer will try.
 
 ## 9. Plan
 
-1. `desktop\ghostpool` skeleton — hardhat + FHEVM setup carried from GhostLend, no
+1. `desktop\savetogether` skeleton — hardhat + FHEVM setup carried from GhostLend, no
    contracts
 2. `spikes/draw-hcu.ts` — naive vs incremental, N = 5, 10, 20, 40, 80 on live Sepolia,
    then push N until the limit trips, to find the ceiling empirically rather than

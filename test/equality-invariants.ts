@@ -10,7 +10,7 @@ const DAY = 24 * 60 * 60;
  * The invariant that makes the inherited equality argument in findings.md §8.5
  * work, written down and pinned.
  *
- * §8.5 argues that the withdrawal clamp can borrow GhostKey's 180-transaction
+ * §8.5 argues that the withdrawal clamp can borrow SaveTogether's 180-transaction
  * result instead of buying its own, because the code has the same shape. That
  * argument rests on something that was, until now, emergent rather than stated:
  *

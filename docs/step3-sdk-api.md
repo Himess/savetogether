@@ -1,4 +1,4 @@
-# GhostKey — `packages/sdk` public API surface
+# SaveTogether — `packages/sdk` public API surface
 
 Type signatures only. No implementation. For confirmation before building.
 
@@ -170,7 +170,7 @@ interface OpenSessionResult {
   readonly batched: boolean; // false when EIP-5792 was unavailable
 }
 
-function openSession(client: GhostKeyClient, req: OpenSessionRequest): Promise<OpenSessionResult>;
+function openSession(client: SaveTogetherClient, req: OpenSessionRequest): Promise<OpenSessionResult>;
 ```
 
 Internally, three owner-side actions:
@@ -211,7 +211,7 @@ Client obligations enforced here rather than on chain:
 ## 7. Client construction and key custody
 
 ```ts
-interface GhostKeyClientConfig {
+interface SaveTogetherClientConfig {
   readonly chain: Chain;
   readonly transport: Transport;
   readonly module: Address;
@@ -219,7 +219,7 @@ interface GhostKeyClientConfig {
   readonly keystore: SessionKeystore;
 }
 
-function createGhostKeyClient(config: GhostKeyClientConfig): GhostKeyClient;
+function createSaveTogetherClient(config: SaveTogetherClientConfig): SaveTogetherClient;
 ```
 
 The session key never leaves the process in plaintext:
@@ -246,7 +246,7 @@ The owner's key is never handled: `openSession` takes an `Account`, and step 4 s
 
 ## 8. Terminology in the exported surface
 
-`session client` and `model` per A3. The word "agent" appears in no exported type, no parameter, no doc comment. Nothing in this package imports from `packages/mcp-server`, and nothing assumes a chat context — that separation is what makes GhostKey infrastructure rather than a demo, and it is what makes an upstream proposal to OpenZeppelin or Zama credible.
+`session client` and `model` per A3. The word "agent" appears in no exported type, no parameter, no doc comment. Nothing in this package imports from `packages/mcp-server`, and nothing assumes a chat context — that separation is what makes SaveTogether infrastructure rather than a demo, and it is what makes an upstream proposal to OpenZeppelin or Zama credible.
 
 ---
 

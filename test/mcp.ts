@@ -14,8 +14,8 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { consoleHtml } from "@ghostkey/console";
-import { isTransient, osKeychainKeystore, withRetry } from "@ghostkey/sdk";
+import { consoleHtml } from "@savetogether/console";
+import { isTransient, osKeychainKeystore, withRetry } from "@savetogether/sdk";
 import {
   SEPOLIA_CHAIN_ID,
   Vault,
@@ -23,8 +23,8 @@ import {
   parseAmount,
   sanitiseChainText,
   toolDefinitions,
-} from "@ghostkey/mcp-server";
-import { ConsoleServer, DEFAULT_MAX_TX_COUNT } from "@ghostkey/console";
+} from "@savetogether/mcp-server";
+import { ConsoleServer, DEFAULT_MAX_TX_COUNT } from "@savetogether/console";
 
 describe("MCP layer", () => {
   // -------------------------------------------------------------------------
@@ -101,7 +101,7 @@ describe("MCP layer", () => {
     let dir: string;
 
     beforeEach(async () => {
-      dir = await fs.mkdtemp(path.join(os.tmpdir(), "ghostkey-vault-"));
+      dir = await fs.mkdtemp(path.join(os.tmpdir(), "savetogether-vault-"));
     });
 
     it("refuses to skip the human step on any chain but Sepolia", async () => {
@@ -351,8 +351,8 @@ describe("MCP layer", () => {
     let created: string | null = null;
 
     beforeEach(async () => {
-      dir = await fs.mkdtemp(path.join(os.tmpdir(), "ghostkey-ks-"));
-      service = `ghostkey-test-${Math.random().toString(36).slice(2, 10)}`;
+      dir = await fs.mkdtemp(path.join(os.tmpdir(), "savetogether-ks-"));
+      service = `savetogether-test-${Math.random().toString(36).slice(2, 10)}`;
       created = null;
     });
 
@@ -480,7 +480,7 @@ describe("MCP layer", () => {
         (await (
           await fetch(`${base}/api/settings`, {
             method: "POST",
-            headers: { "content-type": "application/json", "x-ghostkey-token": token },
+            headers: { "content-type": "application/json", "x-savetogether-token": token },
             body: JSON.stringify({ maxTxCount }),
           })
         ).json()) as { ok: boolean };
@@ -559,7 +559,7 @@ describe("MCP layer", () => {
         let id = "";
         for (let i = 0; i < 20 && id === ""; i++) {
           const state = (await (
-            await fetch(`${base}/api/state`, { headers: { "x-ghostkey-token": token } })
+            await fetch(`${base}/api/state`, { headers: { "x-savetogether-token": token } })
           ).json()) as { pending: Array<{ id: string }> };
           id = state.pending[0]?.id ?? "";
           if (id === "") await new Promise((r) => setTimeout(r, 25));
@@ -568,7 +568,7 @@ describe("MCP layer", () => {
 
         await fetch(`${base}/api/resolve`, {
           method: "POST",
-          headers: { "content-type": "application/json", "x-ghostkey-token": token },
+          headers: { "content-type": "application/json", "x-savetogether-token": token },
           body: JSON.stringify({ id, approved: true, value: "12.5" }),
         });
 

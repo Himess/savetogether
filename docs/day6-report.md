@@ -1,4 +1,4 @@
-# GhostPool — day 6: the browser pass, and a scope gap I have to own
+# SaveTogether — day 6: the browser pass, and a scope gap I have to own
 
 Self-contained: it repeats the facts it depends on, so it reads without the repo.
 
@@ -128,11 +128,11 @@ comparing that sentence to the contract will find nothing behind it.
 The conversational / MCP layer was removed by explicit instruction in the day-3
 brief, verbatim:
 
-> "GhostKey is out of scope for you entirely. It is handled separately. Do not
+> "SaveTogether is out of scope for you entirely. It is handled separately. Do not
 > build the conversational surface, do not reserve time for it."
 
 Following that, §5.5 of `findings.md` withdrew the earlier claim that the design
-*required* GhostKey. That one is not a gap — it is a decision, and it is recorded.
+*required* SaveTogether. That one is not a gap — it is a decision, and it is recorded.
 
 ### 2.4 Why the real vault would not have helped anyway
 

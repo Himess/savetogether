@@ -115,7 +115,7 @@ async function main(): Promise<void> {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "deployment-cusdc.json"), JSON.stringify(out, null, 2));
   console.log(`\nwritten to out/deployment-cusdc.json`);
-  console.log(`\nghostkey init --pool ${poolAddr} --pool-token cUSDC`);
+  console.log(`\nsavetogether init --pool ${poolAddr} --pool-token cUSDC`);
 }
 
 main().catch((e) => {

@@ -5,7 +5,7 @@
  * loser's differ in observable gas, "only the winner learns the outcome" is false
  * on the cheapest observation available, and nothing downstream repairs it.
  *
- * Method carried from GhostKey's `docs/leakage.md`:
+ * Method carried from SaveTogether's `docs/leakage.md`:
  *
  *   - Execution gas, not `gasUsed`. Intrinsic calldata cost varies with the
  *     zero-byte count of the address argument, which has nothing to do with the

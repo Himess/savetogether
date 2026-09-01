@@ -1,7 +1,7 @@
 /**
  * J2 — the composition, proven against Zama's own vault on Sepolia.
  *
- * The claim is that GhostPool sits ON the ecosystem's confidential vault rather
+ * The claim is that SaveTogether sits ON the ecosystem's confidential vault rather
  * than beside a lookalike. That claim is either driven end to end on chain or it
  * is a paragraph in a README.
  *

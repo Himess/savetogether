@@ -95,7 +95,7 @@ design; the point of measuring is that we might throw it away.
 
 ## Constraints
 
-- No changes to `ConfidentialPrizePool` or `GhostKeySession` outside a scratch harness
+- No changes to `ConfidentialPrizePool` or `SaveTogetherSession` outside a scratch harness
 - No deployment to the live pool
 - Nothing merged
 - Timebox: a few hours, gated on R1

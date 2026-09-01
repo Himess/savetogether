@@ -1,4 +1,4 @@
-# GhostPool
+# SaveTogether
 
 **No-loss prize savings where your balance, your odds, and whether you won all stay encrypted.**
 
@@ -13,9 +13,11 @@ Season 4.
 | | |
 | --- | --- |
 | **Live** | **https://ghostpool-himess.vercel.app** |
-| **Pool** | [`0x4728F94D12f04C7aCB1fEC278A59F3275C396865`](https://sepolia.etherscan.io/address/0x4728F94D12f04C7aCB1fEC278A59F3275C396865) |
-| **Token** | [`0x8738E041D06cb1263A475a6495cCBB408F4731B8`](https://sepolia.etherscan.io/address/0x8738E041D06cb1263A475a6495cCBB408F4731B8) |
-| **On Zama's own cUSDC** | [`0x3Eddf704b0909F6A8fa491857533D28C22f9b8d4`](https://sepolia.etherscan.io/address/0x3Eddf704b0909F6A8fa491857533D28C22f9b8d4) |
+| **Pool** | [`0x1d8A0d653027833E4e8eA4DE67B90512Aad7B85f`](https://sepolia.etherscan.io/address/0x1d8A0d653027833E4e8eA4DE67B90512Aad7B85f) |
+| **Settles in** | cUSDC — Zama's own confidential USDC, [`0x7c5BF43B…3639`](https://sepolia.etherscan.io/address/0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639) |
+| **Yield source** | [`0x15331b79…e8A5`](https://sepolia.etherscan.io/address/0x15331b79E80EF6606a1aD4C0b13F7EA49482e8A5) — a Steakhouse Confidential Prime replica, wired into the vault below |
+| **Zama's vault batcher** | [`0x48758559…F53b`](https://sepolia.etherscan.io/address/0x48758559c14d4d92b4C74A99660B6a8dbe85F53b) — the pool's principal is in [batch 281](https://sepolia.etherscan.io/tx/0xeb71ffb5ad7165f88ec1b97a702cc261036da148bb1c9d684fc6dc262782de15) |
+| **Session module** | [`0xE5c667c0…6Cf6`](https://sepolia.etherscan.io/address/0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6) |
 | **Network** | Sepolia (11155111) |
 
 ---
@@ -25,7 +27,7 @@ Season 4.
 The pool has a second front door: you can just say what you want.
 
 ```
-you    open a session with a 500 gUSDC budget
+you    open a session with a 500 cUSDC budget
 you    what's the draw status?
 you    put half my balance in the pool
 ```
@@ -83,8 +85,8 @@ and the full disclosure table is in
 ### The local install still works, and that is the point
 
 ```
-ghostkey init --rpc <url>
-ghostkey console
+savetogether init --rpc <url>
+savetogether console
 ```
 
 Same contracts, same SDK, same tools. Running it yourself is the fallback when
@@ -179,38 +181,49 @@ Yield, on the pool's own deposits. Principal does not sit in the pool — it goe
 to a yield source the moment it arrives, and `harvest()` moves what it has earned
 into the reserve the prizes are paid from.
 
-The source is an interface with two implementations, and the split is the honest
-part:
+### The product this replicates, and what is actually ours
+
+On mainnet, confidential USDC earns in **Steakhouse Confidential Prime**, a
+Morpho vault. That vault is mainnet-only. So the shape of it was rebuilt on
+Sepolia and the prize pool put on top — which is the whole idea: the earning
+product already exists, and this adds *no-loss prize savings* to it.
+
+`SteakhouseReplicaSource` is that replica, and it is deliberately one contract
+doing two jobs, because an earlier design split them and had to ship the wrong
+half:
 
 | | |
 | --- | --- |
-| `MockYieldSource` | What the deployed demo runs on. Accrues `principal × rate × elapsed`, computed homomorphically on the **encrypted** principal, and settles immediately. |
-| `ZamaVaultSource` | Zama's own confidential vault on Sepolia. Real, and driven end to end on chain. |
+| **The vault composition** | **Real.** `joinVault()` sends the pool's principal into Zama's deployed deposit batcher and real shares come back when their keeper dispatches the batch. |
+| **The rate** | **Ours.** Zama's Sepolia vault has no yield adapter — measured, not assumed — so nothing about it appreciates. The APY is the replica's, and every screen that shows it says so. |
 
-**What the mock simulates is where the yield comes from — it is pre-funded and
-invests nothing. It does not simulate how much.** The amount is a genuine
-function of what the pool holds and for how long, which is the half worth
-demonstrating: the prize really is proportional to deposits over time.
+It is a replica in the same sense GhostLend's was: our contract, our rate,
+labelled as a stand-in everywhere it appears. It is **not** the live mainnet
+vault and is not affiliated with Steakhouse Financial or Morpho.
 
-### The vault integration is real, and the demo still does not use it
+### The composition, on chain
 
-`ZamaVaultSource` was driven against the deployed batchers on Sepolia — joined
-batch 271, dispatched it, and claimed **Confidential steakcUSDC** vault shares:
+The pool's principal is in **batch 281** of Zama's own batcher:
 
 ```
-adapter  0xc5120E26aafdD76D324E62cF19c391C367Cf99Ba
-shares   0x13F7d34A4f0102734F19E3Ff16e068Fe194B28c4
-before   0x0000000000000000…      after   0xeab10babaa34a0e8…
+tx        0xeb71ffb5ad7165f88ec1b97a702cc261036da148bb1c9d684fc6dc262782de15
+batcher   0x48758559c14d4d92b4C74A99660B6a8dbe85F53b
+shares    0x13F7d34A4f0102734F19E3Ff16e068Fe194B28c4   (Confidential steakcUSDC)
 ```
 
-Two measured reasons the demo runs on the mock instead, rather than one asserted
-one:
+Re-run it yourself with `npx hardhat run scripts/prove-vault-composition.ts
+--network sepolia`.
 
-1. **The deployed vault produces no yield.** It is a staging instance with an
-   idle-only VaultV2 and no yield adapter, so a prize pool fed from it never
-   fills.
-2. **Settlement is asynchronous**, and a batch round trip in the middle of a
-   three-minute recording costs the demo its pace for nothing.
+**The pool settles in cUSDC because of that batcher, not for decoration.** Its
+`toToken` is cUSDC — read off the chain — so a pool settling in its own token
+could never join a batch, and the composition would be a diagram.
+
+`joinVault()` sends **half** the principal, and both halves of that are
+deliberate. Not the whole balance: this contract also holds the pot its yield is
+paid from, and joining that would send the prize reserve into the vault and leave
+the pool unable to pay anything. Not all the principal either: a batch is a round
+trip on somebody else's clock and the source does not unwind shares on demand, so
+the rest stays as the withdrawal buffer a real vault keeps, for the same reason.
 
 Two things worth recording because the documentation says otherwise. The
 batcher's `toToken` is `Confidential steakcUSDC (Mock)`, not the

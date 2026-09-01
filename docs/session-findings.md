@@ -1,4 +1,4 @@
-# GhostKey — Step 1 findings
+# SaveTogether — Step 1 findings
 
 Recon, scaffold, and assumption verification. Every claim below is read from installed source at a stated path, or measured on live Sepolia with the output included. Nothing here is answered from training data.
 
@@ -51,7 +51,7 @@ function tryDecrease(
 
 Signature matches the assumption. Parameter names are `(oldValue, delta)`, not `(a, b)`.
 
-Behaviour when `delta > oldValue`: `success = ge(oldValue, delta)` is false, so `updated = select(false, ..., oldValue)` returns **oldValue unchanged**. No revert, no underflow, no branch observable from outside. This is exactly the primitive GhostKey's budget needs.
+Behaviour when `delta > oldValue`: `success = ge(oldValue, delta)` is false, so `updated = select(false, ..., oldValue)` returns **oldValue unchanged**. No revert, no underflow, no branch observable from outside. This is exactly the primitive SaveTogether's budget needs.
 
 Uninitialized inputs: both uninitialized returns `(true, oldValue)`; `oldValue` uninitialized with `delta` initialized returns `(eq(delta,0), asEuint64(0))` — success only when the delta is zero.
 
@@ -69,7 +69,7 @@ function _update(address from, address to, euint64 amount) internal virtual retu
 
 `success` is `ge(fromBalance, amount)`, so an insufficient balance yields `transferred = 0`. The return value is load-bearing exactly as assumed.
 
-**Caveat that changes step-2 design.** This is _all-or-nothing_, not best-effort: on an insufficient balance it moves `0`, it does not move as much as it can. GhostKey's budget accounting must therefore treat a transfer as binary, and must not assume it can debit a partial amount.
+**Caveat that changes step-2 design.** This is _all-or-nothing_, not best-effort: on an insufficient balance it moves `0`, it does not move as much as it can. SaveTogether's budget accounting must therefore treat a transfer as binary, and must not assume it can debit a partial amount.
 
 ### A3 — Operator can pass a self-computed `euint64` — VERIFIED, with a correction
 
@@ -161,7 +161,7 @@ Naming trap worth recording: the library wrapper is `FHE.revokeUserDecryptionDel
 2. **The ACL is pausable.** `paused()` is present in the deployed bytecode; delegation reverts with `PausableUpgradeable-EnforcedPause` while paused.
 3. **Revoke requires an active delegation**, else `IACL-NotDelegatedYet`.
 
-Also note `isAccountDenied(address)` exists — there is a deny list, and a denied session key is a state GhostKey should surface rather than fail opaquely.
+Also note `isAccountDenied(address)` exists — there is a deny list, and a denied session key is a state SaveTogether should surface rather than fail opaquely.
 
 Expiry is `uint64` UNIX seconds. `FHE.sol:9408` provides an overload defaulting to `type(uint64).max` for a non-expiring delegation.
 
@@ -204,7 +204,7 @@ The delegate signs the EIP-712 payload with its own key; `delegatorAddress` is p
 
 ### A7 — Transfer graph is public — VERIFIED
 
-Every transfer variant in `ERC7984.sol` takes `address to` as a plaintext parameter (lines 112, 127, 140, 149, 169), and `_update` emits `ConfidentialTransfer(from, to, transferred)` at line 322 with both endpoints in the clear. Only the amount is encrypted. Counterparty privacy is out of scope for ERC-7984 and GhostKey should not imply otherwise in its copy.
+Every transfer variant in `ERC7984.sol` takes `address to` as a plaintext parameter (lines 112, 127, 140, 149, 169), and `_update` emits `ConfidentialTransfer(from, to, transferred)` at line 322 with both endpoints in the clear. Only the amount is encrypted. Counterparty privacy is out of scope for ERC-7984 and SaveTogether should not imply otherwise in its copy.
 
 ### A8 — HCU limits and costs — VERIFIED
 
@@ -225,7 +225,7 @@ Per-op cost, `euint64`, read from the `checkHCUFor*` branches:
 | `ge`                    | 116,000        | 152,000         |
 | `select` (`IfThenElse`) | —              | 55,000          |
 
-**Estimated budget for one clamped GhostKey transfer** (all ciphertext-ciphertext):
+**Estimated budget for one clamped SaveTogether transfer** (all ciphertext-ciphertext):
 
 | Where                                             | Ops                     | HCU           |
 | ------------------------------------------------- | ----------------------- | ------------- |
@@ -241,7 +241,7 @@ That is 4.8% of the per-tx ceiling, and the dependent chain is roughly six ops d
 
 `wallet_sendCalls`, `wallet_getCallsStatus`, `wallet_showCallsStatus`, and `wallet_getCapabilities` are the four methods. Reported support as of March 2026 includes MetaMask, Coinbase Wallet, Rainbow, and Trust Wallet. I did not verify any of these against a live wallet build — that is the open part.
 
-Fallback path: call `wallet_getCapabilities` first; when batching is absent, fall back to sequential `eth_sendTransaction` calls with per-call confirmation. GhostKey's own value proposition reduces the need for this — the point of a session is that the per-transaction signature disappears — so EIP-5792 matters mainly for the _session-open_ flow (approve + setOperator + delegate), which is three calls the user would otherwise sign one by one.
+Fallback path: call `wallet_getCapabilities` first; when batching is absent, fall back to sequential `eth_sendTransaction` calls with per-call confirmation. SaveTogether's own value proposition reduces the need for this — the point of a session is that the per-transaction signature disappears — so EIP-5792 matters mainly for the _session-open_ flow (approve + setOperator + delegate), which is three calls the user would otherwise sign one by one.
 
 ---
 
@@ -303,7 +303,7 @@ Faucet path: the underlying `USDCMock` has a public mint, so test balances are s
 ## 5. Scaffold state
 
 ```
-ghostkey/
+savetogether/
 ├─ contracts/CompileCheck.sol           compile placeholder only
 ├─ packages/{sdk,mcp-server,console}/   package.json + tsconfig + stub
 ├─ spikes/{_shared,accounts,delegation,latency,registry}.ts
@@ -316,7 +316,7 @@ ghostkey/
 
 `pnpm compile` succeeds (7 files, evm target cancun, 40 typings). `pnpm spike:accounts`, `spike:delegation`, `spike:latency`, `spike:registry` all run end-to-end against live Sepolia.
 
-`GhostKeySession.sol` is deliberately not written. It is step 2.
+`SaveTogetherSession.sol` is deliberately not written. It is step 2.
 
 Licensing: the repo is MIT. Note that `@fhevm/solidity` ships under **BSD-3-Clause-Clear** (`ZamaConfig.sol:1`), and `@fhevm/host-contracts` should be checked before any redistribution of Zama sources. Depending on them is fine; vendoring them into an MIT repo is the thing to look at.
 
@@ -334,7 +334,7 @@ Blunt, as requested.
 
 **4. `SepoliaConfig` does not exist in `@fhevm/solidity@0.11.1`.** The docs and every tutorial say to inherit `SepoliaConfig`; the package exports `ZamaEthereumConfig`, which dispatches on chainid across mainnet, Sepolia, and local. The first compile failed on exactly this. Docs lag code, as predicted.
 
-**5. Transfers are all-or-nothing, not best-effort.** A2's return value is `select(success, amount, 0)`. GhostKey cannot present "sent what it could" as a behaviour, and the MCP server's phrasing back to the user must not imply partial sends.
+**5. Transfers are all-or-nothing, not best-effort.** A2's return value is `select(success, amount, 0)`. SaveTogether cannot present "sent what it could" as a behaviour, and the MCP server's phrasing back to the user must not imply partial sends.
 
 **6. No confidential-wrapper registry was found.** The prompt assumed an official Sepolia registry to enumerate pairs from. I did not find one, and the wrappers actually in use are named `cUSDCMock` / `USDCMock` — mocks, not a curated Zama-operated set. I did not exhaustively search Zama's deployment records, so I am recording this as **unresolved, not disproven**. Until it is settled, `spikes/registry.ts` is a discovery shim over a known list rather than a real registry client. **This needs a decision before step 3**, because the SDK was specified as registry-driven: either a registry exists and we find it, or we define our own token list format and the "no hardcoded addresses" rule becomes "no addresses hardcoded in code, one config file instead".
 
@@ -367,7 +367,7 @@ Pinned, as installed and used for every measurement above.
 
 **Toolchain constraint worth pinning down:** `@fhevm/hardhat-plugin@0.4.2` peer-requires `hardhat: ^2.0.0` — **not Hardhat 3** — and pins `@zama-fhe/relayer-sdk` and `@fhevm/mock-utils` to exact versions. Upgrading Hardhat is not available to us until the plugin moves.
 
-**Version delta noted:** GhostLend runs `@openzeppelin/confidential-contracts` 0.5.1; GhostKey installs 0.5.3. All A1–A4 and A7 evidence above is read from 0.5.3.
+**Version delta noted:** GhostLend runs `@openzeppelin/confidential-contracts` 0.5.1; SaveTogether installs 0.5.3. All A1–A4 and A7 evidence above is read from 0.5.3.
 
 **Plugin gap:** `@fhevm/hardhat-plugin` exposes `initializeCLIApi`, `createEncryptedInput`, `userDecryptEuint`, and `publicDecrypt`, but **no delegation helper** — grep for `delegat` in its `dist/` returns nothing. All delegated decryption must go through the raw relayer SDK, as `delegation.ts` does.
 

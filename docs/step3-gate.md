@@ -1,4 +1,4 @@
-# GhostKey — the Sepolia equality gate
+# SaveTogether — the Sepolia equality gate
 
 Step 2's headline claim was backed by mock mode only. This is the live-chain check, run before any SDK code was written.
 
@@ -78,7 +78,7 @@ Localised by comparing `callTracer` traces of two **same-path** transactions —
 
 ```
                                           lo(891568)   hi(891572)   delta
-  GhostKeySession   0x7af5a8e3                896752       896756      +4
+  SaveTogetherSession   0x7af5a8e3                896752       896756      +4
   FHEVMExecutor     0x1391547f                 30365        30369      +4
     HCULimit        0xc277a936                 14962        14966      +4
 
@@ -98,12 +98,12 @@ arg1  0                        scalarByte — ciphertext against ciphertext
 arg2  ...aa36a705 00           lhs, euint64
 arg3  ...aa36a705 00           rhs, euint64
 arg4  ...aa36a700 00           result, EBOOL
-arg5  0xe5c667c0...            GhostKeySession, the caller
+arg5  0xe5c667c0...            SaveTogetherSession, the caller
 ```
 
 Two encrypted 64-bit operands and a boolean result: this is the budget comparison inside `FHESafeMath.tryDecrease`.
 
-**So the four gas is not in GhostKeySession, not in the token, not in the ACL.** It is inside the FHE cost accountant's own bookkeeping, and the only thing that differs in its inputs is the byte values of freshly generated ciphertext handles.
+**So the four gas is not in SaveTogetherSession, not in the token, not in the ACL.** It is inside the FHE cost accountant's own bookkeeping, and the only thing that differs in its inputs is the byte values of freshly generated ciphertext handles.
 
 ### The mechanism is not identified
 
@@ -123,15 +123,15 @@ Pinning the exact opcode needs a struct-log trace of that frame. It was not done
 
 **Established.** An observer cannot classify the outcome of a `send` from its gas. Ten samples of one fixed path produce both observed values; the outcome is constant while the gas is not. The FHE operation sequence and the HCU consumption — the two quantities that actually describe what the FHE layer did — are identical across every path and every run.
 
-**Not established.** That execution gas is a constant. It is not. It is a two-valued quantity whose variance lives in a third-party accounting contract and is uncorrelated with anything GhostKey does.
+**Not established.** That execution gas is a constant. It is not. It is a two-valued quantity whose variance lives in a third-party accounting contract and is uncorrelated with anything SaveTogether does.
 
-**Not affected.** GhostKeySession's own frame, the token's `_update`, and every ACL grant are bit-identical between the two values. Nothing in the contract under review varies.
+**Not affected.** SaveTogetherSession's own frame, the token's `_update`, and every ACL grant are bit-identical between the two values. Nothing in the contract under review varies.
 
 ---
 
 ## 5. Proposed gate criterion
 
-The original criterion — execution gas exactly equal across paths — is falsified on live Sepolia, and no change to GhostKeySession could satisfy it, because the variance is in `HCULimit`. Three candidate replacements, in order of how much they claim:
+The original criterion — execution gas exactly equal across paths — is falsified on live Sepolia, and no change to SaveTogetherSession could satisfy it, because the variance is in `HCULimit`. Three candidate replacements, in order of how much they claim:
 
 **(a) Distributional equality.** The set of execution-gas values observed on each path must be identical across paths, and a same-path control must reproduce the full spread. This is what the data supports today, and it is the honest formulation of "an observer learns nothing".
 

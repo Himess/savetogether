@@ -1,5 +1,5 @@
 /**
- * GhostPool step-1 spike: what a draw and a claim actually cost.
+ * SaveTogether step-1 spike: what a draw and a claim actually cost.
  *
  * Two questions, in priority order:
  *
@@ -11,7 +11,7 @@
  *   2. The prefix designs, naive vs incremental, swept over N to find the
  *      ceiling empirically rather than inferring it from the cost table.
  *
- * Method carried from GhostKey's docs/leakage.md, which established two things
+ * Method carried from SaveTogether's docs/leakage.md, which established two things
  * the hard way:
  *
  *   - HCU is accumulated in transient storage with no event, so it cannot be
@@ -26,7 +26,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 // Per-op HCU for euint64, read from HCULimit.sol (@fhevm/host-contracts 0.10.0).
-// gt scalar is 117,000 — the 116,000 in GhostKey's table is ge, a different branch.
+// gt scalar is 117,000 — the 116,000 in SaveTogether's table is ge, a different branch.
 const HCU: Record<string, { scalar: number; cipher: number }> = {
   FheAdd: { scalar: 133_000, cipher: 162_000 },
   FheSub: { scalar: 133_000, cipher: 162_000 },

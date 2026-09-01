@@ -8,6 +8,10 @@ export const POOL_ABI = [
   { type: "function", name: "drawCount", stateMutability: "view", inputs: [], outputs: [{ type: "uint32" }] },
   { type: "function", name: "prize", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "accrued", stateMutability: "view", inputs: [{ type: "uint32" }, { type: "address" }], outputs: [{ type: "bool" }] },
+  // Permissionless and unconditional: anyone may call it for anyone, and it does
+  // the same thing whether that address won or not. A claim only a winner would
+  // send would be the leak the rest of this contract is built to avoid.
+  { type: "function", name: "claim", stateMutability: "nonpayable", inputs: [{ name: "user", type: "address" }], outputs: [] },
   {
     type: "function", name: "drawAt", stateMutability: "view", inputs: [{ type: "uint32" }],
     outputs: [{

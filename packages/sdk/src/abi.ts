@@ -2,7 +2,7 @@
  * Human-readable ABI fragments. Kept here rather than imported from the Hardhat
  * artifacts so the SDK builds and publishes without the contracts workspace.
  *
- * These must stay in step with `contracts/interfaces/IGhostKeySession.sol`. The
+ * These must stay in step with `contracts/interfaces/ISaveTogetherSession.sol`. The
  * integration tests call every one of them against a live deployment, which is
  * what catches drift.
  */
@@ -61,5 +61,18 @@ export const OPEN_SESSION_TYPES = {
   ],
 } as const;
 
+/**
+ * "GhostKeySession", and it must stay that way.
+ *
+ * The domain name is hashed into the EIP-712 domain separator, so it is part of
+ * every signature rather than a label on one. The deployed module carries this
+ * exact string; the project was renamed to SaveTogether afterwards, and renaming
+ * this with it would make every `openSession` revert with
+ * `InvalidSessionKeySignature`. A project-wide rename did exactly that, and it
+ * is the kind of break that only shows up on chain.
+ *
+ * It changes only when the module is redeployed, and then in the same commit as
+ * the constructor in SaveTogetherSession.sol.
+ */
 export const EIP712_DOMAIN_NAME = "GhostKeySession";
 export const EIP712_DOMAIN_VERSION = "1";

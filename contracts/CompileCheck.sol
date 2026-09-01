@@ -5,12 +5,12 @@ import {FHE, euint64, externalEuint64} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 
 /// @title CompileCheck
-/// @author GhostKey
+/// @author SaveTogether
 /// @notice Placeholder only. Proves the FHEVM toolchain compiles and links.
 /// @dev `SepoliaConfig` does not exist in @fhevm/solidity 0.11.1 despite what the
 ///      docs say; the export is `ZamaEthereumConfig`, which dispatches on chainid
 ///      across mainnet, Sepolia and local. See findings.md section 6, item 4.
-///      GhostKeySession.sol is step 2 and is deliberately not written yet — its
+///      SaveTogetherSession.sol is step 2 and is deliberately not written yet — its
 ///      shape depends on what the step-1 assumption verification returned.
 contract CompileCheck is ZamaEthereumConfig {
     /// @notice The single encrypted value this placeholder stores.

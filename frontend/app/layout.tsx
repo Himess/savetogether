@@ -3,7 +3,7 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "GhostPool — confidential prize savings",
+  title: "SaveTogether — confidential prize savings",
   description: "No-loss prize savings where balances, weights and outcomes stay encrypted.",
 };
 

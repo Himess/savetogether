@@ -3,7 +3,7 @@
  *
  * NO HARDCODED ADDRESSES. Step 1 looked for a curated confidential-wrapper
  * registry on Sepolia and did not find one — the wrappers in use are named
- * `cUSDCMock` / `USDCMock`, which is not a curated set. So GhostKey defines its
+ * `cUSDCMock` / `USDCMock`, which is not a curated set. So SaveTogether defines its
  * own list format and adapts if a registry ever appears. That decision is recorded
  * in `findings.md` §6 item 6; this file is its consequence.
  */
@@ -22,7 +22,7 @@ export interface TokenEntry {
   readonly rate?: string;
 }
 
-export interface GhostKeyConfig {
+export interface SaveTogetherConfig {
   readonly chainId: number;
   readonly rpcUrl: string;
   readonly moduleAddress: string;
@@ -30,7 +30,7 @@ export interface GhostKeyConfig {
   /** Overrides the ACL address the relayer SDK ships. Rarely needed. */
   readonly aclAddress?: string;
   readonly devUnlock?: boolean;
-  /** Where the vault keystore lives. Defaults to ~/.ghostkey/vault. */
+  /** Where the vault keystore lives. Defaults to ~/.savetogether/vault. */
   readonly vaultDir?: string;
   /**
    * The prize pool, when one is configured. Optional: the session layer is
@@ -45,14 +45,14 @@ export interface GhostKeyConfig {
   readonly vault?: { readonly adapter: string; readonly batcher?: string };
 }
 
-export const DEFAULT_CONFIG_PATH = path.join(os.homedir(), ".ghostkey", "config.json");
+export const DEFAULT_CONFIG_PATH = path.join(os.homedir(), ".savetogether", "config.json");
 
-export async function loadConfig(file = DEFAULT_CONFIG_PATH): Promise<GhostKeyConfig> {
+export async function loadConfig(file = DEFAULT_CONFIG_PATH): Promise<SaveTogetherConfig> {
   let raw: string;
   try {
     raw = await fs.readFile(file, "utf8");
   } catch {
-    throw new Error(`no GhostKey config at ${file} — run \`ghostkey init\``);
+    throw new Error(`no SaveTogether config at ${file} — run \`savetogether init\``);
   }
 
   let parsed: unknown;
@@ -65,15 +65,15 @@ export async function loadConfig(file = DEFAULT_CONFIG_PATH): Promise<GhostKeyCo
 }
 
 export async function saveConfig(
-  config: GhostKeyConfig,
+  config: SaveTogetherConfig,
   file = DEFAULT_CONFIG_PATH,
 ): Promise<void> {
   await fs.mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
   await fs.writeFile(file, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
 }
 
-function validate(v: unknown, file: string): GhostKeyConfig {
-  const c = v as Partial<GhostKeyConfig>;
+function validate(v: unknown, file: string): SaveTogetherConfig {
+  const c = v as Partial<SaveTogetherConfig>;
   const fail = (why: string): never => {
     throw new Error(`${file}: ${why}`);
   };
@@ -93,7 +93,7 @@ function validate(v: unknown, file: string): GhostKeyConfig {
     seen.add(key);
   }
 
-  return c as GhostKeyConfig;
+  return c as SaveTogetherConfig;
 }
 
 function isAddress(v: unknown): v is string {

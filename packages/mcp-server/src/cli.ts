@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * `ghostkey` — setup and status.
+ * `savetogether` — setup and status.
  *
- * `ghostkey init` writes the Claude config, generates both keys, and prints the
+ * `savetogether init` writes the Claude config, generates both keys, and prints the
  * funding address. No manual JSON editing, no network switching, no browser
  * extension. That is the whole point: if setup takes ten minutes nobody gets to
  * the part that is interesting.
@@ -18,7 +18,7 @@ import {
   DEFAULT_CONFIG_PATH,
   loadConfig,
   saveConfig,
-  type GhostKeyConfig,
+  type SaveTogetherConfig,
   type TokenEntry,
 } from "./config";
 import { Vault } from "./vault";
@@ -57,7 +57,7 @@ async function readJsonIfPresent(file: string): Promise<Record<string, unknown>>
 }
 
 /**
- * Adds GhostKey to the Claude config without disturbing whatever else is there.
+ * Adds SaveTogether to the Claude config without disturbing whatever else is there.
  *
  * Merging rather than overwriting matters: this file usually already has other
  * servers in it, and a setup step that silently deletes a user's configuration is
@@ -71,7 +71,7 @@ async function writeClaudeConfig(): Promise<string> {
   // This checkout's own entry point, not a published package: `npx` would
   // resolve nothing today, and `dist/cli.js` is the setup CLI -- `dist/index.js`
   // is the one that speaks MCP over stdio.
-  servers["ghostkey"] = {
+  servers["savetogether"] = {
     command: process.execPath,
     args: [path.join(__dirname, "index.js")],
   };
@@ -83,8 +83,8 @@ async function writeClaudeConfig(): Promise<string> {
 }
 
 /** The prize pool, and the token it settles in. One product, one config. */
-const POOL_ADDRESS = "0x4728F94D12f04C7aCB1fEC278A59F3275C396865";
-const POOL_TOKEN = "gUSDC";
+const POOL_ADDRESS = "0x1d8A0d653027833E4e8eA4DE67B90512Aad7B85f";
+const POOL_TOKEN = "cUSDC";
 
 const SEPOLIA_STARTER_TOKENS: readonly TokenEntry[] = [
   {
@@ -93,14 +93,15 @@ const SEPOLIA_STARTER_TOKENS: readonly TokenEntry[] = [
     decimals: 6,
   },
   {
-    // Whole units, deliberately. The frontend shipped a bug where withdraw
-    // scaled by 1e6 and deposit did not: asking for 5 sent 5,000,000, the pool
-    // clamped it to an encrypted zero, and the transaction SUCCEEDED having
-    // moved nothing -- silent, because the clamp is a privacy feature. Six
-    // decimals here would rebuild that trap one layer up.
+    // Six, and it has to match the token: the frontend once shipped a bug where
+    // withdraw scaled by 1e6 and deposit did not, so asking for 5 sent
+    // 5,000,000, the pool clamped it to an encrypted zero, and the transaction
+    // SUCCEEDED having moved nothing -- silent, because the clamp is a privacy
+    // feature. A wrong number here rebuilds that trap one layer up.
     symbol: POOL_TOKEN,
-    address: "0x8738E041D06cb1263A475a6495cCBB408F4731B8",
-    decimals: 0,
+    address: "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639",
+    decimals: 6,
+    underlying: "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF",
   },
 ];
 
@@ -111,7 +112,7 @@ async function init(args: string[]): Promise<void> {
     throw new Error("pass --rpc <url> or set SEPOLIA_RPC_URL; a public node works but is slower");
   }
 
-  const config: GhostKeyConfig = {
+  const config: SaveTogetherConfig = {
     chainId: SEPOLIA,
     rpcUrl,
     moduleAddress,
@@ -135,7 +136,7 @@ async function init(args: string[]): Promise<void> {
   process.stdout.write(
     [
       "",
-      "  GhostKey is set up.",
+      "  SaveTogether is set up.",
       "",
       `  config           ${DEFAULT_CONFIG_PATH}`,
       `  Claude config    ${claudeFile}`,
@@ -143,7 +144,7 @@ async function init(args: string[]): Promise<void> {
       "",
       "  Next:",
       "",
-      "    ghostkey console      open the local page",
+      "    savetogether console      open the local page",
       "",
       "  Send it some Sepolia ETH, mint test tokens from the page, then start Claude.",
       "  The vault key stays on this machine, encrypted, and unlocks once per session —",
@@ -169,7 +170,7 @@ async function consoleOnly(): Promise<void> {
   process.stdout.write(
     [
       "",
-      "  GhostKey console",
+      "  SaveTogether console",
       `  ${handles.console.url}`,
       "",
       "  Fund the vault from the page, mint some test tokens, then start Claude.",
@@ -200,7 +201,7 @@ async function status(): Promise<void> {
       "",
       `  chain      ${cfg.chainId}`,
       `  module     ${cfg.moduleAddress}`,
-      `  vault      ${address ?? "(not created — run `ghostkey init`)"}`,
+      `  vault      ${address ?? "(not created — run `savetogether init`)"}`,
       `  gas        ${balance} ETH`,
       `  tokens     ${cfg.tokens.map((t) => t.symbol).join(", ")}`,
       "",
@@ -229,9 +230,9 @@ async function main(): Promise<void> {
       process.stdout.write(
         [
           "",
-          "  ghostkey init --rpc <url> [--module <address>]   set up config and keys",
-          "  ghostkey console                                 open the local console",
-          "  ghostkey status                                  show the vault and config",
+          "  savetogether init --rpc <url> [--module <address>]   set up config and keys",
+          "  savetogether console                                 open the local console",
+          "  savetogether status                                  show the vault and config",
           "",
         ].join("\n"),
       );
@@ -239,6 +240,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((e: unknown) => {
-  process.stderr.write(`ghostkey: ${(e as Error).message}\n`);
+  process.stderr.write(`savetogether: ${(e as Error).message}\n`);
   process.exit(1);
 });

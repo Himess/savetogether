@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GhostKey — evidence</title>
+<title>SaveTogether — evidence</title>
 <style>
   :root {
     --bg:#0b0c0e; --panel:#131519; --line:#23262d; --text:#e8eaed; --dim:#8b919c;
@@ -51,7 +51,7 @@
   <header>
     <h1>An over-budget transfer is indistinguishable from a successful one</h1>
     <p class="claim">
-      GhostKey clamps every ERC-7984 transfer against an encrypted budget. A request over
+      SaveTogether clamps every ERC-7984 transfer against an encrypted budget. A request over
       budget is not rejected — it executes a real transfer carrying an encrypted zero.
       This is the measurement of whether that holds on chain.
     </p>
@@ -121,7 +121,7 @@ the earlier run appeared to show a spread of &plusmn;12.5 points</pre>
   <h2>Where the four gas lives</h2>
   <div class="card">
     <pre>                            891,568    891,572   delta
-GhostKeySession              896752     896756      +4
+SaveTogetherSession              896752     896756      +4
   FHEVMExecutor               30365      30369      +4
     HCULimit  0xc277a936      14962      14966      +4
 
@@ -131,7 +131,7 @@ InputVerifier                165522     165522       0</pre>
     <p class="note">
       A trace diff of two <em>same-path</em> transactions: 181 calls, one differs.
       It is inside <code>HCULimit.checkHCUForFheGe</code> — the FHEVM's own cost
-      accounting. Not GhostKeySession, not the token, not the ACL, and
+      accounting. Not SaveTogetherSession, not the token, not the ACL, and
       <strong>no change to this project could remove it</strong>.
     </p>
   </div>

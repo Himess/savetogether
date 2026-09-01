@@ -21,8 +21,8 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { GhostKeyTools, toolDefinitions, type GhostKeyConfig } from "@ghostkey/mcp-server";
-import type { GhostKeyClient } from "@ghostkey/sdk";
+import { SaveTogetherTools, toolDefinitions, type SaveTogetherConfig } from "@savetogether/mcp-server";
+import type { SaveTogetherClient } from "@savetogether/sdk";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { JsonRpcProvider } from "ethers";
 
@@ -32,7 +32,7 @@ import type { SessionToken } from "./token";
 const WITHHELD = new Set(["open_session", "add_recipient"]);
 
 export interface McpEndpointsConfig {
-  readonly client: GhostKeyClient;
+  readonly client: SaveTogetherClient;
   readonly keystore: MemoryKeystore;
   readonly config: {
     readonly rpcUrl: string;
@@ -62,7 +62,7 @@ export interface McpEndpointsConfig {
  * chain read and a key decryption on every tool call.
  */
 interface Attached {
-  readonly tools: GhostKeyTools;
+  readonly tools: SaveTogetherTools;
   readonly defs: ReturnType<typeof toolDefinitions>;
 }
 
@@ -83,7 +83,7 @@ export class McpEndpoints {
       this.attached.get(token) ?? (await this.build(token, session, sessionKeyAddress));
 
     const server = new Server(
-      { name: "ghostpool", version: "0.1.0" },
+      { name: "savetogether", version: "0.1.0" },
       { capabilities: { tools: {} } },
     );
     this.wire(server, defs);
@@ -137,7 +137,7 @@ export class McpEndpoints {
     session: SessionToken,
     sessionKeyAddress: string,
   ): Promise<Attached> {
-    const cfg: GhostKeyConfig = {
+    const cfg: SaveTogetherConfig = {
       chainId: this.deps.config.chainId,
       rpcUrl: this.deps.config.rpcUrl,
       moduleAddress: this.deps.config.moduleAddress,
@@ -153,7 +153,7 @@ export class McpEndpoints {
     // are not in the list below, and `ToolContext.vault` is left undefined so a
     // future tool that reached for one fails loudly here rather than quietly
     // somewhere a user is watching.
-    const tools = new GhostKeyTools({
+    const tools = new SaveTogetherTools({
       config: cfg,
       provider: new JsonRpcProvider(this.deps.config.rpcUrl, this.deps.config.chainId),
       client: this.deps.client,

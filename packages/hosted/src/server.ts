@@ -10,7 +10,7 @@
  *
  * The ordering in `prepare` is forced by the contract rather than chosen.
  * `openSession` recovers `sessionKeySignature` and requires it to equal
- * `params.sessionKey` (GhostKeySession.sol:133), over a digest binding the owner
+ * `params.sessionKey` (SaveTogetherSession.sol:133), over a digest binding the owner
  * (:381). So the key must exist and sign before the user is asked for anything,
  * and the server must already know the owner's address at that moment — which is
  * why `prepare` takes it and why the whole open is one round trip.
@@ -24,7 +24,7 @@
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
-import { GhostKeyClient, type ReadScope } from "@ghostkey/sdk";
+import { SaveTogetherClient, type ReadScope } from "@savetogether/sdk";
 import { Contract, JsonRpcProvider, getAddress, isAddress } from "ethers";
 
 import { MemoryKeystore } from "./keystore";
@@ -78,7 +78,7 @@ export class HostedServer {
   private server: Server | null = null;
   private readonly provider: JsonRpcProvider;
   private readonly keystore = new MemoryKeystore();
-  private readonly client: GhostKeyClient;
+  private readonly client: SaveTogetherClient;
   private readonly mcp: McpEndpoints;
   private readonly sealer: TokenSealer;
   /** Session-scoped rate limits. Losing these on restart is acceptable. */
@@ -90,7 +90,7 @@ export class HostedServer {
   ) {
     this.sealer = sealer;
     this.provider = new JsonRpcProvider(config.rpcUrl, config.chainId);
-    this.client = new GhostKeyClient({
+    this.client = new SaveTogetherClient({
       provider: this.provider,
       rpcUrl: config.rpcUrl,
       moduleAddress: config.moduleAddress,
@@ -181,7 +181,7 @@ export class HostedServer {
         200,
         {
           service: "ghostpool-hosted",
-          what: "The server behind GhostPool's conversational layer. There is no page here.",
+          what: "The server behind SaveTogether's conversational layer. There is no page here.",
           openASession: "https://ghostpool-himess.vercel.app",
           endpoints: {
             "GET /api/health": "liveness",

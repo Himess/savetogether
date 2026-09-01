@@ -4,7 +4,7 @@
  */
 
 /** Base class so a consumer can catch everything from this package at once. */
-export class GhostKeyError extends Error {
+export class SaveTogetherError extends Error {
   constructor(message: string) {
     super(message);
     this.name = new.target.name;
@@ -19,7 +19,7 @@ export class GhostKeyError extends Error {
  * operation trying. The session client constructed the ciphertext and therefore
  * knows its own plaintext, so this is its obligation, not the chain's.
  */
-export class ZeroAmountError extends GhostKeyError {
+export class ZeroAmountError extends SaveTogetherError {
   constructor() {
     super("refusing to send zero: the contract reports it identically to an insufficient balance");
   }
@@ -32,7 +32,7 @@ export class ZeroAmountError extends GhostKeyError {
  * so a session can be perfectly live and still be unable to move anything. Without
  * this check the user gets an opaque revert from inside the token.
  */
-export class OperatorNotGrantedError extends GhostKeyError {
+export class OperatorNotGrantedError extends SaveTogetherError {
   constructor(
     readonly owner: string,
     readonly token: string,
@@ -44,7 +44,7 @@ export class OperatorNotGrantedError extends GhostKeyError {
 }
 
 /** The FHEVM ACL is paused, or a participant is on its deny list. */
-export class ProtocolUnavailableError extends GhostKeyError {
+export class ProtocolUnavailableError extends SaveTogetherError {
   constructor(readonly detail: { aclPaused: boolean; keyDenied: boolean; moduleDenied: boolean }) {
     const parts = [
       detail.aclPaused ? "the FHEVM ACL is paused" : null,
@@ -56,14 +56,14 @@ export class ProtocolUnavailableError extends GhostKeyError {
 }
 
 /** The session is closed, expired, or has exhausted its transaction count. */
-export class SessionNotLiveError extends GhostKeyError {
+export class SessionNotLiveError extends SaveTogetherError {
   constructor(readonly reason: "closed" | "expired" | "tx-count-exhausted" | "missing") {
     super(`session is not live: ${reason}`);
   }
 }
 
 /** A recipient outside the session allowlist. */
-export class RecipientNotAllowedError extends GhostKeyError {
+export class RecipientNotAllowedError extends SaveTogetherError {
   constructor(readonly to: string) {
     super(`${to} is not on this session's allowlist`);
   }
@@ -76,7 +76,7 @@ export class RecipientNotAllowedError extends GhostKeyError {
  * `balance()` — and exists for JavaScript consumers and for refs smuggled across
  * sessions.
  */
-export class BalanceNotVisibleError extends GhostKeyError {
+export class BalanceNotVisibleError extends SaveTogetherError {
   constructor() {
     super(
       "this session has no ACL delegation, so it cannot read the holder's balance; open with readScope 'balance-visible' for reference amounts",
@@ -85,4 +85,4 @@ export class BalanceNotVisibleError extends GhostKeyError {
 }
 
 /** The keystore could not produce a usable session key. */
-export class KeystoreError extends GhostKeyError {}
+export class KeystoreError extends SaveTogetherError {}

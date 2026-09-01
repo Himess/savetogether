@@ -1,8 +1,8 @@
 {
-  "name": "@ghostkey/sdk",
+  "name": "@savetogether/sdk",
   "version": "0.1.0",
   "private": true,
-  "description": "Headless client for GhostKey encrypted spending sessions on ERC-7984",
+  "description": "Headless client for SaveTogether encrypted spending sessions on ERC-7984",
   "license": "MIT",
   "type": "commonjs",
   "main": "dist/index.js",

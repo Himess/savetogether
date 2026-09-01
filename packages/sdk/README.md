@@ -1,14 +1,14 @@
-# @ghostkey/sdk
+# @savetogether/sdk
 
-Headless client for GhostKey encrypted spending sessions on ERC-7984 confidential tokens.
+Headless client for SaveTogether encrypted spending sessions on ERC-7984 confidential tokens.
 
-No MCP server, no language model, no chat context. This package is usable on its own, and nothing in it imports from `@ghostkey/mcp-server`.
+No MCP server, no language model, no chat context. This package is usable on its own, and nothing in it imports from `@savetogether/mcp-server`.
 
 ## The problem
 
 `ERC7984.setOperator(spender, until)` grants an operator unlimited spending authority, bounded only by time. OpenZeppelin's own documentation warns that setting an operator lets that address take all of your tokens.
 
-GhostKey adds the missing piece: an **encrypted spending budget**. Every transfer is clamped against it homomorphically — no revert, no plaintext comparison, no branch on an encrypted value. An observer cannot tell an accepted transfer from a rejected one; on live Sepolia, across 180 transactions, the FHE operation sequence and the HCU consumption are identical on every path (see `docs/step3-gate.md`).
+SaveTogether adds the missing piece: an **encrypted spending budget**. Every transfer is clamped against it homomorphically — no revert, no plaintext comparison, no branch on an encrypted value. An observer cannot tell an accepted transfer from a rejected one; on live Sepolia, across 180 transactions, the FHE operation sequence and the HCU consumption are identical on every path (see `docs/step3-gate.md`).
 
 ## Terminology
 
@@ -22,7 +22,7 @@ The word "agent" is never used alone, because it conflates the two and the priva
 ## Install
 
 ```bash
-pnpm add @ghostkey/sdk ethers
+pnpm add @savetogether/sdk ethers
 ```
 
 ## Two privacy tiers, not a flag
@@ -36,11 +36,11 @@ So the tiers are two **types**, and a reference amount simply does not compile o
 The session client sees what it spent and what remains. It never sees what is in the wallet.
 
 ```ts
-import { GhostKeyClient, exact, osKeychainKeystore, revealAmount } from "@ghostkey/sdk";
+import { SaveTogetherClient, exact, osKeychainKeystore, revealAmount } from "@savetogether/sdk";
 import { JsonRpcProvider, Wallet } from "ethers";
 
 const provider = new JsonRpcProvider(RPC_URL);
-const client = new GhostKeyClient({
+const client = new SaveTogetherClient({
   provider,
   rpcUrl: RPC_URL,
   moduleAddress: GHOSTKEY_MODULE,
@@ -146,7 +146,7 @@ Opening a session needs three owner-side actions: `setOperator` per token, `open
 `ownerAuthorisations` in the result reports what actually happened rather than what was hoped for:
 
 - with a browser wallet that supports EIP-5792, they are batched into one approval (`batched: true`)
-- with a local key — which is how the GhostKey product runs — the vault unlocks once and signs them in sequence without asking again (`batched: false`, still one authorisation)
+- with a local key — which is how the SaveTogether product runs — the vault unlocks once and signs them in sequence without asking again (`batched: false`, still one authorisation)
 
 ## Not here, deliberately
 

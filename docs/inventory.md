@@ -60,7 +60,7 @@ accrual runs for every participant regardless of outcome (:583–588).
 
 ---
 
-## 2. `GhostKeySession.sol`
+## 2. `SaveTogetherSession.sol`
 
 Access control is present and specific throughout, in contrast to §1:
 
@@ -127,7 +127,7 @@ the reserve to the first winners.
 
 ### What a judge concludes reading it cold
 
-Not "this is centralised" — the opposite, and worse. `GhostKeySession` next door
+Not "this is centralised" — the opposite, and worse. `SaveTogetherSession` next door
 is carefully permissioned, so this does not read as a philosophy. It reads as an
 oversight in the headline contract, and it is the first thing a security-minded
 reviewer greps for.

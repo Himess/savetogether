@@ -17,8 +17,8 @@
  * local console, or at the terminal, and never through a tool argument.
  */
 import { createInterface } from "node:readline";
-import type { ConsoleServer } from "@ghostkey/console";
-import { osKeychainKeystore, type SessionKeystore } from "@ghostkey/sdk";
+import type { ConsoleServer } from "@savetogether/console";
+import { osKeychainKeystore, type SessionKeystore } from "@savetogether/sdk";
 import { type Provider, Wallet } from "ethers";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -45,8 +45,8 @@ export class Vault {
 
   constructor(private readonly opts: VaultOptions) {
     this.store = osKeychainKeystore({
-      dir: opts.dir ?? path.join(os.homedir(), ".ghostkey", "vault"),
-      service: "ghostkey-vault",
+      dir: opts.dir ?? path.join(os.homedir(), ".savetogether", "vault"),
+      service: "savetogether-vault",
     });
   }
 
@@ -55,7 +55,7 @@ export class Vault {
     const existing = await this.store.list();
     const first = existing[0];
     if (first !== undefined) return first.address;
-    return this.store.create("ghostkey-vault");
+    return this.store.create("savetogether-vault");
   }
 
   async address(): Promise<string | null> {
@@ -80,7 +80,7 @@ export class Vault {
     if (this.cached !== null) return this.cached;
 
     const address = await this.address();
-    if (address === null) throw new Error("no vault key: run `ghostkey init` first");
+    if (address === null) throw new Error("no vault key: run `savetogether init` first");
 
     if (this.opts.devUnlock === true) {
       // A recording convenience must never be able to authorise real value. The
@@ -123,7 +123,7 @@ async function confirmAtTerminal(reason: string): Promise<boolean> {
   const rl = createInterface({ input: process.stdin, output: process.stderr });
   try {
     const answer = await new Promise<string>((resolve) =>
-      rl.question(`\nGhostKey — unlock the vault?\n  ${reason}\n  [y/N] `, resolve),
+      rl.question(`\nSaveTogether — unlock the vault?\n  ${reason}\n  [y/N] `, resolve),
     );
     return answer.trim().toLowerCase() === "y";
   } finally {

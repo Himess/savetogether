@@ -3,7 +3,7 @@
  * `ghostpool-hosted` — the server behind the website.
  *
  * Holds nothing. Session keys are sealed into the bearer token under
- * `GHOSTPOOL_MASTER_KEY`, so this process can be restarted, redeployed or moved
+ * `SAVETOGETHER_MASTER_KEY`, so this process can be restarted, redeployed or moved
  * to another machine and every URL a user has already pasted into a chat client
  * keeps working. There is no database and no file of private keys.
  */
@@ -11,7 +11,7 @@ import { HostedServer } from "./server";
 
 const SEPOLIA = 11155111;
 
-/** Zama's deployed confidential vault, reached through GhostPool's adapter. */
+/** Zama's deployed confidential vault, reached through SaveTogether's adapter. */
 const ZAMA_VAULT_ADAPTER = "0xc5120E26aafdD76D324E62cF19c391C367Cf99Ba";
 const ZAMA_DEPOSIT_BATCHER = "0x48758559c14d4d92b4C74A99660B6a8dbe85F53b";
 
@@ -52,14 +52,18 @@ async function main(): Promise<void> {
     moduleAddress: flag("--module") ?? "0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6",
     aclAddress: "0xf0Ffdc93b7E186bC2f8CB3dAA75D86d1930A433D",
     pool: {
-      address: flag("--pool") ?? "0x4728F94D12f04C7aCB1fEC278A59F3275C396865",
-      token: "gUSDC",
+      address: flag("--pool") ?? "0x1d8A0d653027833E4e8eA4DE67B90512Aad7B85f",
+      // cUSDC, because Zama’s vault batcher takes cUSDC and a pool that
+      // settles in anything else could never join a batch.
+      token: "cUSDC",
     },
     vault: { adapter: ZAMA_VAULT_ADAPTER, batcher: ZAMA_DEPOSIT_BATCHER },
     tokens: [
-      // Whole units. The frontend once scaled withdraw by 1e6 and deposit not at
-      // all, and the pool clamped the difference to an encrypted zero without
-      // failing, so this number is load-bearing.
+      // The previous pool token, kept so an old session still resolves its
+      // symbol. Whole units: the frontend once scaled withdraw by 1e6 and
+      // deposit not at all, the pool clamped the difference to an encrypted
+      // zero, and the transaction SUCCEEDED having moved nothing. Every number
+      // in this list is load-bearing for that reason.
       { symbol: "gUSDC", address: "0x8738E041D06cb1263A475a6495cCBB408F4731B8", decimals: 0 },
       { symbol: "gkUSD", address: "0xCFf87b42b916f7aA0F61CD060C9f48772F303D37", decimals: 6 },
       {
@@ -78,7 +82,7 @@ async function main(): Promise<void> {
   process.stdout.write(
     [
       "",
-      "  GhostPool hosted",
+      "  SaveTogether hosted",
       "",
       `  listening      :${port}`,
       `  public url     ${url}`,

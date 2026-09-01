@@ -23,7 +23,7 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
         <main style={{ maxWidth: 560, margin: "0 auto", padding: "80px 20px" }}>
           <h1 style={{ fontSize: 20, margin: "0 0 8px" }}>Something broke</h1>
           <p style={{ color: "#8b919c", margin: "0 0 24px" }}>
-            GhostPool runs on Sepolia. If your wallet is on another network, switching it
+            SaveTogether runs on Sepolia. If your wallet is on another network, switching it
             and reloading usually fixes this.
           </p>
           <button

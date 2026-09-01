@@ -1,4 +1,4 @@
-# GhostPool — Step 1 findings
+# SaveTogether — Step 1 findings
 
 Self-contained: it repeats the facts it depends on, so it reads without the repos.
 
@@ -9,7 +9,7 @@ so instead of guessing.
 
 **Versions.** `@fhevm/solidity` **0.11.1**, `@fhevm/host-contracts` **0.10.0**,
 `@zama-fhe/relayer-sdk` ^0.4.1, `@openzeppelin/confidential-contracts` ^0.5.1.
-`@fhevm/host-contracts@0.10.0` is the same version GhostKey read its HCU table from, so
+`@fhevm/host-contracts@0.10.0` is the same version SaveTogether read its HCU table from, so
 those costs carry over without version drift.
 
 **Immediate correction to carry forward.** `SepoliaConfig` does not exist in 0.11.1; the
@@ -25,7 +25,7 @@ Contract `DrawSpike` at `0x2c6AD3dE18d1f5f69C718Ed9898B555897E847cF`, live Sepol
 signer `0xF505e2E71df58D7244189072008f25f6b6aaE5ae`. Source: `contracts/DrawSpike.sol`,
 driver `spikes/draw-hcu.ts`, raw data `out/draw-hcu.json`.
 
-Method carried from GhostKey's `docs/leakage.md`, which established two things the hard
+Method carried from SaveTogether's `docs/leakage.md`, which established two things the hard
 way. HCU accumulates in transient storage with no event, so it cannot be read back — it
 is reconstructed by counting the coprocessor's per-op events and multiplying by the costs
 in `HCULimit.sol`. And total `gasUsed` includes intrinsic calldata cost, so comparing
@@ -77,7 +77,7 @@ chi-square (Yates, 1 df)   0.1875   against 3.841 critical at p = 0.05
 Fisher exact, two-sided    p = 0.667
 ```
 
-This is the same four-gas artefact GhostKey traced to `HCULimit`'s own cost accounting —
+This is the same four-gas artefact SaveTogether traced to `HCULimit`'s own cost accounting —
 there to `checkHCUForFheGe`, here necessarily `checkHCUForFheGt`, the sibling branch.
 It is outside anything this project controls.
 
@@ -86,7 +86,7 @@ the design has 80% power to detect only a spread of **±54 percentage points**. 
 observed spread is 16.7 points, which at this sample size is indistinguishable from
 noise in either direction — it is neither evidence of a leak nor evidence of its absence.
 
-GhostKey made exactly this mistake once: an n = 20 run showed 45% / 30% / 20% and read
+SaveTogether made exactly this mistake once: an n = 20 run showed 45% / 30% / 20% and read
 as a trend, and the spread collapsed to nothing at n = 60 per path. Publishing a
 "winner and loser are indistinguishable" claim on twelve samples would be repeating it.
 
@@ -99,7 +99,7 @@ as a trend, and the spread collapsed to nothing at n = 60 per path. Publishing a
 | **206**         | **±13.0 points**  |
 
 **Required before the claim is made anywhere public: roughly 206 samples per arm**, which
-is what it takes to match the ±13-point resolution GhostKey achieved. That is scheduled
+is what it takes to match the ±13-point resolution SaveTogether achieved. That is scheduled
 for day 5, against the deployed contract rather than this spike. What can be stated now,
 and only this: the operation sequence and the HCU are provably identical, and the gas
 residual is a known FHEVM accounting artefact that is present in both arms.
@@ -137,7 +137,7 @@ Per-participant slopes, from the measurements:
 | incremental + credit | **375,000**    | 375,000   |
 
 All three match to the unit. The per-op costs in `HCULimit.sol` are exact for these
-operations — worth recording, because GhostKey found a case where the coprocessor's
+operations — worth recording, because SaveTogether found a case where the coprocessor's
 accounting disagreed with its own published table, and that does not happen here.
 
 **The architectural claim is proven by the error names, not inferred from the numbers.**
@@ -258,7 +258,7 @@ HCULimit.sol:54   MAX_HOMOMORPHIC_COMPUTE_UNITS_PER_TX        = 20,000,000
 | `TrivialEncrypt`        | —            | **32**       | —             | 32            |
 
 **Correction to a carried figure:** `gt` scalar is **117,000**, not the 116,000 in
-GhostKey's table — that number is `ge`, a different branch (`HCULimit.sol:847` vs `:899`).
+SaveTogether's table — that number is `ge`, a different branch (`HCULimit.sol:847` vs `:899`).
 
 ### A5 — `euint128` and TWAB overflow — VERIFIED, and the wide type is required
 
@@ -329,7 +329,7 @@ public. The second *is* the keeper-grinding mitigation in A6.
 | cUSDC      | `0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639` |
 | Mock USDC  | `0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF` |
 
-These match GhostKey's recorded findings **and** Zama's current address reference
+These match SaveTogether's recorded findings **and** Zama's current address reference
 exactly, so nothing has changed. Mock USDC has a public `mint`, which is the judges'
 faucet path; wrap through the `ERC7984ERC20Wrapper` interface for a confidential balance.
 
@@ -340,7 +340,7 @@ both endpoints in the clear. Only the amount is encrypted. **Paying a winner by 
 publishes who won.** This is the source-level reason the prize must be a per-participant
 encrypted credit, and it is not a matter of preference.
 
-Second, carried from GhostKey: `ERC7984.sol:144` returns `transferred` under
+Second, carried from SaveTogether: `ERC7984.sol:144` returns `transferred` under
 `FHE.allowTransient`, so any credit reconciliation must happen **in the same transaction
 as the transfer**. No design that transfers first and books later can work.
 
@@ -363,7 +363,7 @@ document can now name a real deployed address rather than describing a hypotheti
 
 Worth noting for the architecture: the Confidential Vault's own privacy model is
 batch-based — observers see who participated and the batch total, never an individual
-amount. That is a weaker guarantee than GhostPool's per-participant credit.
+amount. That is a weaker guarantee than SaveTogether's per-participant credit.
 
 ---
 
@@ -395,7 +395,7 @@ in the original brief described a mechanism V5 does not implement, and the globa
 blocker raised in the pre-spike report was a problem PoolTogether never had.
 
 One detail worth porting verbatim: `UniformRandomNumber.uniform` performs rejection
-sampling to remove modulo bias. Because GhostPool's threshold is computed entirely in
+sampling to remove modulo bias. Because SaveTogether's threshold is computed entirely in
 plaintext, that code ports at **zero FHE cost** — the bias question disappears rather
 than being tolerated.
 
@@ -434,7 +434,7 @@ The eight-day schedule only works with heavy reuse. Paths are in the GhostLend r
 | ERC-7984 mock token                 | `contracts/mocks/ERC7984Mock.sol` (32)           | **as-is**           |
 | Batching patterns                   | `contracts/market2/VaultBatchers.sol` (103)      | **reference**       |
 | ACL-hygiene regression tests        | `test/GhostLendPool.audit.ts`                    | **adapt** — the assertions carry, the subjects change |
-| Hardhat + FHEVM toolchain           | `hardhat.config.ts`, `probe/secrets.json` convention | **as-is** — already carried into `desktop\ghostpool` |
+| Hardhat + FHEVM toolchain           | `hardhat.config.ts`, `probe/secrets.json` convention | **as-is** — already carried into `desktop\savetogether` |
 | Frontend shell                      | `frontend/` — `components/App.tsx`, `Wizard.tsx`, `Toast.tsx`, `TokenIcon.tsx`, `lib/{abis,addresses,wagmi,format,css}.ts` | **adapt** — the wagmi + relayer-SDK wiring and the wizard shell transfer; the screens do not |
 | `GhostGate.sol` (355)               | `contracts/market2/GhostGate.sol`                | **does not apply** — lending-specific |
 | `InterestRateModel.sol`             | `contracts/libraries/`                           | **does not apply**  |
@@ -587,9 +587,9 @@ a reviewer expects to be hand-waved.
 
 Zero winners carries the prize over. That is standard lottery mechanics, not a defect.
 
-### 5.5 GhostKey's role, corrected
+### 5.5 SaveTogether's role, corrected
 
-An earlier draft claimed GhostKey was *required* by this design, because every
+An earlier draft claimed SaveTogether was *required* by this design, because every
 participant had to claim and session keys were what made N−1 gas-burning claims
 tolerable. **With accrual permissionless, that claim is false and is withdrawn.**
 The keeper does the work; no session key is needed for a user to receive a prize.
@@ -600,9 +600,9 @@ an encrypted budget the automation cannot exceed. That is a genuine product
 surface, not a structural necessity.
 
 It is worth noting separately that V5's claimer-bot economics **do** break under
-FHE: a bot cannot claim on behalf of winners when it cannot see who won. GhostPool
+FHE: a bot cannot claim on behalf of winners when it cannot see who won. SaveTogether
 does not answer that with session keys; it answers it by removing claiming
-altogether. That is the stronger answer, and it does not need GhostKey to hold.
+altogether. That is the stronger answer, and it does not need SaveTogether to hold.
 
 ---
 
@@ -639,9 +639,9 @@ Deadline 5 September; step 1 completed 28 August.
 | 2     | Draw commit-reveal on GhostLend's epoch machine; the ordering invariant and its tests    |
 | 3     | `accrue` — permissionless, idempotent, folded into deposit/withdraw — plus reserve accounting; the ACL-hygiene regression suite |
 | 4     | Sepolia deployment, keeper adaptation, end-to-end round on live chain                    |
-| 5     | Gas-equality run on **`accrue`**, winner against loser, at the GhostKey sample size, on the deployed contract |
+| 5     | Gas-equality run on **`accrue`**, winner against loser, at the SaveTogether sample size, on the deployed contract |
 | 6     | Frontend: wizard shell, deposit and balance screens, relayer wiring — there is no claim screen |
-| 7     | GhostKey: conversational deposits and bounded automation (not claiming — §5.5); README, probability table, leakage document |
+| 7     | SaveTogether: conversational deposits and bounded automation (not claiming — §5.5); README, probability table, leakage document |
 | 8     | Buffer — reserved for the failure that has not happened yet                              |
 
 The buffer is not padding. On this codebase every step so far has surfaced at least one
@@ -703,7 +703,7 @@ Two of these are doing more work than they look.
 **The clamp.** A revert is visible on chain, so "this account asked for more than
 it had" would be a leak. The withdrawal path therefore runs `tryDecrease` and
 selects an encrypted zero rather than reverting — the same primitive the draw uses,
-and the same one GhostKey measured over 180 transactions.
+and the same one SaveTogether measured over 180 transactions.
 
 **"No observations" versus "a balance of zero."** These are different claims, and
 a draw that conflated them would score an account that did not exist at the
@@ -766,23 +766,23 @@ problem, so they do not get the same treatment.
 nothing comparable has been measured. 206 samples per arm, 412 transactions, on
 the deployed contract. This is the measurement the central claim rests on.
 
-**The withdrawal clamp inherits GhostKey's evidence and gets a confirmatory run,
+**The withdrawal clamp inherits SaveTogether's evidence and gets a confirmatory run,
 not a full one.** Its secret is different — whether the requested amount exceeds
 the balance, not whether an account won — but its structure is not: `tryDecrease`,
 then `select` against an encrypted zero, then a real transfer of whatever came
-out. That is the same shape GhostKey measured over 180 live transactions across
+out. That is the same shape SaveTogether measured over 180 live transactions across
 three paths, finding one distinct operation sequence, one distinct HCU value, and
 a mutual information below its own noise floor. The argument transfers because the
 code does.
 
 What does not transfer is the specific gas residual, since the surrounding
 contract differs. So the withdrawal path gets 60 samples per arm — enough to
-detect ±24 points, which would catch any gross divergence from GhostKey's result
+detect ±24 points, which would catch any gross divergence from SaveTogether's result
 without spending a second 412-transaction budget on a question that has already
 been answered once at higher resolution.
 
 Stated plainly so it can be challenged: **if the withdrawal run at n = 60 shows
-anything other than what GhostKey saw, the inherited argument is void and the full
+anything other than what SaveTogether saw, the inherited argument is void and the full
 run is owed.**
 
 ### 8.6 Starting the day-5 run early
@@ -791,7 +791,7 @@ run is owed.**
 that also carries other work. It starts in the background as soon as `accrue`
 exists on chain, not when day 5 begins.
 
-The SDK-side transport retry from GhostKey is carried over **before** that run
+The SDK-side transport retry from SaveTogether is carried over **before** that run
 rather than after: a 60-sample run there died on its fifth send with
 `UND_ERR_CONNECT_TIMEOUT`, and a 412-transaction run that dies at sample 300 has
 lost the day it was scheduled to save.
@@ -829,7 +829,7 @@ instead of one, bought by overlapping rather than by adding time.
 | 4   | 31 Aug | Sepolia deployment, keeper, end-to-end round. Frontend scaffold in parallel: wallet connect, network guard, deposit. **The `accrue` equality run starts in the background the moment `accrue` is on chain.** |
 | 5   | 1 Sep  | Frontend main build: withdraw, EIP-712 balance decryption, draw status, winnings. Equality run lands and is analysed. **Frontend usable by end of day.** |
 | 6   | 2 Sep  | **Video.** Script, takes, edit. Its own day.                                                                |
-| 7   | 3 Sep  | README, probability table, `docs/leakage.md`, **X thread**. GhostKey surface if it fits.                    |
+| 7   | 3 Sep  | README, probability table, `docs/leakage.md`, **X thread**. SaveTogether surface if it fits.                    |
 | 8   | 4 Sep  | Buffer — still reserved for the failure that has not happened yet. Submission 5 Sep.                        |
 
 ### 9.3 The video is the highest-variance item
@@ -863,7 +863,7 @@ Deciding this on day 7 costs more than deciding it today, so it is decided today
 3. Draw-reveal animation and any motion design — a static status line makes the same claim
 4. Multi-token support; cUSDC alone is the demo
 5. Responsive polish beyond "does not break on a phone"
-6. The GhostKey conversational surface — §5.5 withdrew its necessity, so it is polish now, not structure
+6. The SaveTogether conversational surface — §5.5 withdrew its necessity, so it is polish now, not structure
 
 The list is ordered so that everything above the line survives any single bad day,
 and everything below it can go without weakening a scored criterion.
@@ -1136,7 +1136,7 @@ together on a live chain. The largest untested piece of the system is now tested
 ### 12.2 The equality runner, built and validated
 
 `test/sepolia-equality.ts`. Two arms, interleaved, execution gas rather than
-`gasUsed`, HCU reconstructed from coprocessor events — GhostKey's method.
+`gasUsed`, HCU reconstructed from coprocessor events — SaveTogether's method.
 
 Arms are constructed so one wins every round and the other loses every round, and
 **the construction is verified rather than trusted**: lifetime winnings are read
@@ -1161,7 +1161,7 @@ round 1 initialises `_pending` and `_winnings`, every later round does not, and
 both arms cross that boundary together.
 
 The 4-gas split — 560,289 against 560,285 — is the same FHEVM `HCULimit`
-accounting artefact GhostKey traced, appearing here in both arms at one sample in
+accounting artefact SaveTogether traced, appearing here in both arms at one sample in
 seven each.
 
 **This is not yet the result.** Seven steady-state rounds per arm has 80% power to
@@ -1183,12 +1183,12 @@ Measured from the validation run: **0.00505 ETH per round**, 75 seconds per roun
 
 **The wallet holds 0.1622 ETH.** `0xF505e2E71df58D7244189072008f25f6b6aaE5ae`.
 
-So the run that matches GhostKey's ±13-point resolution needs about **0.6 ETH**,
+So the run that matches SaveTogether's ±13-point resolution needs about **0.6 ETH**,
 and 206 per arm needs **1.04 ETH**. Sepolia ETH is free but faucets are
 rate-limited per day, which is why this is reported now rather than on day 5.
 
 **Recommendation: fund to 0.7 ETH and run 120 per arm.** That reaches ±12.7
-points, which is the resolution GhostKey published, at 150 minutes — comfortably
+points, which is the resolution SaveTogether published, at 150 minutes — comfortably
 inside a day that is otherwise frontend work. Going to 206 buys ±9.7 for another
 0.43 ETH and 108 minutes, and no reviewer is going to ask for it.
 
@@ -1245,7 +1245,7 @@ Chunk size is 6, set from the measurement rather than guessed: `accrue` costs
 `frontend/` — wallet connect, the network guard, and the deposit path.
 Next + wagmi + viem, carried from GhostLend's shell.
 
-**The network guard names both chains.** "Your wallet is on chain 1; GhostPool
+**The network guard names both chains.** "Your wallet is on chain 1; SaveTogether
 runs on Sepolia (11155111)" with a one-click switch, rather than "wrong network".
 A judge who lands on mainnet should be able to fix it from the message.
 
@@ -1295,7 +1295,7 @@ depends on it, and it is where the claim gets verified rather than argued.
 150 minutes, unattended, writing incrementally to `out/equality.json` so a crash
 loses progress rather than everything.
 
-120 per arm reaches ±12.7 points at 80% power — the resolution GhostKey published
+120 per arm reaches ±12.7 points at 80% power — the resolution SaveTogether published
 — for 0.605 ETH. 206 per arm would buy ±9.7 for another 0.43 ETH and 108 minutes;
 the budget now allows it and it was still declined, because the remaining ETH is
 needed for deployment, the demo round and the recording, and no reviewer is going
@@ -1437,7 +1437,7 @@ than the argument it supports is the wrong trade.
 > so gas varying with it discloses nothing an observer does not already hold.
 
 This is structural where it matters and statistical only where it has to be, and
-it is stronger than GhostKey's equivalent in one respect: there the four-gas
+it is stronger than SaveTogether's equivalent in one respect: there the four-gas
 residual was localised but unexplained, whereas here the variable it tracks is
 identified and is public by construction.
 
@@ -1543,7 +1543,7 @@ source without complaint. That inference is now a measurement.
 The first thing the deployed URL returned was `HTTP 200` with the title
 **`Login – Vercel`**. Deployment Protection is on by default for this account, so
 every visitor — including a judge — would have met an authentication wall instead
-of GhostPool, while the deploy itself reported success.
+of SaveTogether, while the deploy itself reported success.
 
 This is precisely what I1 was for. Nothing in the build, the tests or the type
 checker could have caught it: the deployment was correct and the *access policy*
@@ -1556,8 +1556,8 @@ than assumed from the local build.
 
 ### 17.3 A naming collision worth knowing about
 
-`ghostpool.vercel.app` is already taken, by an unrelated project called
-**"GhostPool — Private Prediction Markets on Arbitrum"**. The submission's URL is
+`savetogether.vercel.app` is already taken, by an unrelated project called
+**"SaveTogether — Private Prediction Markets on Arbitrum"**. The submission's URL is
 therefore `ghostpool-himess.vercel.app`.
 
 Not a technical problem, but worth deciding deliberately rather than discovering

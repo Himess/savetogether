@@ -1,4 +1,4 @@
-# GhostKey — what leaks
+# SaveTogether — what leaks
 
 An honest inventory. Everything here is measured or read from source; nothing is asserted because it sounds right.
 
@@ -15,7 +15,7 @@ These are not defects and no amount of engineering removes them. ERC-7984 hides 
 | **the sender**               | same                                                                                                                                                 |
 | **the token**                | the contract being called                                                                                                                            |
 | **the time**                 | the block                                                                                                                                            |
-| **the session's shape**      | expiry, transfer count, transfer cap and the allowlist are plaintext in `GhostKeySession`, deliberately, so they are auditable                       |
+| **the session's shape**      | expiry, transfer count, transfer cap and the allowlist are plaintext in `SaveTogetherSession`, deliberately, so they are auditable                       |
 
 The allowlist is plaintext because encrypting it would be theatre: the recipients appear on chain the first time anything is sent to them.
 
@@ -61,7 +61,7 @@ Execution gas takes two values, four apart:
 | over-budget   | 60  | 19      | 41      | 31.7%          |
 | short-balance | 60  | 16      | 44      | 26.7%          |
 
-The variance is **not** in GhostKeySession, the token, or the ACL — a trace diff of two same-path transactions found 181 identical calls and exactly one differing by 4 gas, inside `HCULimit.checkHCUForFheGe`, the FHEVM's own cost accounting. No change to this project could remove it.
+The variance is **not** in SaveTogetherSession, the token, or the ACL — a trace diff of two same-path transactions found 181 identical calls and exactly one differing by 4 gas, inside `HCULimit.checkHCUForFheGe`, the FHEVM's own cost accounting. No change to this project could remove it.
 
 ### The bound
 
@@ -133,7 +133,7 @@ In sealed mode the model receives `{status, ok_ref, sent_ref}` and no number, ev
 - **Biometric unlock is not implemented.** The vault key is encrypted at rest under the OS keychain (macOS Keychain, Windows DPAPI, libsecret) and unlocking requires a local human action at the console. A true Touch ID / Windows Hello prompt needs a native module per platform and is not here. The brief's preference order put biometric first; what is implemented is the second item, and this says so rather than implying otherwise.
 - **`--dev-unlock` skips the human step.** It is hard-gated to chainId 11155111 and refuses to run anywhere else. Asserted in `test/mcp.ts`, including the case where the vault exists and is loadable.
 - **A leaked session key costs the remaining budget**, to addresses already on the allowlist, until expiry. That is the designed bound, not an accident — but it is a real loss, and the budget and allowlist are the only things limiting it.
-- **The operator grant outlives the session.** `token.setOperator(module, expiry)` is set outside `GhostKeySession` and expires on its own schedule. Closing a session does not clear it; the module simply has no live session to act under. `revoke_all` says this in as many words rather than implying the grant is gone.
+- **The operator grant outlives the session.** `token.setOperator(module, expiry)` is set outside `SaveTogetherSession` and expires on its own schedule. Closing a session does not clear it; the module simply has no live session to act under. `revoke_all` says this in as many words rather than implying the grant is gone.
 
 ---
 
@@ -145,7 +145,7 @@ amount necessarily knows it**. That is not a weakness of the encryption; it is
 where the plaintext has to exist for `createEncryptedInput` to have anything to
 encrypt. The spike in `docs/spike-plaintext-removal-RESULT.md` asked whether the
 plaintext could be removed entirely and the answer was no — not for a hosted
-budget, because `GhostKeySession.send` takes an `externalEuint64` and the change
+budget, because `SaveTogetherSession.send` takes an `externalEuint64` and the change
 that would let it take a handle costs the owner a signature before every
 transfer.
 

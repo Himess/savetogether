@@ -1,7 +1,7 @@
 /**
  * SDK integration tests against live Sepolia.
  *
- * These import `@ghostkey/sdk` through the workspace link rather than reaching
+ * These import `@savetogether/sdk` through the workspace link rather than reaching
  * into `src/`, so what is exercised is the surface a consumer actually gets. Mock
  * mode is for logic; anything that will be claimed out loud has to be verified
  * here, on chain.
@@ -11,7 +11,7 @@
  * Reuses the module and token the gate deployed, from .env.
  */
 import {
-  GhostKeyClient,
+  SaveTogetherClient,
   OperatorNotGrantedError,
   RecipientNotAllowedError,
   ZeroAmountError,
@@ -20,7 +20,7 @@ import {
   ref,
   revealAmount,
   type Session,
-} from "@ghostkey/sdk";
+} from "@savetogether/sdk";
 import { expect } from "chai";
 import { Wallet, parseEther } from "ethers";
 import { ethers } from "hardhat";
@@ -47,7 +47,7 @@ describe("SDK against live Sepolia", function () {
   const tokenAddress = required("GATE_TOKEN");
   const rpcUrl = required("SEPOLIA_RPC_URL");
 
-  let client: GhostKeyClient;
+  let client: SaveTogetherClient;
   let owner: Wallet;
   let recipient: string;
 
@@ -68,7 +68,7 @@ describe("SDK against live Sepolia", function () {
     // Warm the recipient's balance handle so the first send is not its first write.
     await (await token.connect(deployer).mintPlain(recipient, 1n)).wait();
 
-    client = new GhostKeyClient({
+    client = new SaveTogetherClient({
       provider: ethers.provider,
       rpcUrl,
       moduleAddress,

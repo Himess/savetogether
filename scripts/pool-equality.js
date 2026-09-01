@@ -78,7 +78,7 @@ if (vals.length === 2) {
   // The stopping rule is a FIXED resolution target, not the spread currently
   // observed. Chasing the observed spread is unbounded: as n grows the spread
   // shrinks toward zero, so the "n needed to resolve it" grows without limit and
-  // the run never ends. The target is GhostKey's published +/-13 points.
+  // the run never ends. The target is SaveTogether's published +/-13 points.
   const TARGET = 0.13;
   const need = Math.ceil((z * z * 2 * pbar * (1 - pbar)) / (TARGET * TARGET));
   console.log(`target resolution      : +/-13.0 points, needs ${need} per arm (${Math.max(0, need - nPer)} more)`);

@@ -222,8 +222,8 @@ function pickSecretStore(service: string, dir: string): SecretStore {
 
 /** Default keystore: Web3 Secret Storage v3 on disk, passphrase in the OS keychain. */
 export function osKeychainKeystore(opts?: { dir?: string; service?: string }): SessionKeystore {
-  const dir = opts?.dir ?? path.join(os.homedir(), ".ghostkey", "keys");
-  const service = opts?.service ?? "ghostkey-session";
+  const dir = opts?.dir ?? path.join(os.homedir(), ".savetogether", "keys");
+  const service = opts?.service ?? "savetogether-session";
   const secrets = pickSecretStore(service, dir);
 
   const fileFor = (address: string) => path.join(dir, `${address.toLowerCase()}.json`);

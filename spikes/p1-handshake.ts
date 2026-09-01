@@ -3,8 +3,8 @@
  * needs it to?
  *
  * `openSession` recovers `sessionKeySignature` and requires it to equal
- * `params.sessionKey` (GhostKeySession.sol:133), and the digest binds
- * (owner, sessionKey, expiry, maxTxCount) (GhostKeySession.sol:381). So the key
+ * `params.sessionKey` (SaveTogetherSession.sol:133), and the digest binds
+ * (owner, sessionKey, expiry, maxTxCount) (SaveTogetherSession.sol:381). So the key
  * must exist before the user signs anything, and the server must already know
  * the user's address when it signs. That is one round trip only if the browser's
  * opening request carries the address — which is the thing this proves.
@@ -88,7 +88,7 @@ const SESSION_KEY_GAS = ethers.parseEther("0.01");
   console.log(`   budget ciphertext built for the owner, without the owner's key`);
 
   const signature = await sessionKey.signTypedData(
-    { name: "GhostKeySession", version: "1", chainId, verifyingContract: MODULE },
+    { name: "SaveTogetherSession", version: "1", chainId, verifyingContract: MODULE },
     EIP712_TYPES,
     { owner: ownerAddress, sessionKey: sessionKeyAddress, expiry, maxTxCount },
   );

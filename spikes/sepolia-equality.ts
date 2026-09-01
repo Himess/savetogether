@@ -187,11 +187,11 @@ async function main(): Promise<void> {
   let moduleAddr = process.env.GATE_MODULE ?? "";
   let tokenAddr = process.env.GATE_TOKEN ?? "";
   if (moduleAddr === "" || (await ethers.provider.getCode(moduleAddr)) === "0x") {
-    const m = await (await ethers.getContractFactory("GhostKeySession")).connect(deployer).deploy();
+    const m = await (await ethers.getContractFactory("SaveTogetherSession")).connect(deployer).deploy();
     await m.waitForDeployment();
     moduleAddr = await m.getAddress();
     upsertEnv("GATE_MODULE", moduleAddr);
-    console.log(`deployed GhostKeySession ${moduleAddr}`);
+    console.log(`deployed SaveTogetherSession ${moduleAddr}`);
   }
   if (tokenAddr === "" || (await ethers.provider.getCode(tokenAddr)) === "0x") {
     const t = await (
@@ -206,7 +206,7 @@ async function main(): Promise<void> {
   }
   console.log(`module ${moduleAddr}\ntoken  ${tokenAddr}\n`);
 
-  const module = await ethers.getContractAt("GhostKeySession", moduleAddr);
+  const module = await ethers.getContractAt("SaveTogetherSession", moduleAddr);
   const token = await ethers.getContractAt("MockERC7984", tokenAddr);
   const instance = await createInstance({
     ...SepoliaConfig,
@@ -237,7 +237,7 @@ async function main(): Promise<void> {
       .add64(setup.budget)
       .encrypt();
     const sig = await key.signTypedData(
-      { name: "GhostKeySession", version: "1", chainId: 11155111, verifyingContract: moduleAddr },
+      { name: "SaveTogetherSession", version: "1", chainId: 11155111, verifyingContract: moduleAddr },
       {
         OpenSession: [
           { name: "owner", type: "address" },

@@ -1,4 +1,4 @@
-# GhostKey — threat model
+# SaveTogether — threat model
 
 What an attacker can do, what stops them, and what is not defended. Bugs found by these passes are named where they were found, because a threat model that lists only the defences that worked is a marketing document.
 
@@ -99,11 +99,11 @@ The module depends on `@fhevm/solidity`, `@openzeppelin/confidential-contracts`,
 
 The Zama relayer sees every encrypted input and every decryption request. It learns the **shape** of activity — who is transacting, with which contract, when, and how often — and it participates in decryption.
 
-**What it does not learn from GhostKey specifically**: nothing beyond what the chain already publishes. Recipients, tokens and timing are public on chain regardless.
+**What it does not learn from SaveTogether specifically**: nothing beyond what the chain already publishes. Recipients, tokens and timing are public on chain regardless.
 
 **Availability is a real dependency.** The relayer drops connections: a 60-sample measurement run died on sample 5 with `UND_ERR_CONNECT_TIMEOUT`. `withRetry` in the spikes retries transport failures only, and the SDK needs the same policy — recorded as an open item rather than claimed as done.
 
-**Not defended**: a malicious or compelled relayer. Decryption authority ultimately rests with the KMS and the ACL, both Zama-operated. GhostKey inherits that trust and does not reduce it.
+**Not defended**: a malicious or compelled relayer. Decryption authority ultimately rests with the KMS and the ACL, both Zama-operated. SaveTogether inherits that trust and does not reduce it.
 
 ---
 
@@ -113,7 +113,7 @@ Fully quantified in [`leakage.md`](./leakage.md) §3, summarised here.
 
 An observer watching a `send` transaction sees execution gas take one of two values, four apart. Across 180 live Sepolia transactions the FHE operation sequence and the HCU consumption are **identical** on every path, and the gas distributions are indistinguishable: chi-square 0.374 on 2 df against a critical 5.991, p = 0.83. The measured mutual information, 0.00151 bits per observation, sits **below** the 0.00801-bit noise floor for that sample size.
 
-The variance is inside `HCULimit.checkHCUForFheGe` — the FHEVM's own cost accounting — not in anything GhostKey controls, and no change to this project could remove it.
+The variance is inside `HCULimit.checkHCUForFheGe` — the FHEVM's own cost accounting — not in anything SaveTogether controls, and no change to this project could remove it.
 
 **What this cannot rule out**: a genuine skew smaller than ±13 points, which is the design's 80% power threshold. A ±3 point skew would need on the order of 3,000 samples.
 

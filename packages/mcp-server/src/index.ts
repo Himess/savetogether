@@ -20,16 +20,16 @@
  * better control: the exact JSON the model sees lives here, next to the prose that
  * explains it.
  */
-import { ConsoleServer } from "@ghostkey/console";
-import { GhostKeyClient } from "@ghostkey/sdk";
+import { ConsoleServer } from "@savetogether/console";
+import { SaveTogetherClient } from "@savetogether/sdk";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { JsonRpcProvider } from "ethers";
 import { z } from "zod";
 
-import { loadConfig, type GhostKeyConfig } from "./config";
-import { GhostKeyTools, sessionKeystore, type ToolResult } from "./tools";
+import { loadConfig, type SaveTogetherConfig } from "./config";
+import { SaveTogetherTools, sessionKeystore, type ToolResult } from "./tools";
 import { Vault } from "./vault";
 
 const UNTRUSTED_NOTE =
@@ -39,7 +39,7 @@ const UNTRUSTED_NOTE =
 export interface ServerHandles {
   readonly server: Server;
   readonly console: ConsoleServer;
-  readonly tools: GhostKeyTools;
+  readonly tools: SaveTogetherTools;
   stop(): Promise<void>;
 }
 
@@ -77,7 +77,7 @@ function objectSchema(props: Record<string, JsonSchema>): JsonSchema {
 }
 
 /** Built separately so tests can inspect the surface without opening a socket. */
-export function toolDefinitions(tools: GhostKeyTools): ToolDef[] {
+export function toolDefinitions(tools: SaveTogetherTools): ToolDef[] {
   return [
     {
       name: "open_session",
@@ -220,7 +220,7 @@ export function toolDefinitions(tools: GhostKeyTools): ToolDef[] {
       name: "vault_status",
       title: "Where the vault batch is",
       description:
-        "GhostPool's adapter on Zama's own confidential vault: which batch it has joined and " +
+        "SaveTogether's adapter on Zama's own confidential vault: which batch it has joined and " +
         "where that batch is in its cycle. Say plainly, if asked, that this vault pays NO " +
         "yield — it is Zama's Sepolia mock, not the mainnet Steakhouse/Morpho vault. What it " +
         "demonstrates is that the confidential layer composes, not a return.",
@@ -307,14 +307,14 @@ export function toolDefinitions(tools: GhostKeyTools): ToolDef[] {
   ];
 }
 
-export async function createServer(config?: GhostKeyConfig): Promise<ServerHandles> {
+export async function createServer(config?: SaveTogetherConfig): Promise<ServerHandles> {
   const cfg = config ?? (await loadConfig());
   const provider = new JsonRpcProvider(cfg.rpcUrl, cfg.chainId);
 
   // The revoke button needs to reach the tools, and the tools need the console, so
   // one of the two has to be forward-referenced. A holder keeps that explicit and
   // keeps everything const.
-  const holder: { tools?: GhostKeyTools } = {};
+  const holder: { tools?: SaveTogetherTools } = {};
 
   const consoleServer = new ConsoleServer({
     onRevoke: async () => {
@@ -342,7 +342,7 @@ export async function createServer(config?: GhostKeyConfig): Promise<ServerHandl
   });
   await vault.ensure();
 
-  const client = new GhostKeyClient({
+  const client = new SaveTogetherClient({
     provider,
     rpcUrl: cfg.rpcUrl,
     moduleAddress: cfg.moduleAddress,
@@ -351,7 +351,7 @@ export async function createServer(config?: GhostKeyConfig): Promise<ServerHandl
     ...(cfg.aclAddress === undefined ? {} : { aclAddress: cfg.aclAddress }),
   });
 
-  const tools = new GhostKeyTools({ config: cfg, provider, client, vault, console: consoleServer });
+  const tools = new SaveTogetherTools({ config: cfg, provider, client, vault, console: consoleServer });
   holder.tools = tools;
   const defs = toolDefinitions(tools);
 
@@ -361,7 +361,7 @@ export async function createServer(config?: GhostKeyConfig): Promise<ServerHandl
   void consoleServer.refreshVault();
 
   const server = new Server(
-    { name: "ghostkey", version: "0.1.0" },
+    { name: "savetogether", version: "0.1.0" },
     { capabilities: { tools: {} } },
   );
 
@@ -412,20 +412,20 @@ export async function createServer(config?: GhostKeyConfig): Promise<ServerHandl
 export async function main(): Promise<void> {
   const handles = await createServer();
   // stdout is the MCP transport. Anything human-facing goes to stderr.
-  process.stderr.write(`GhostKey console: ${handles.console.url}\n`);
+  process.stderr.write(`SaveTogether console: ${handles.console.url}\n`);
   await handles.server.connect(new StdioServerTransport());
 }
 
 if (require.main === module) {
   main().catch((e: unknown) => {
-    process.stderr.write(`ghostkey: ${(e as Error).message}\n`);
+    process.stderr.write(`savetogether: ${(e as Error).message}\n`);
     process.exit(1);
   });
 }
 
-export { GhostKeyTools } from "./tools";
+export { SaveTogetherTools } from "./tools";
 export type { ToolResult } from "./tools";
 export { Vault, SEPOLIA_CHAIN_ID } from "./vault";
 export { loadConfig, saveConfig, parseAmount, formatAmount } from "./config";
-export type { GhostKeyConfig, TokenEntry } from "./config";
+export type { SaveTogetherConfig, TokenEntry } from "./config";
 export { sanitiseChainText } from "./sanitize";

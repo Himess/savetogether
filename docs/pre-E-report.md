@@ -1,4 +1,4 @@
-# GhostKey — what the clean-machine run broke, and what is left before E
+# SaveTogether — what the clean-machine run broke, and what is left before E
 
 Self-contained: it repeats the facts it depends on, so it reads without the repo.
 
@@ -14,7 +14,7 @@ Sepolia, typecheck clean across all four packages, lint clean.
 ### How it was made clean
 
 `USERPROFILE`, `HOME`, `APPDATA` and `LOCALAPPDATA` were pointed at a directory that
-had never seen GhostKey, and `GHOSTKEY_CONFIG` was removed from the environment. The
+had never seen SaveTogether, and `GHOSTKEY_CONFIG` was removed from the environment. The
 CLI reads **no repo `.env`** — `grep -rn dotenv packages/*/src/` returns nothing — so
 the RPC URL came only from the `--rpc` flag, the way a real first run supplies it.
 Nothing on this machine's real profile could make the run look like it worked.
@@ -28,8 +28,8 @@ vault files:    config.json, vault
 console url:    ok
 ```
 
-`~/.ghostkey/config.json`, the vault, and `~/AppData/Roaming/Claude/claude_desktop_config.json`
-were all written. `ghostkey status` read them back.
+`~/.savetogether/config.json`, the vault, and `~/AppData/Roaming/Claude/claude_desktop_config.json`
+were all written. `savetogether status` read them back.
 
 ### What broke: the vault panel was empty
 
@@ -72,7 +72,7 @@ earlier by hand: every vault created on Windows was written fine and was unopena
 and the error said _"no passphrase found"_ — a message about the wrong thing.
 
 So the run was repeated with an unlock at the end, against a vault created seconds
-earlier in a home directory that had never seen GhostKey:
+earlier in a home directory that had never seen SaveTogether:
 
 ```
 advertised 0x0a2644f83D43193B2FD6103cDC5d4AAEDe966bbA
@@ -195,7 +195,7 @@ your keys and your chat client.
 
 1. **Run E on your normal profile, not a clean one.** The clean runs each generated a
    fresh throwaway vault with 0.0 ETH. Your real vault is already funded.
-2. **Confirm the vault has Sepolia ETH and test tokens.** `ghostkey console` shows the
+2. **Confirm the vault has Sepolia ETH and test tokens.** `savetogether console` shows the
    gas balance and offers the mint control. Both are setup, which is why they live on
    the page and not in a tool call — you want the address before you have anything to
    say.

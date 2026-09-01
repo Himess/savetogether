@@ -1,7 +1,7 @@
 import { Contract, type Signer } from "ethers";
 
 /**
- * GhostPool's adapter on Zama's deployed confidential vault.
+ * SaveTogether's adapter on Zama's deployed confidential vault.
  *
  * WHAT THIS IS AND IS NOT, because the difference is the whole value of it.
  * Joining moves the adapter's held balance into the vault's next deposit batch

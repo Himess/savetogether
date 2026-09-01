@@ -1,4 +1,4 @@
-# GhostKey — Step 2 design review, before writing Solidity
+# SaveTogether — Step 2 design review, before writing Solidity
 
 Terminology note: this document predates the `session client` / `model` distinction adopted in step 2 (A3); its wording has been brought into line, since the rule applies to every file.
 
@@ -10,7 +10,7 @@ Self-contained on purpose — it repeats the step-1 facts it depends on, so it c
 
 ## 0. Context in one paragraph
 
-GhostKey adds an **encrypted spending budget** to ERC-7984 confidential tokens on Zama's FHEVM. ERC-7984's `setOperator(spender, until)` grants unlimited spending authority bounded only by time; GhostKey clamps every transfer against an `euint64 remaining` budget homomorphically — no revert, no plaintext, no leakage, so an observer cannot tell an accepted transfer from a rejected one. Three authorities stay separate: move (`token.setOperator`), read (`ACL.delegateForUserDecryption`), amount (the budget, inside the module).
+SaveTogether adds an **encrypted spending budget** to ERC-7984 confidential tokens on Zama's FHEVM. ERC-7984's `setOperator(spender, until)` grants unlimited spending authority bounded only by time; SaveTogether clamps every transfer against an `euint64 remaining` budget homomorphically — no revert, no plaintext, no leakage, so an observer cannot tell an accepted transfer from a rejected one. Three authorities stay separate: move (`token.setOperator`), read (`ACL.delegateForUserDecryption`), amount (the budget, inside the module).
 
 Step 1 verified the assumptions against installed source and live Sepolia. Relevant results carried into this document:
 
@@ -213,7 +213,7 @@ Separating them would need an extra FHE operation, which the brief explicitly ru
 
 C4 requires a fresh session key per session, and makes the key the session identifier. That is right, but it needs an invariant rather than a convention.
 
-ACL delegations live in the ACL contract, not in GhostKeySession. If a closed session's key can be reopened, the stale `delegateForUserDecryption` grant from the previous session is still live on the ACL and silently carries into the new one.
+ACL delegations live in the ACL contract, not in SaveTogetherSession. If a closed session's key can be reopened, the stale `delegateForUserDecryption` grant from the previous session is still live on the ACL and silently carries into the new one.
 
 `openSession` must therefore revert when `_sessions[key].owner != address(0)` — i.e. a key is consumed permanently at first use, whether or not the session was later closed. The storage layout above already encodes this: `owner` is never cleared, only `expiry` is zeroed on close.
 

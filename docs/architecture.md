@@ -1,4 +1,4 @@
-# GhostKey — architecture
+# SaveTogether — architecture
 
 Every claim here links to the artifact that proves it. Where something is unverified, it says so.
 
@@ -8,7 +8,7 @@ Every claim here links to the artifact that proves it. Where something is unveri
 
 `ERC7984.setOperator(spender, until)` grants an operator unlimited spending authority over the holder's confidential balance, bounded only by time. OpenZeppelin's own documentation puts it plainly: setting an operator lets that address take all of your tokens.
 
-That is fine for a contract you audited. It is not fine for a process driven by a language model, which is exactly the case GhostKey exists for. What is missing is an **amount** bound — and an amount bound on a confidential token has to itself be confidential, or it leaks the thing the token was hiding.
+That is fine for a contract you audited. It is not fine for a process driven by a language model, which is exactly the case SaveTogether exists for. What is missing is an **amount** bound — and an amount bound on a confidential token has to itself be confidential, or it leaks the thing the token was hiding.
 
 ---
 
@@ -78,9 +78,9 @@ The third row is the one that leaks value if written wrong, and it is why the re
 
 ## 4. Why the operator route, and not a token hook
 
-ERC-7984 has a hook framework — `ERC7984Hooked`, `ERC7984HookModule` — that would let a module intercept transfers at the token. It is the more elegant mechanism and GhostKey does not use it, for one reason: **it requires the token to cooperate.**
+ERC-7984 has a hook framework — `ERC7984Hooked`, `ERC7984HookModule` — that would let a module intercept transfers at the token. It is the more elegant mechanism and SaveTogether does not use it, for one reason: **it requires the token to cooperate.**
 
-A hooked module only works on tokens deployed with hooks enabled and configured to point at it. That makes GhostKey a property of the token rather than of the user, and it excludes every confidential token already deployed — which is all of them.
+A hooked module only works on tokens deployed with hooks enabled and configured to point at it. That makes SaveTogether a property of the token rather than of the user, and it excludes every confidential token already deployed — which is all of them.
 
 The operator route works on any ERC-7984, unmodified, by the holder's decision alone. The cost is that the module cannot intercept a transfer the owner makes directly, which is precisely why the vault key must be separate from the session key (§5).
 
@@ -169,14 +169,14 @@ Measurements in [`../findings.md`](../findings.md) §3.
 ## 9. Package layout
 
 ```
-contracts/          GhostKeySession.sol, its interface, a mock ERC-7984 for tests
+contracts/          SaveTogetherSession.sol, its interface, a mock ERC-7984 for tests
 packages/sdk        headless client — no MCP, no model, no chat context
 packages/console    the localhost page, run inside the MCP process
 packages/mcp-server the tool surface, the vault, and the CLI
 spikes/             live-chain measurements; every figure in the docs comes from here
 ```
 
-The SDK importing nothing from the MCP server is deliberate and enforced by review: it is what makes GhostKey infrastructure rather than a demo, and it is what would make an upstream proposal to OpenZeppelin or Zama credible.
+The SDK importing nothing from the MCP server is deliberate and enforced by review: it is what makes SaveTogether infrastructure rather than a demo, and it is what would make an upstream proposal to OpenZeppelin or Zama credible.
 
 ---
 

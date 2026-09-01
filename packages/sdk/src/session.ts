@@ -9,7 +9,7 @@
  */
 import type { Signer } from "ethers";
 
-import { erc7984, ghostKey, type GhostKeyContract } from "./contracts";
+import { erc7984, ghostKey, type SaveTogetherContract } from "./contracts";
 import { AmountExpr, AmountRef, attachResolver } from "./amounts";
 import { PoolClient } from "./pool";
 import { VaultClient } from "./vault";
@@ -102,7 +102,7 @@ export interface SessionContext {
 const SECONDS = 1000;
 
 class SessionImpl {
-  protected readonly module: GhostKeyContract;
+  protected readonly module: SaveTogetherContract;
 
   constructor(protected readonly ctx: SessionContext) {
     this.module = ghostKey(ctx.moduleAddress, ctx.sessionKey);

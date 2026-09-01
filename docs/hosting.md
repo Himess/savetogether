@@ -36,7 +36,7 @@ Three consequences, and the third is the one that matters:
    session is still live.** Revocation therefore takes effect immediately and
    without this server being told, which is what the owner was promised.
 
-`GHOSTPOOL_MASTER_KEY` lives in `/opt/ghostpool/.env` at mode 600 and nowhere
+`SAVETOGETHER_MASTER_KEY` lives in `/opt/ghostpool/.env` at mode 600 and nowhere
 else. It is not generated at boot — that was the earlier design, and a key that
 changes on restart silently invalidates every URL a user has pasted into a chat
 client. The server refuses to start without one and tells you how to make it.
@@ -47,7 +47,7 @@ client. The server refuses to start without one and tells you how to make it.
 /opt/ghostpool/                     the built packages, no sources
 /opt/ghostpool/.env                 master key, RPC, public URL, CORS allowlist
 /etc/systemd/system/ghostpool-hosted.service
-/etc/nginx/sites-enabled/survivors  one added `location /ghostpool/` block
+/etc/nginx/sites-enabled/survivors  one added `location /savetogether/` block
 ```
 
 nginx proxies to `127.0.0.1:8787` with `proxy_read_timeout 300s`, because the

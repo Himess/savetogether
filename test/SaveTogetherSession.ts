@@ -3,7 +3,7 @@ import { expect } from "chai";
 import type { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { ethers, fhevm } from "hardhat";
 
-import type { GhostKeySession, MockERC7984 } from "../types";
+import type { SaveTogetherSession, MockERC7984 } from "../types";
 
 const DAY = 24 * 60 * 60;
 
@@ -35,8 +35,8 @@ async function future(seconds = 7 * DAY): Promise<number> {
   return (block?.timestamp ?? Math.floor(Date.now() / 1000)) + seconds;
 }
 
-describe("GhostKeySession", () => {
-  let module: GhostKeySession;
+describe("SaveTogetherSession", () => {
+  let module: SaveTogetherSession;
   let moduleAddr: string;
   let token: MockERC7984;
   let tokenAddr: string;
@@ -57,8 +57,8 @@ describe("GhostKeySession", () => {
     recipient = requireSigner(signers, 3);
     outsider = requireSigner(signers, 4);
 
-    const Module = await ethers.getContractFactory("GhostKeySession");
-    module = (await Module.connect(deployer).deploy()) as GhostKeySession;
+    const Module = await ethers.getContractFactory("SaveTogetherSession");
+    module = (await Module.connect(deployer).deploy()) as SaveTogetherSession;
     moduleAddr = await module.getAddress();
 
     const Token = await ethers.getContractFactory("MockERC7984");
@@ -82,6 +82,13 @@ describe("GhostKeySession", () => {
     const net = await ethers.provider.getNetwork();
     return key.signTypedData(
       {
+        // "GhostKeySession", not the contract's new name, and the difference is
+        // load-bearing. The domain name is hashed into the separator, so it is
+        // part of every signature rather than a label on one; the deployed module
+        // carries this string and the constructor still passes it. A project-wide
+        // rename changed this literal and 23 tests began failing with
+        // InvalidSessionKeySignature — which is exactly what a live session would
+        // have done.
         name: "GhostKeySession",
         version: "1",
         chainId: overrides?.chainId ?? net.chainId,
@@ -678,7 +685,7 @@ describe("GhostKeySession", () => {
     });
 
     it("B1e. rejects a signature bound to a different deployment", async () => {
-      const other = await (await ethers.getContractFactory("GhostKeySession")).deploy();
+      const other = await (await ethers.getContractFactory("SaveTogetherSession")).deploy();
       const sig = await signOpen(sessionKey, owner.address, openExpiry, 0, {
         verifyingContract: await other.getAddress(),
       });

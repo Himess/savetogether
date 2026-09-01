@@ -1,4 +1,4 @@
-# GhostKey
+# SaveTogether
 
 **An encrypted spending budget for ERC-7984 confidential tokens.** Hand a session a bounded amount it can spend, and let it spend without anyone — including the session — learning how much is left.
 
@@ -69,8 +69,8 @@ One-page versions: [`docs/evidence.html`](docs/evidence.html) reads; [`docs/evid
 ## Quickstart
 
 ```bash
-npx ghostkey init --rpc https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
-npx ghostkey console
+npx savetogether init --rpc https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
+npx savetogether console
 ```
 
 `init` writes the Claude config, generates both keys, and prints an address. `console` opens a local page where you fund the vault and mint test tokens — setup does not need a conversation open, and you want the address before you have anything to say.
@@ -129,7 +129,7 @@ Proof generation is the slow half and does not depend on the chain, so the SDK s
 
 |                                              |                                                                     |
 | -------------------------------------------- | ------------------------------------------------------------------- |
-| [`contracts/`](contracts)                    | `GhostKeySession.sol` and its interface                             |
+| [`contracts/`](contracts)                    | `SaveTogetherSession.sol` and its interface                             |
 | [`packages/sdk`](packages/sdk)               | headless client — no MCP, no model, no chat context                 |
 | [`packages/console`](packages/console)       | the localhost page                                                  |
 | [`packages/mcp-server`](packages/mcp-server) | the tool surface, the vault, the CLI                                |

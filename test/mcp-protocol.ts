@@ -16,7 +16,7 @@
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createServer, type GhostKeyConfig } from "@ghostkey/mcp-server";
+import { createServer, type SaveTogetherConfig } from "@savetogether/mcp-server";
 import { expect } from "chai";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
@@ -51,11 +51,11 @@ describe("MCP protocol", function () {
   let vaultDir: string;
 
   before(async () => {
-    vaultDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghostkey-proto-"));
+    vaultDir = await fs.mkdtemp(path.join(os.tmpdir(), "savetogether-proto-"));
 
     // A config that never needs the network: no tool exercised here reaches the
     // chain. `createServer` does create a vault key, hence the temp directory.
-    const config: GhostKeyConfig = {
+    const config: SaveTogetherConfig = {
       chainId: 11155111,
       rpcUrl: process.env["SEPOLIA_RPC_URL"] ?? "http://127.0.0.1:1",
       moduleAddress: "0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6",
@@ -69,7 +69,7 @@ describe("MCP protocol", function () {
     stop = handles.stop;
 
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    client = new Client({ name: "ghostkey-protocol-test", version: "0.0.0" });
+    client = new Client({ name: "savetogether-protocol-test", version: "0.0.0" });
     await Promise.all([client.connect(clientTransport), handles.server.connect(serverTransport)]);
   });
 

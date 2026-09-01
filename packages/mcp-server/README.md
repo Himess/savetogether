@@ -1,9 +1,9 @@
-# @ghostkey/mcp-server
+# @savetogether/mcp-server
 
 Confidential spending from a chat window, with a budget the chat cannot exceed.
 
 ```
-npx ghostkey init --rpc https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
+npx savetogether init --rpc https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
 ```
 
 That writes the Claude config, generates both keys, and prints an address to fund. No manual JSON editing, no network switching, no browser extension, and no seed phrase — none is derived, so there is nothing to write down.

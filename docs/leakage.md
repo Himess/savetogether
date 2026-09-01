@@ -1,4 +1,4 @@
-# GhostPool — what an observer can learn
+# SaveTogether — what an observer can learn
 
 Self-contained: it repeats the facts it depends on, so it reads without the repo.
 
@@ -7,7 +7,7 @@ cannot tell who won a draw.** It does not claim that nothing is observable. Thre
 things are, each is bounded below, and each is named here rather than left for a
 reader to find.
 
-The convention throughout is the one from GhostKey: a residual that is understood
+The convention throughout is the one from SaveTogether: a residual that is understood
 and bounded is stated; a residual that is merely small is still stated.
 
 ---

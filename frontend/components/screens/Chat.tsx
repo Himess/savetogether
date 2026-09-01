@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount, useBalance, useReadContract, useSendTransaction } from "wagmi";
 import { css } from "@/lib/css";
-import { shortAddr } from "@/lib/format";
+import { fmtUnits6, shortAddr } from "@/lib/format";
 import { useDecryptValues, useGrantPermit, useHasPermit } from "@zama-fhe/react-sdk";
 import { EXPLORER, HOSTED_URL, MODULE, TOKEN } from "@/lib/addresses";
 import { MODULE_ABI } from "@/lib/abis";
@@ -107,7 +107,7 @@ export function ChatScreen() {
     if (hasPermit !== true) return "•••";
     if (readingBudget) return "…";
     const v = budgetClear?.[remainingHandle as `0x${string}`];
-    return v === undefined ? "•••" : String(v);
+    return v === undefined ? "•••" : fmtUnits6(BigInt(v as string | number | bigint));
   }, [remainingHandle, hasPermit, readingBudget, budgetClear]);
 
   if (!HOSTED_URL) return null;
@@ -121,7 +121,7 @@ export function ChatScreen() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           ownerAddress: address,
-          budgets: [{ token: "gUSDC", amount: budget }],
+          budgets: [{ token: "cUSDC", amount: budget }],
           ttlHours: 24,
           readScope: "balance-visible",
         }),
@@ -192,7 +192,7 @@ export function ChatScreen() {
             <span style={css("font:650 10px var(--display);letter-spacing:.1em;text-transform:uppercase;color:#8b8578")}>What it sounds like</span>
             <div style={css("margin-top:14px;display:flex;flex-direction:column;gap:12px")}>
               {[
-                "open a session with a 500 gUSDC budget",
+                "open a session with a 500 cUSDC budget",
                 "what's the draw status?",
                 "put half my balance in the pool",
                 "how much do I have in there?",
@@ -260,7 +260,7 @@ export function ChatScreen() {
                   <div style={css("display:flex;justify-content:space-between;align-items:baseline")}>
                     <span style={css("font:500 11.5px var(--display);color:var(--ink-2)")}>Budget left</span>
                     <span style={css("font:750 15px var(--display);font-variant-numeric:tabular-nums")}>
-                      {remaining} <span style={css("font:600 11px var(--mono);color:var(--ink-3)")}>gUSDC</span>
+                      {remaining} <span style={css("font:600 11px var(--mono);color:var(--ink-3)")}>cUSDC</span>
                     </span>
                   </div>
                   <div style={css("display:flex;justify-content:space-between;align-items:baseline;margin-top:4px")}>
@@ -294,7 +294,7 @@ export function ChatScreen() {
                     inputMode="decimal"
                     style={css("border:none;outline:none;background:none;font:750 28px var(--display);color:var(--ink);flex:1;min-width:0;padding:0;font-variant-numeric:tabular-nums")}
                   />
-                  <span style={css("padding:6px 11px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line-2);font:650 12.5px var(--mono);color:var(--ink);flex:none")}>gUSDC</span>
+                  <span style={css("padding:6px 11px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line-2);font:650 12.5px var(--mono);color:var(--ink);flex:none")}>cUSDC</span>
                 </div>
               </div>
               <p style={css("margin:10px 2px 0;font:400 11.5px/1.5 var(--display);color:var(--ink-3)")}>

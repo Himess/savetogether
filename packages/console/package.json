@@ -1,5 +1,5 @@
 {
-  "name": "@ghostkey/console",
+  "name": "@savetogether/console",
   "version": "0.1.0",
   "private": true,
   "description": "Localhost console for the moments that must not happen in chat",
