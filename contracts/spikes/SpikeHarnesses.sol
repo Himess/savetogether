@@ -13,7 +13,7 @@ import {IERC7984} from "@openzeppelin/confidential-contracts/interfaces/IERC7984
  * nothing else, so whatever the harness adds, it adds identically to both.
  */
 contract SpikeHarnessBaseline is PoolFrozenBaseline {
-    constructor(IERC7984 asset_) PoolFrozenBaseline(asset_) {}
+    constructor(IERC7984 asset_, uint40 m) PoolFrozenBaseline(asset_, m) {}
 
     function forceReveal(uint32 drawId, uint64 r, uint128 total) external {
         _applyReveal(drawId, r, total);
@@ -21,7 +21,7 @@ contract SpikeHarnessBaseline is PoolFrozenBaseline {
 }
 
 contract SpikeHarnessVariant is PoolWithFraction {
-    constructor(IERC7984 asset_) PoolWithFraction(asset_) {}
+    constructor(IERC7984 asset_, uint40 m) PoolWithFraction(asset_, m) {}
 
     function forceReveal(uint32 drawId, uint64 r, uint128 total) external {
         _applyReveal(drawId, r, total);

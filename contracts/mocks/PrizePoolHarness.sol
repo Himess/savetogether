@@ -17,7 +17,7 @@ import {IERC7984} from "@openzeppelin/confidential-contracts/interfaces/IERC7984
  * and that path is untouched here and asserted in `test/draw-ordering.ts`.
  */
 contract PrizePoolHarness is ConfidentialPrizePool {
-    constructor(IERC7984 asset_) ConfidentialPrizePool(asset_) {}
+    constructor(IERC7984 asset_, uint40 minPeriod_) ConfidentialPrizePool(asset_, minPeriod_) {}
 
     function forceReveal(uint32 drawId, uint64 r, uint128 total) external {
         _applyReveal(drawId, r, total);

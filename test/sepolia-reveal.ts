@@ -57,7 +57,7 @@ describe("KMS reveal, end to end", () => {
 
     // The real contract, not the harness: the whole point is `revealDraw`.
     const Pool = await ethers.getContractFactory("ConfidentialPrizePool");
-    const pool = await Pool.deploy(tokenAddr);
+    const pool = await Pool.deploy(tokenAddr, 0);
     await pool.waitForDeployment();
     const addr = await pool.getAddress();
     console.log(`\n    pool  ${addr}`);

@@ -58,7 +58,7 @@ describe("draw ordering", () => {
     await token.waitForDeployment();
 
     const Pool = await ethers.getContractFactory("ConfidentialPrizePool");
-    pool = (await Pool.deploy(await token.getAddress())) as unknown as ConfidentialPrizePool;
+    pool = (await Pool.deploy(await token.getAddress(), 0)) as unknown as ConfidentialPrizePool;
     await pool.waitForDeployment();
     poolAddr = await pool.getAddress();
 

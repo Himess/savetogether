@@ -64,7 +64,7 @@ describe("ConfidentialPrizePool", () => {
     tokenAddr = await token.getAddress();
 
     const Pool = await ethers.getContractFactory("ConfidentialPrizePool");
-    pool = (await Pool.deploy(tokenAddr)) as unknown as ConfidentialPrizePool;
+    pool = (await Pool.deploy(tokenAddr, 0)) as unknown as ConfidentialPrizePool;
     await pool.waitForDeployment();
     poolAddr = await pool.getAddress();
 

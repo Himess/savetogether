@@ -79,7 +79,7 @@ describe("accrual", () => {
     await token.waitForDeployment();
 
     const Pool = await ethers.getContractFactory("PrizePoolHarness");
-    pool = (await Pool.deploy(await token.getAddress())) as unknown as PrizePoolHarness;
+    pool = (await Pool.deploy(await token.getAddress(), 0)) as unknown as PrizePoolHarness;
     await pool.waitForDeployment();
     poolAddr = await pool.getAddress();
 
@@ -206,7 +206,7 @@ describe("accrual", () => {
     // mint balance it does not hold, so an exhausted reserve clamps the credit
     // rather than crediting a winner against nothing.
     const Pool = await ethers.getContractFactory("PrizePoolHarness");
-    const small = (await Pool.deploy(await token.getAddress())) as unknown as PrizePoolHarness;
+    const small = (await Pool.deploy(await token.getAddress(), 0)) as unknown as PrizePoolHarness;
     await small.waitForDeployment();
     const addr = await small.getAddress();
     const until = (await ethers.provider.getBlock("latest"))!.timestamp + 365 * DAY;

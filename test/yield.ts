@@ -61,7 +61,7 @@ describe("yield", () => {
     await token.waitForDeployment();
 
     const Pool = await ethers.getContractFactory("PrizePoolHarness");
-    pool = (await Pool.deploy(await token.getAddress())) as unknown as PrizePoolHarness;
+    pool = (await Pool.deploy(await token.getAddress(), 0)) as unknown as PrizePoolHarness;
     await pool.waitForDeployment();
     poolAddr = await pool.getAddress();
 

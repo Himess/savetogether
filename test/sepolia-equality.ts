@@ -162,7 +162,7 @@ describe("accrue: winner against loser", () => {
       token = t as unknown as Contract;
 
       const Pool = await ethers.getContractFactory("PrizePoolHarness");
-      const p = await Pool.deploy(await t.getAddress());
+      const p = await Pool.deploy(await t.getAddress(), 0);
       await p.waitForDeployment();
       pool = p as unknown as Contract;
       const addr = await p.getAddress();

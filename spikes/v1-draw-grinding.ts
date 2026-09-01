@@ -39,7 +39,7 @@ describe("V1 — draw grinding", () => {
     const tokenAddr = await token.getAddress();
 
     const Pool = await ethers.getContractFactory("PrizePoolHarness");
-    const pool = await Pool.deploy(tokenAddr);
+    const pool = await Pool.deploy(tokenAddr, 0);
     await pool.waitForDeployment();
     const poolAddr = await pool.getAddress();
 
@@ -100,7 +100,7 @@ describe("V1 — draw grinding", () => {
     const tokenAddr = await token.getAddress();
 
     const Pool = await ethers.getContractFactory("PrizePoolHarness");
-    const pool = await Pool.deploy(tokenAddr);
+    const pool = await Pool.deploy(tokenAddr, 0);
     await pool.waitForDeployment();
     const poolAddr = await pool.getAddress();
 

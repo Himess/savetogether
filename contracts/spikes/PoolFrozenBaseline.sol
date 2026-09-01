@@ -159,7 +159,7 @@ contract PoolFrozenBaseline is ZamaEthereumConfig {
     error NoObservations();
     error TimestampInFuture();
 
-    constructor(IERC7984 asset_) {
+    constructor(IERC7984 asset_, uint40 minPeriod_) {
         asset = asset_;
         genesis = uint40(block.timestamp);
     }

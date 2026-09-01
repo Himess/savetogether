@@ -41,7 +41,7 @@ import {IYieldSource} from "../interfaces/IYieldSource.sol";
  * Withdrawal clamps rather than reverts, for the same reason the claim path
  * will: a revert is observable, and an observable failure is a leak.
  */
-contract PoolWithFraction is ZamaEthereumConfig {
+contract PoolPreV2 is ZamaEthereumConfig {
     /// The ERC-7984 token this pool holds. Deposits arrive already confidential.
     IERC7984 public immutable asset;
 
@@ -159,7 +159,7 @@ contract PoolWithFraction is ZamaEthereumConfig {
     error NoObservations();
     error TimestampInFuture();
 
-    constructor(IERC7984 asset_, uint40 minPeriod_) {
+    constructor(IERC7984 asset_) {
         asset = asset_;
         genesis = uint40(block.timestamp);
     }
@@ -178,34 +178,6 @@ contract PoolWithFraction is ZamaEthereumConfig {
      * reverting, and booking the request instead of the transfer would credit
      * deposits that never arrived.
      */
-    /**
-     * SPIKE ONLY. A fraction of the caller's balance, with no plaintext.
-     *
-     * Deliberately shares no code with the frozen surface: it reaches _drain
-     * and the two TWAB pushes exactly the way deposit() does, and touches
-     * accrue, _snapshotCumulative, _cumulativeAt, thresholdFor and _uniform
-     * not at all.
-     */
-    function depositShifted(euint64 balanceHandle, uint8 shift) external {
-        _drain(msg.sender);
-        euint64 amount = FHE.shr(balanceHandle, shift);
-
-        FHE.allowTransient(amount, address(asset));
-        euint64 received = asset.confidentialTransferFrom(msg.sender, address(this), amount);
-
-        if (address(yieldSource) != address(0)) {
-            FHE.allowTransient(received, address(yieldSource));
-            yieldSource.supply(received);
-        }
-
-        (, euint64 newUser) = FHESafeMath.tryAdd(_balanceOf(_userObs[msg.sender]), received);
-        (, euint64 newTotal) = FHESafeMath.tryAdd(_balanceOf(_totalObs), received);
-
-        _push(_userObs[msg.sender], newUser, msg.sender);
-        _push(_totalObs, newTotal, address(0));
-
-        emit Deposited(msg.sender, uint40(block.timestamp), _userObs[msg.sender].length - 1);
-    }
     function deposit(externalEuint64 encAmount, bytes calldata inputProof) external {
         _drain(msg.sender);
         euint64 amount = FHE.fromExternal(encAmount, inputProof);
@@ -241,37 +213,6 @@ contract PoolWithFraction is ZamaEthereumConfig {
      * "this account tried to withdraw more than it had" is exactly the kind of
      * fact this pool exists to keep private.
      */
-    /**
-     * SPIKE ONLY. A fraction of the position, out.
-     *
-     * The asymmetry with depositShifted is the whole point: on the way OUT the
-     * pool already owns the handle it needs to compute on, because it wrote it
-     * with allowThis. No ACL grant, no second transaction, and the caller never
-     * chooses a number.
-     */
-    function withdrawShifted(uint8 shift) external {
-        _drain(msg.sender);
-        euint64 balance = _balanceOf(_userObs[msg.sender]);
-        euint64 amount = FHE.shr(balance, shift);
-
-        (ebool within, euint64 decreased) = FHESafeMath.tryDecrease(balance, amount);
-        euint64 request = FHE.select(within, amount, FHE.asEuint64(0));
-
-        euint64 sent;
-        if (address(yieldSource) != address(0)) {
-            FHE.allowTransient(request, address(yieldSource));
-            sent = yieldSource.redeem(request, msg.sender);
-        } else {
-            FHE.allowTransient(request, address(asset));
-            sent = asset.confidentialTransfer(msg.sender, request);
-        }
-
-        (, euint64 newUser) = FHESafeMath.tryAdd(decreased, FHE.sub(request, sent));
-        (, euint64 newTotal) = FHESafeMath.tryDecrease(_balanceOf(_totalObs), sent);
-
-        _push(_userObs[msg.sender], newUser, msg.sender);
-        _push(_totalObs, newTotal, address(0));
-    }
     function withdraw(externalEuint64 encAmount, bytes calldata inputProof) external {
         _drain(msg.sender);
         euint64 amount = FHE.fromExternal(encAmount, inputProof);

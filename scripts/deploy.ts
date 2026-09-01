@@ -36,6 +36,16 @@ const PRIZE = 25n;
  */
 const RATE_BPS = 100_000n;
 
+/**
+ * The shortest a draw window may be, and deliberately equal to the cadence the
+ * keeper actually runs at (scripts/keeper.ts PERIOD_SECONDS).
+ *
+ * Setting the floor to the intended period is the whole point: grinding then
+ * gains nothing over the schedule. A floor shorter than the schedule would leave
+ * the hole half-open; one longer would stop the keeper doing its job.
+ */
+const MIN_PERIOD = 300n;
+
 /** The pot the mock pays out of. Simulated, and labelled everywhere as such. */
 const POT = 50_000_000n;
 
@@ -53,7 +63,7 @@ async function main(): Promise<void> {
   console.log(`token   ${tokenAddr}`);
 
   const Pool = await ethers.getContractFactory("ConfidentialPrizePool");
-  const pool = await Pool.deploy(tokenAddr);
+  const pool = await Pool.deploy(tokenAddr, MIN_PERIOD);
   await pool.waitForDeployment();
   const poolAddr = await pool.getAddress();
   console.log(`pool    ${poolAddr}`);

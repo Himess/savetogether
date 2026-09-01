@@ -106,7 +106,7 @@ describe("accrue, measured on Sepolia", () => {
     const tokenAddr = await token.getAddress();
 
     const Pool = await ethers.getContractFactory("PrizePoolHarness");
-    const pool = await Pool.deploy(tokenAddr);
+    const pool = await Pool.deploy(tokenAddr, 0);
     await pool.waitForDeployment();
     const addr = await pool.getAddress();
     console.log(`\n    pool  ${addr}`);

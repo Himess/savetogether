@@ -72,7 +72,7 @@ async function main(): Promise<void> {
   console.log(`wrapper  ${CUSDC}  (underlying ${underlyingAddr}, rate ${await wrapper.rate!()})`);
 
   const Pool = await ethers.getContractFactory("ConfidentialPrizePool");
-  const pool = await Pool.deploy(CUSDC);
+  const pool = await Pool.deploy(CUSDC, 0);
   await pool.waitForDeployment();
   const poolAddr = await pool.getAddress();
   console.log(`pool     ${poolAddr}`);

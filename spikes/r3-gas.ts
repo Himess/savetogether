@@ -37,7 +37,7 @@ describe("R3 — accrue is unchanged by a fractional deposit path", () => {
       const tokenAddr = await token.getAddress();
 
       const Pool = await ethers.getContractFactory(poolName);
-      const pool = await Pool.deploy(tokenAddr);
+      const pool = await Pool.deploy(tokenAddr, 0);
       await pool.waitForDeployment();
       const poolAddr = await pool.getAddress();
 

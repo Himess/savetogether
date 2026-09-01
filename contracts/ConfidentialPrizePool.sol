@@ -139,6 +139,37 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
     /// Start of the first draw's window.
     uint40 public immutable genesis;
 
+    /**
+     * Who may reconfigure the pool.
+     *
+     * Immutable and set to the deployer, with no transfer function, because the
+     * narrowest thing that works is the thing to ship: the only two functions
+     * that need it are `setYieldSource` and `setPrize`, and a full ownership
+     * lifecycle would be surface nobody asked for.
+     *
+     * The previous deployment had NO access control at all, which meant anyone
+     * could point the pool at a yield source of their choosing -- and
+     * `setYieldSource` grants that address operator authority over the pool's
+     * own balance, so it was a one-transaction drain.
+     */
+    address public immutable owner;
+
+    /**
+     * The shortest a draw window may be.
+     *
+     * `prize` is a fixed amount and nothing scales it by how long the window
+     * was, so a holder's expected take is (their weight share x prize) PER DRAW,
+     * independent of the window's length. Without a floor, draws could be opened
+     * back to back and the reserve drained at one prize per KMS round trip --
+     * measured at 25 per two-second window in spikes/v1-draw-grinding.ts.
+     *
+     * A floor bounds payout to one prize per period while keeping `openDraw`
+     * permissionless, which the design values. Scaling the prize by window
+     * length would have worked too and was rejected: it changes `accrue`, and
+     * `accrue` is the surface the 306-sample equality result rests on.
+     */
+    uint40 public immutable minPeriod;
+
     event DrawOpened(uint32 indexed drawId, uint40 periodStart, uint40 snapshotAt);
     event DrawRevealed(uint32 indexed drawId, uint64 r, uint128 totalWeight);
 
@@ -156,12 +187,24 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
     event Deposited(address indexed user, uint40 timestamp, uint256 observationIndex);
     event Withdrawn(address indexed user, uint40 timestamp, uint256 observationIndex);
 
+    /// Two functions could reconfigure the pool for anyone who asked. They cannot now.
+    error NotTheOwner();
+    /// Draws are permissionless but not free-running. See `minPeriod`.
+    error TooSoon(uint40 openableAt);
+
     error NoObservations();
     error TimestampInFuture();
 
-    constructor(IERC7984 asset_) {
+    constructor(IERC7984 asset_, uint40 minPeriod_) {
         asset = asset_;
         genesis = uint40(block.timestamp);
+        owner = msg.sender;
+        minPeriod = minPeriod_;
+    }
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert NotTheOwner();
+        _;
     }
 
     // -----------------------------------------------------------------------
@@ -372,7 +415,14 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
         // handing the KMS a null handle is how the epoch machine bricks.
         if (_totalObs.length == 0) revert NothingStaked();
 
-        uint40 periodStart = drawCount == 0 ? genesis : _draws[drawCount].snapshotAt;
+        // Draws stay permissionless and stop being free-running. Without this a
+        // window two seconds long pays exactly what a window of a day pays.
+        uint40 previous = drawCount == 0 ? genesis : _draws[drawCount].snapshotAt;
+        if (block.timestamp < uint256(previous) + minPeriod) {
+            revert TooSoon(previous + minPeriod);
+        }
+
+        uint40 periodStart = previous;
         uint40 snapshotAt = uint40(block.timestamp);
 
         // The window's aggregate weight. Cumulative differences, not averages:
@@ -535,7 +585,7 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
      * without it every deposit would silently keep its principal here and the
      * prize would never be funded.
      */
-    function setYieldSource(IYieldSource source) external {
+    function setYieldSource(IYieldSource source) external onlyOwner {
         yieldSource = source;
         if (address(source) != address(0)) {
             asset.setOperator(address(source), type(uint48).max);
@@ -560,7 +610,7 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
     }
 
     /// Sets the per-winner prize. Plaintext by design; the reserve is not.
-    function setPrize(uint64 prize_) external {
+    function setPrize(uint64 prize_) external onlyOwner {
         prize = prize_;
     }
 
