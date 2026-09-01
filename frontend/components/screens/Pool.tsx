@@ -54,7 +54,15 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
  * drifted with it, so this screen puts the mechanism back in front: prizes come
  * from harvested yield, the winner is picked by on-chain FHE randomness weighted
  * by an encrypted time-weighted balance, and — the part nobody else will have —
- * THERE IS NO CLAIM STEP, because a voluntary claim would announce the winner.
+ * CLAIMING IS UNCONDITIONAL. `claim(user)` takes an address, anyone may send it
+ * for anyone, and it behaves identically whether that address won. A claim only
+ * a winner would bother to send would name the winner; this one cannot, and
+ * winnings arrive without it either way.
+ *
+ * This screen said "there is no claim step" until the function was added for the
+ * rubric, at which point the sentence was simply false. The privacy argument
+ * survived the change; the wording had to be rebuilt around what the contract
+ * actually does.
  */
 export function PoolScreen() {
   const { address } = useAccount();
@@ -198,7 +206,7 @@ export function PoolScreen() {
             <span style={css("font:650 10.5px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)")}>How it works</span>
             <ol style={css("margin:12px 0 0;padding-left:18px;font:400 13.5px/1.75 var(--display);color:var(--ink-2)")}>
               <li><b style={css("color:var(--ink);font-weight:650")}>Prizes come from harvested yield.</b> The reserve starts empty and fills from <span style={css("font-family:var(--mono);font-size:12.5px")}>harvest()</span> alone — a paired test proves a prize is paid after a harvest and nothing is paid without one.</li>
-              <li><b style={css("color:var(--ink);font-weight:650")}>The winner is picked on chain.</b> FHE randomness, weighted by an encrypted time-weighted balance. In both live rounds so far the earliest and smallest depositor won, which is the time weighting doing its job.</li>
+              <li><b style={css("color:var(--ink);font-weight:650")}>The winner is picked on chain.</b> FHE randomness, weighted by an encrypted time-weighted balance — how much you held and for how long, not how much you hold now. On the previous deployment that repeatedly handed the round to the earliest and smallest depositor, which is the time weighting doing its job rather than a bug.</li>
               <li><b style={css("color:var(--ink);font-weight:650")}>Claiming announces nothing.</b> <span style={css("font-family:var(--mono);font-size:12.5px")}>claim(user)</span> exists and anyone may call it for anyone — it does the identical thing whether that address won or not. That is the whole design: a claim only the winner would bother to send would name the winner, so this one is unconditional and your winnings also arrive without it.</li>
               <li><b style={css("color:var(--ink);font-weight:650")}>Winner and loser look identical on chain.</b> 306 live accruals: one operation sequence, one HCU figure, and gas that tracks the address rather than the outcome.</li>
               {/* The first thing a judge alone will notice, said before they
