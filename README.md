@@ -395,30 +395,46 @@ machine, its self-healing keeper, and four KMS traps it paid to discover.
 
 ## What is not done
 
-- **The frontend has not been exercised in a browser with a real wallet.** It
-  type-checks, every panel is in the bundle, and the contract path under each is
-  covered by tests and a live round — but connecting a wallet and signing a permit
-  is a manual pass that has not happened.
-- **`joinVault` is repeatable, and repeating it drains the withdrawal buffer.**
-  It sends `FHE.shr(_principal, 1)` and does not decrement `_principal`, so the
-  "half" is half of the same number every time, and the function is
-  permissionless. Two calls move the whole principal; more calls reach the pot.
-  Nothing is stolen — the batcher credits this contract and `claimShares`
-  recovers the position — but the money becomes illiquid until batches settle,
-  and *principal is withdrawable at any time* is a liquidity claim. Pinned by
-  `test/withdraw-buffer.ts`. Live exposure today is small: the buffer is the
-  900,000 cUSDC pot plus principal against ~12,600 of deposits, and `joinVault`
-  has been called once. **The fix is to track what has been joined and bound the
-  function; it needs a redeploy and has not been made.**
-- **Withdrawal is all-or-nothing when the buffer is short.** ERC-7984's transfer
-  clamps to zero rather than paying out partially, so asking for more than the
-  source holds moves **nothing** and the transaction still succeeds. Nothing is
-  lost — the position is untouched and a smaller ask goes through — but it is a
-  silent failure with a cause the interface does not name.
-- **The replica's yield is pre-funded, not earned.** The 900,000 cUSDC pot is
-  where prizes come from; the rate decides how much, the pot decides for how
-  long. Zama's Sepolia vault has no yield adapter, so the composition is real and
-  the appreciation is not.
+Each of these names the test that pins it, because a limitation nobody can check
+is a claim rather than a disclosure.
+
+- **The reserve can still under-pay, and it is silent when it does.** B1 made
+  *who* gets paid deterministic; it did not make the reserve infinite. A tier-0 win
+  before the reserve can cover it credits the winner zero, and a declined
+  `tryDecrease` is exactly what losing looks like. Simulated at **3.2–3.6%**,
+  concentrated in the first four rounds after a deploy.
+  `test/reserve-order.ts`, `spikes/y2-reserve-simulation.ts`.
+- **The first draw after a deploy cannot pay at all.** The source has accrued
+  nothing, so the first harvest is zero. Observed live: draw 1 of this pool said
+  WIN tier 1 under the public rule and paid nothing. With a sole depositor the
+  ordinary tier is won with certainty, so it is **97.3%**, not 3%. Fixed by
+  sequencing — the keeper holds the first draw until the source has a full period —
+  and not by prize sizing, which cannot touch it.
+- **Withdrawal is all-or-nothing.** ERC-7984's transfer clamps to zero rather than
+  paying out partially, so asking for more than you hold *or* more than the pool
+  has liquid moves **nothing** and the transaction still succeeds. Nothing is
+  lost, and a smaller ask goes through. Both causes are now named in the interface
+  before the signature. `test/withdraw-buffer.ts`.
+- **Accrual is O(participants), where PoolTogether is O(winners).** 386,608 gas
+  each, so a hundred depositors is 38.7M gas per draw — over a block. That is the
+  price of unconditional accrual, which is the property this design exists for.
+  The lazy-accrual design that fixes it is costed but not built.
+- **We hide amounts, not identities.** Every `Deposited` event names its
+  depositor and the participant set is public. FHE is not a mixer.
+- **The prize is a plaintext `uint64`.** PoolTogether's prize *is* the accumulated
+  tier liquidity, so a shortfall cannot arise there; ours can. Closing it needs
+  `FHE.div` and a rewrite of what `setTiers` means. `docs/tier-derivation.md` §4.
+- **`totalWeight` is published.** The aggregate leaks; individual balances do not.
+  Kept deliberately: encrypting it costs 8.3× and loses public auditability of the
+  draw, which is the thing a lottery most needs to prove. `spikes/a2-encrypted-total.ts`.
+- **The keeper is one process with one key.** `cancelDraw` bounds the damage of it
+  dying; it does not decentralise it, and `accrueMany`'s fee is a reimbursement
+  rather than a market. `test/phase-b.ts`.
+- **The replica's yield is pre-funded, not earned.** The 900,000 cUSDC pot is where
+  prizes come from; the rate decides how much, the pot decides for how long. Zama's
+  Sepolia vault has no yield adapter, so **the composition is real and the
+  appreciation is not**.
 - **`euint128` for the cumulative accumulator is required, not optional.** A
-  6-decimal balance of 1e12 held for a year overflows `2^64` in about seven months.
+  6-decimal balance of 1e12 held for a year overflows `2^64` in about seven months,
+  and an FHE multiply has no revert to notice it with.
 - **No confirmation-depth policy.** Fine on Sepolia; not on mainnet.
