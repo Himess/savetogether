@@ -72,8 +72,8 @@ You can hide what you save. **You still cannot hide what you win.**
 
 | Contract | Address | Purpose |
 |---|---|---|
-| **ConfidentialPrizePool** | [`0x118Bc1…d88DA`](https://sepolia.etherscan.io/address/0x118Bc19eE40f2d3AB9c3B798F3e08f220e8d88DA#code) | TWAB, the draw, three encrypted prize tiers |
-| **SteakhouseReplicaSource** | [`0x3C5645…0f64`](https://sepolia.etherscan.io/address/0x3C5645E138Fd91a12d76ffC01fE42c9523010f64#code) | the yield, and both directions into Zama's vault |
+| **ConfidentialPrizePool** | [`0xa9B69D…26631`](https://sepolia.etherscan.io/address/0xa9B69Dc9F9f4C4512c926ba9eA432eBcF0026631#code) | TWAB, the draw, three encrypted prize tiers |
+| **SteakhouseReplicaSource** | [`0x3C5645…0f64`](https://sepolia.etherscan.io/address/0xDa596e47029839eA7E1990f97F106fd6d2e33695#code) | the yield, and both directions into Zama's vault |
 | **SaveTogetherSession** | [`0xE5c667…6Cf6`](https://sepolia.etherscan.io/address/0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6#code) | encrypted, on-chain-bounded session budgets |
 
 ### Zama's, which we call and never deploy
@@ -81,7 +81,7 @@ You can hide what you save. **You still cannot hide what you win.**
 | Contract | Address | |
 |---|---|---|
 | cUSDC | [`0x7c5BF4…3639`](https://sepolia.etherscan.io/address/0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639) | what the pool settles in |
-| Deposit batcher | [`0x487585…F53b`](https://sepolia.etherscan.io/address/0x48758559c14d4d92b4C74A99660B6a8dbe85F53b) | cUSDC → shares · our principal is in [batch 285](https://sepolia.etherscan.io/tx/0xea495f6940ad40a76948a25f0e3687cd7596a6f5ca6abea99658753b0cb93f63) |
+| Deposit batcher | [`0x487585…F53b`](https://sepolia.etherscan.io/address/0x48758559c14d4d92b4C74A99660B6a8dbe85F53b) | cUSDC → shares · our principal is in [batch 286](https://sepolia.etherscan.io/address/0xDa596e47029839eA7E1990f97F106fd6d2e33695) |
 | Redeem batcher | [`0xe94E9a…BEb0`](https://sepolia.etherscan.io/address/0xe94E9afdDd43a19C2914739e9279cb6Fe287BEb0) | shares → cUSDC, the way back out |
 | csteakcUSDC | [`0x13F7d3…28c4`](https://sepolia.etherscan.io/address/0x13F7d34A4f0102734F19E3Ff16e068Fe194B28c4) | the vault share |
 | Steakhouse Confidential Prime USDC | [`0x6AB549…f864C`](https://sepolia.etherscan.io/address/0x6AB54988261AEC573a2CA13cF802d3B1114f864C) | the ERC-4626 both batchers settle against |
@@ -459,7 +459,7 @@ vault and is not affiliated with Steakhouse Financial or Morpho.
 
 ### The composition, on chain
 
-The pool's principal is in **batch 285** of Zama's own batcher:
+The pool's principal is in **batch 286** of Zama's own batcher:
 
 ```
 tx        0x1f0b29b4fe48fad023633c9b6cf75cbfe0259f9f605987b36466704b86c21265

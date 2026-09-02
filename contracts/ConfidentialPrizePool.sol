@@ -477,7 +477,11 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
             FHE.mul(FHE.asEuint128(o.balance), uint128(target - o.timestamp))
         );
         FHE.allowThis(extrapolated);
-        FHE.allow(extrapolated, msg.sender);
+        // The account, not the caller — same defect as `weightFor` and strictly
+        // worse: this one takes the timestamp as a parameter, so a stranger could
+        // pick any two and difference them into a weight over any window they
+        // liked. Both are pinned by `test/aa1-weight-leak.ts`.
+        FHE.allow(extrapolated, account);
         return extrapolated;
     }
     // -----------------------------------------------------------------------
@@ -663,7 +667,22 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
             _cumulativeAt(_userObs[user], d.periodStart)
         );
         FHE.allowThis(w);
-        FHE.allow(w, msg.sender);
+
+        // THE SUBJECT, NOT THE CALLER. This granted to `msg.sender` for an
+        // arbitrary `user`, which handed anyone decryption rights over anyone
+        // else's weight — and `totalWeight` is published at every reveal, so a
+        // weight is a pool share. It was the primary secret this contract exists
+        // to keep, readable by a stranger.
+        //
+        // It survived because a direct EOA call cannot capture the return value:
+        // a receipt does not carry one, so by hand the function looks harmless.
+        // A CONTRACT can. `test/aa1-weight-leak.ts` is that contract, and before
+        // this line changed it recovered a 137,000 balance as 137,001.
+        //
+        // Anyone may still CALL this — triggering the computation leaks nothing.
+        // Only the subject can read the answer, which is what the draw audit in
+        // `scripts/verify-draw.ts` needs and all it needs.
+        FHE.allow(w, user);
         return w;
     }
 
@@ -841,12 +860,7 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
         if (accrued[drawId][user]) return;
         accrued[drawId][user] = true;
 
-        euint128 weight = FHE.sub(
-            _snapshotCumulative(user, drawId, d.snapshotAt),
-            drawId == 1
-                ? _cumulativeAt(_userObs[user], d.periodStart)
-                : _snapshotCumulative(user, drawId - 1, _draws[drawId - 1].snapshotAt)
-        );
+        euint128 weight = FHE.sub(_snapshotCumulative(user, drawId, d.snapshotAt), _windowStart(user, drawId, d));
 
         // Public thresholds, encrypted weight, strict comparison. An address with
         // no history before the snapshot has weight zero and `gt` is strict, so
@@ -882,6 +896,37 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
         FHE.allow(nextWinnings, user);
 
         emit Accrued(user, drawId);
+    }
+
+    /**
+     * The cumulative at the start of a draw's window.
+     *
+     * THE WINDOW STARTS AT `d.periodStart`. Always. This used to read
+     * `_draws[drawId - 1].snapshotAt` instead, which is the same timestamp for an
+     * ordinary sequence and a DIFFERENT one after a cancellation — and B5 exists
+     * to make cancellations happen.
+     *
+     * `openDraw` hands a cancelled draw's window to the next draw by taking
+     * `periodStart` from it, and computes `totalWeight` from `periodStart`. So the
+     * aggregate covered the handed-over interval while every user's weight started
+     * later, which is worse than losing a window: the user weights no longer sum
+     * to `totalWeight`, thresholds are drawn from a range wider than the weights
+     * that have to beat them, and every participant's odds are quietly understated.
+     *
+     * `test/aa2-cancel-window.ts` pins it by choosing randomness that lands between
+     * the two candidate weights — the participant wins under one and loses under
+     * the other, so the outcome names the timestamp without revealing either.
+     *
+     * The cache is kept where it is correct: for a Revealed predecessor
+     * `periodStart` IS its snapshot, so the entry under `(drawId - 1, user)` holds
+     * exactly the value needed. After a cancellation the two differ and only the
+     * uncached read is right.
+     */
+    function _windowStart(address user, uint32 drawId, Draw storage d) private returns (euint128) {
+        if (drawId > 1 && _draws[drawId - 1].status == DrawStatus.Revealed) {
+            return _snapshotCumulative(user, drawId - 1, _draws[drawId - 1].snapshotAt);
+        }
+        return _cumulativeAt(_userObs[user], d.periodStart);
     }
 
     /**
