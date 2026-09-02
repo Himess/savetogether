@@ -1,30 +1,128 @@
-# SaveTogether
+<div align="center">
 
-**No-loss prize savings where your balance, your odds, and whether you won all stay encrypted.**
+# 🎟 SaveTogether
 
-Deposit a confidential ERC-7984 token. Your principal is never at risk — only the
-yield funds prizes. Every period a winner is drawn, weighted by how much you held
-and for how long. Nobody can see your balance, your odds, or your result. Not other
-depositors, not the keeper, not the pool.
+### No-loss prize savings where your balance, your odds, and whether you won all stay encrypted
 
-Built on [Zama FHEVM](https://docs.zama.org/protocol) for the Developer Program,
-Season 4.
+**Deposit confidential USDC. Your principal is never at risk — only the yield becomes a prize.
+Every round a winner is drawn, weighted by how much you held and for how long, and nobody can
+see your balance, your odds, or your result. Not other depositors. Not the keeper. Not the pool.**
 
-| | |
-| --- | --- |
-| **Live** | **https://ghostpool-himess.vercel.app** |
-| **Pool** | [`0x118Bc19eE40f2d3AB9c3B798F3e08f220e8d88DA`](https://sepolia.etherscan.io/address/0x118Bc19eE40f2d3AB9c3B798F3e08f220e8d88DA) |
-| **Settles in** | cUSDC — Zama's own confidential USDC, [`0x7c5BF43B…3639`](https://sepolia.etherscan.io/address/0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639) |
-| **Yield source** | [`0x3C5645E1…0f64`](https://sepolia.etherscan.io/address/0x3C5645E138Fd91a12d76ffC01fE42c9523010f64) — a Steakhouse Confidential Prime replica, wired into the vault below |
-| **Zama's redeem batcher** | [`0xe94E9afd…BEb0`](https://sepolia.etherscan.io/address/0xe94E9afdDd43a19C2914739e9279cb6Fe287BEb0) — the way back out, `csteakcUSDC` → cUSDC |
-| **Zama's vault batcher** | [`0x48758559…F53b`](https://sepolia.etherscan.io/address/0x48758559c14d4d92b4C74A99660B6a8dbe85F53b) — the pool's principal is in [batch 285](https://sepolia.etherscan.io/tx/0xea495f6940ad40a76948a25f0e3687cd7596a6f5ca6abea99658753b0cb93f63) |
-| **Session module** | [`0xE5c667c0…6Cf6`](https://sepolia.etherscan.io/address/0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6) |
-| **Network** | Sepolia (11155111) |
-| **Source** | all three contracts [verified on Etherscan](https://sepolia.etherscan.io/address/0x118Bc19eE40f2d3AB9c3B798F3e08f220e8d88DA#code) — `scripts/verify-all.sh` reproduces it from `out/deployment.json` |
+<br/>
+
+[![Built on Zama FHEVM](https://img.shields.io/badge/Built%20on-Zama%20FHEVM-FFD208?style=for-the-badge&labelColor=1a1a1a)](https://docs.zama.org/protocol)
+[![Network](https://img.shields.io/badge/Ethereum-Sepolia-627EEA?style=for-the-badge&labelColor=1a1a1a)](https://sepolia.etherscan.io/)
+[![Solidity](https://img.shields.io/badge/Solidity-0.8.27-363636?style=for-the-badge&labelColor=1a1a1a)](https://soliditylang.org/)
+[![Zama Developer Program S4](https://img.shields.io/badge/Zama%20Dev%20Program%20S4-Bounty%20Track-C9A227?style=for-the-badge&labelColor=1a1a1a)](https://www.zama.org/)
+
+[![Live](https://img.shields.io/badge/▶%20Live-ghostpool--himess.vercel.app-2fbf7a?style=flat-square)](https://ghostpool-himess.vercel.app)
+[![Contracts](https://img.shields.io/badge/contracts-3%20verified-success?style=flat-square)](#-deployed-sepolia)
+[![Tests](https://img.shields.io/badge/tests-176%20passing-brightgreen?style=flat-square)](#-testing)
+[![Composed with](https://img.shields.io/badge/composed%20with-Zama's%20Confidential%20Vault-5c9bff?style=flat-square)](https://app.zama.org/earn)
+[![License](https://img.shields.io/badge/license-BSD--3--Clause--Clear-blue?style=flat-square)](./LICENSE)
+
+**[🌐 Live app](https://ghostpool-himess.vercel.app) · [💬 Talk to it](#-talking-to-it) · [📜 Contracts](#-deployed-sepolia) · [🧠 How the draw works](#-the-idea-and-the-one-thing-that-makes-it-hard)**
+
+</div>
 
 ---
 
-## Talking to it
+## 💡 Why
+
+**Zama and Steakhouse × Morpho already shipped the supply side.** `app.zama.org`
+runs a confidential vault — Steakhouse Confidential Prime USDC, **7.20% APY,
+$40.5M deposited** — where you shield your deposit and earn encrypted yield in
+batches.
+
+You can hide what you save. **You still cannot hide what you win.**
+
+> Every prize-savings protocol broadcasts it. PoolTogether's TWAB is public, so
+> your balance, your odds and your result are readable by anyone with an RPC
+> endpoint. SaveTogether is that product with the broadcast removed — and it
+> settles in the same cUSDC and earns through the same vault.
+
+---
+
+## 📖 Contents
+
+- [Why](#-why)
+- [Deployed (Sepolia)](#-deployed-sepolia)
+- [Composed with Zama's vault, both directions](#-composed-with-zamas-vault-both-directions)
+- [Talking to it](#-talking-to-it)
+- [Try it in thirty seconds](#-try-it-in-thirty-seconds)
+- [The idea, and the one thing that makes it hard](#-the-idea-and-the-one-thing-that-makes-it-hard)
+- [Prize tiers, derived rather than chosen](#-prize-tiers-derived-rather-than-chosen)
+- [Anyone can audit the draw](#-anyone-can-audit-the-draw)
+- [Claiming announces nothing](#-claiming-announces-nothing)
+- [Where the prize comes from](#-where-the-prize-comes-from)
+- [What we measured](#-what-we-measured)
+- [Testing](#-testing)
+- [What is hidden, and what is not](#-what-is-hidden-and-what-is-not)
+- [Running it](#-running-it)
+- [What is not done](#-what-is-not-done)
+
+---
+
+## 📜 Deployed (Sepolia)
+
+> Chain `11155111` · **all three of our contracts Etherscan-verified** ✅ ·
+> `npm run verify:all` reproduces it from `out/deployment.json`
+
+### Ours
+
+| Contract | Address | Purpose |
+|---|---|---|
+| **ConfidentialPrizePool** | [`0x118Bc1…d88DA`](https://sepolia.etherscan.io/address/0x118Bc19eE40f2d3AB9c3B798F3e08f220e8d88DA#code) | TWAB, the draw, three encrypted prize tiers |
+| **SteakhouseReplicaSource** | [`0x3C5645…0f64`](https://sepolia.etherscan.io/address/0x3C5645E138Fd91a12d76ffC01fE42c9523010f64#code) | the yield, and both directions into Zama's vault |
+| **SaveTogetherSession** | [`0xE5c667…6Cf6`](https://sepolia.etherscan.io/address/0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6#code) | encrypted, on-chain-bounded session budgets |
+
+### Zama's, which we call and never deploy
+
+| Contract | Address | |
+|---|---|---|
+| cUSDC | [`0x7c5BF4…3639`](https://sepolia.etherscan.io/address/0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639) | what the pool settles in |
+| Deposit batcher | [`0x487585…F53b`](https://sepolia.etherscan.io/address/0x48758559c14d4d92b4C74A99660B6a8dbe85F53b) | cUSDC → shares · our principal is in [batch 285](https://sepolia.etherscan.io/tx/0xea495f6940ad40a76948a25f0e3687cd7596a6f5ca6abea99658753b0cb93f63) |
+| Redeem batcher | [`0xe94E9a…BEb0`](https://sepolia.etherscan.io/address/0xe94E9afdDd43a19C2914739e9279cb6Fe287BEb0) | shares → cUSDC, the way back out |
+| csteakcUSDC | [`0x13F7d3…28c4`](https://sepolia.etherscan.io/address/0x13F7d34A4f0102734F19E3Ff16e068Fe194B28c4) | the vault share |
+| Steakhouse Confidential Prime USDC | [`0x6AB549…f864C`](https://sepolia.etherscan.io/address/0x6AB54988261AEC573a2CA13cF802d3B1114f864C) | the ERC-4626 both batchers settle against |
+
+---
+
+## 🔗 Composed with Zama's vault, both directions
+
+```mermaid
+graph LR
+    U["👤 Depositor"] -->|"encrypted deposit"| P["ConfidentialPrizePool<br/>TWAB · draw · 3 tiers"]
+    P -->|"supply"| S["SteakhouseReplicaSource"]
+    S -->|"joinVault<br/>half the remainder"| DB["Zama DepositBatcher"]
+    DB -->|"csteakcUSDC"| S
+    S -->|"requestUnwind<br/>all shares"| RB["Zama RedeemBatcher"]
+    RB -->|"cUSDC back"| S
+    DB --- V["Steakhouse Confidential Prime USDC<br/>ERC-4626"]
+    RB --- V
+    S -->|"harvest → reserve"| P
+    P -->|"encrypted prize"| U
+    classDef ours fill:#ffd208,stroke:#1a1a1a,color:#1a1a1a,font-weight:bold;
+    classDef zama fill:#16181f,stroke:#2f333d,color:#eceef2;
+    class P,S ours;
+    class DB,RB,V zama;
+```
+
+**The honest split, and both halves are on screen wherever they are shown:**
+
+| | |
+|---|---|
+| **The vault composition** | **Real.** Zama's deployed batchers, real shares, on chain, both directions. |
+| **The rate** | **Ours.** Zama's Sepolia vault is idle-only with no yield adapter — measured — so nothing about it appreciates and a prize funded from its appreciation would never be paid. |
+
+The mainnet vault is Steakhouse × Morpho and we do not touch it. Zama's Sepolia
+deployment is their own replica of it — the ERC-4626 is literally named
+*Steakhouse Confidential Prime USDC* — and that is what we join.
+
+
+---
+
+## 💬 Talking to it
 
 The pool has a second front door: you can just say what you want.
 
@@ -38,6 +136,26 @@ Connect a wallet, sign once, paste a URL into Claude's connector settings. No
 terminal, no npm, no tab kept open.
 
 ### The key we hold cannot do more than the chain lets it
+```mermaid
+sequenceDiagram
+    autonumber
+    participant B as 🌐 Your browser
+    participant H as SaveTogether hosted
+    participant C as ⛓ SaveTogetherSession
+    participant M as 💬 Claude
+    B->>H: prepare(owner, budget, ttl)
+    H->>H: generate a session key, sign the EIP-712 digest
+    H-->>B: calls for YOUR wallet to sign
+    B->>C: openSession(...)  ← your key, never ours
+    Note over C: budget is an euint64 NOBODY can read<br/>allowlist · expiry ≤ 24h · tx cap
+    B->>H: adopt(token)
+    H->>C: re-check the chain before serving anything
+    H-->>M: an MCP URL
+    M->>H: pool_deposit "half my balance"
+    H->>C: send(), clamped against the encrypted budget
+    B->>C: closeSession()  ← from your wallet, needing nothing from us
+```
+
 
 A server holds a session key. That is worth being precise about rather than
 reassuring about, because "we store your key safely" is the sentence every
@@ -98,7 +216,7 @@ that by not using it.
 
 ---
 
-## Try it in thirty seconds
+## ⚡ Try it in thirty seconds
 
 1. Connect a wallet on Sepolia.
 2. Press **Get 1,000** — the demo token has a public `mint`, so you fund yourself.
@@ -121,7 +239,7 @@ so it is not what the demo puts in front of you. The deposit screen supports it.
 
 ---
 
-## The idea, and the one thing that makes it hard
+## 🧠 The idea, and the one thing that makes it hard
 
 A prize pool needs to pick a winner in proportion to each participant's weight.
 With encrypted balances, the obvious construction — accumulate a running total,
@@ -149,7 +267,100 @@ draw. The draw transaction is one call to `FHE.randEuint64()` and a KMS reveal �
 
 ---
 
-## Nobody claims a prize, and that is a security property
+## 🎚 Prize tiers, derived rather than chosen
+
+Three tiers, PoolTogether's structure: one grand prize, a middle one, and an
+ordinary one every round.
+
+| tier | prize | k | expected frequency | at a 30-minute cadence |
+|---|---|---|---|---|
+| **Grand** | 25 cUSDC | 100 | 1 winner per 100 draws | ~every 2 days |
+| **Middle** | 5 cUSDC | 10 | 1 winner per 10 draws | ~every 5 hours |
+| **Ordinary** | 1 cUSDC | 1 | 1 winner per draw | ~every 30 minutes |
+
+```
+threshold(t) = uniform(keccak(r, drawId, user, t), totalWeight × k[t])
+P(win tier t) = weight / (totalWeight × k[t])
+```
+
+Sum that over every participant and the weights collapse into `totalWeight`:
+
+> **E[winners of tier t per draw] = 1 / k[t]**, independent of how the balances
+> are distributed. `k` is not a tuning knob — it is literally *one winner every
+> k draws*, and the schedule does not move when a whale arrives or leaves.
+
+Confirmed on chain: a sole holder's odds print as **1.000% / 10.000% / 100.000%**.
+
+### The sizes come out of the harvest
+
+**Solvency is not the binding constraint — variance is.** A single reserve sized
+by the *average* payout still has to absorb a prize that fires once every hundred
+draws, and `FHESafeMath.tryDecrease` declining is indistinguishable from losing.
+
+The configuration that *looks* right — a 100 cUSDC grand prize using 57% of the
+harvest — measures a **30.2%** chance of a silent zero. What shipped measures
+**3.2–3.6%**, and the low utilisation is the variance buffer rather than slack.
+20,000 simulated trials, in [`spikes/y2-reserve-simulation.ts`](spikes/y2-reserve-simulation.ts);
+the full derivation is [`docs/tier-derivation.md`](docs/tier-derivation.md).
+
+**And the tier you won is itself encrypted** — one `euint64` credit whatever
+happened. In PoolTogether your tier is public the moment a claim lands.
+
+---
+
+## 🔍 Anyone can audit the draw
+
+`r` and `totalWeight` are published at every reveal, so every threshold is a
+pure function of public inputs and the whole draw can be recomputed by a stranger.
+
+```bash
+npx hardhat run scripts/verify-draw.ts --network sepolia
+```
+
+```
+draw 2 of 2   r 8026672892836444255   total 22344000000000
+1. every threshold recomputed from public inputs, checked against the contract
+   0xF505…E5Ae   t0 20.14%   t1 40.61%   t2 63.31%
+   0x4446…b5eC   t0 78.83%   t1 73.57%   t2 92.58%
+   6/6 thresholds reproduce exactly
+3. my own outcome, which only I can check
+   tier 2 CLEARED  (odds 99.248%)  →  rule says WIN tier 2, 1 cUSDC
+```
+
+**Be precise about the scope, because overstating it would be worse than not
+having it:**
+
+| | |
+|---|---|
+| Anyone, with no permissions | every threshold, and that the sampling is unbiased rather than a bare modulus |
+| A participant, for themselves | their own weight against their own thresholds, and therefore their own result |
+| **Nobody** | **anyone else's result** — weights are encrypted, which is the product |
+
+This is why the aggregate stays public. Encrypting `totalWeight` was designed,
+measured at **8.3×** and a 40% cut in keeper throughput, and rejected — it would
+hide a number that a one-wei deposit recovers anyway, at the cost of the only
+thing a lottery really has to prove.
+
+---
+
+## 🎁 Claiming announces nothing
+```mermaid
+sequenceDiagram
+    autonumber
+    participant K as 🤖 Keeper (permissionless)
+    participant P as ConfidentialPrizePool
+    participant KMS as 🔐 Zama KMS
+    K->>P: harvest()
+    Note over P: yield → reserve. The reserve starts EMPTY<br/>and fills from here and nowhere else.
+    K->>P: openDraw()
+    Note over P: freeze weights + FHE.randEuint64()<br/>both marked publicly decryptable
+    P->>KMS: publicDecrypt(R, totalWeight)
+    KMS-->>K: cleartexts + proof
+    K->>P: revealDraw(...) + checkSignatures
+    K->>P: accrueMany(users, drawId)
+    Note over P: sorted by keccak256(drawId,user) INSIDE the contract<br/>3 encrypted comparisons per user, best tier wins<br/>winner and loser are the same transaction
+```
+
 
 The threshold above is a pure function of public inputs, so **a participant can
 work out their own result off chain with no transaction at all.** They know their
@@ -220,7 +431,7 @@ somebody else is in.
 
 Making a sole participant lose would be the wrong behaviour, not a fix.
 
-## Where the prize comes from
+## 💰 Where the prize comes from
 
 Yield, on the pool's own deposits. Principal does not sit in the pool — it goes
 to a yield source the moment it arrives, and `harvest()` moves what it has earned
@@ -277,7 +488,7 @@ step of a batch is documented as permissionless, our own `dispatchBatchCallback`
 reverted — the batch settled because Zama runs a keeper, so there is an
 operational dependency the docs do not mention.
 
-## What we measured
+## 🔬 What we measured
 
 Everything below is measured on live Sepolia, not inferred. `findings.md` has the
 full accounting, including the measurements that came out wrong and why.
@@ -310,7 +521,31 @@ the effect vanishes. `findings.md` §14.
 
 ---
 
-## What leaks
+## ✅ Testing
+
+```bash
+npm test          # 176 passing
+```
+
+| suite | what it pins |
+|---|---|
+| `withdraw-buffer.ts` | the round trip through Zama's vault, both directions, and that a short buffer loses nothing |
+| `reserve-order.ts` | that the keeper cannot choose the winner when the reserve is short |
+| `phase-b.ts` | the keeper fee never displaces a prize · a dead keeper cannot brick the pool · ownership can be renounced |
+| `c1-indistinguishability.ts` | 312 accruals, 81 winners and 231 losers, **zero within-draw separation** |
+| `frozen-surface.ts` | tiers cost +70,867 gas and add **no** outcome-dependence |
+| `replica-source.ts` | a paired run where the only difference is the harvest |
+| `equality-invariants.ts`, `accrual.ts`, `draw-ordering.ts` | the draw machine itself |
+| `mcp.ts`, `mcp-protocol.ts`, `SaveTogetherSession.ts` | the conversational layer and the session module |
+
+Measurement lives separately, in [`spikes/`](spikes/) — 21 standalone
+experiments that each answer a question that could have been assumed. The HCU
+figures come from decoding `FHEVMExecutor` events and pricing them against
+`HCULimit.sol`, not from a table.
+
+---
+
+## 🕶 What is hidden, and what is not
 
 `docs/leakage.md` states three residuals with their bounds rather than claiming
 none exist:
@@ -329,7 +564,7 @@ outcomes and the reserve stay encrypted.
 
 ---
 
-## Running it
+## 💻 Running it
 
 ```bash
 npm install
@@ -395,7 +630,7 @@ machine, its self-healing keeper, and four KMS traps it paid to discover.
 
 ---
 
-## What is not done
+## 🧭 What is not done
 
 Each of these names the test that pins it, because a limitation nobody can check
 is a claim rather than a disclosure.
