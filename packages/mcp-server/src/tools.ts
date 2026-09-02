@@ -942,9 +942,14 @@ export class SaveTogetherTools {
     return {
       ok: true,
       text:
-        `Withdrawn. Asking for more than the position holds succeeds and moves nothing, on ` +
-        `purpose — a failed transaction would be visible on chain, and what someone tried to ` +
-        `take out is nobody else's business.`,
+        `Withdrawn — check the position to see whether it moved, because a withdrawal is ` +
+        `all-or-nothing and there are TWO reasons it can move nothing. Asking for more than ` +
+        `the position holds is one. The other is asking for more than the pool has liquid ` +
+        `right now: some principal sits in Zama's vault between batches, and it comes back ` +
+        `when a batch settles. Both succeed on chain and both leave the position untouched, ` +
+        `so nothing is lost either way and a smaller amount goes through. The transaction ` +
+        `succeeds on purpose — a revert would be visible, and what someone tried to take out ` +
+        `is nobody else's business.`,
       data: { tx: hash },
     };
   }

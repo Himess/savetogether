@@ -163,9 +163,52 @@ accrual and a winning one are the same transaction differing only in an encrypte
 comparison. The prize compounds straight into the confidential balance, so there is
 no separate withdrawal whose timing could be correlated with a draw.
 
+### What PoolTogether already does here, and where we actually differ
+
+**V5 also has no user-initiated claim.** Third-party `Claimer` bots claim on
+winners' behalf for a VRGDA-priced fee, so a V5 depositor never sends a claim
+either. Framing "no claim step" as our novelty is too broad, and the accurate
+version is sharper:
+
+> They removed the user's **burden**. The claim transaction still names the
+> winner. We removed the **signal**: winning and losing are the same transaction.
+
+**What that costs us, measured.** Their claim is `O(winners)` because only winners
+are claimed for. Ours is `O(participants)` because everybody must be accrued
+whether they won or not: 386,608 gas each, so a hundred participants is 38.7M gas
+per draw — over a block. That is the price of the property, and
+[`docs/inventory.md`](docs/inventory.md) records the lazy-accrual design that
+would fix it.
+
+### We hide amounts, not identities
+
+Every `Deposited` event names its depositor, so **the participant set is public
+and anyone can enumerate it.** What is hidden is how much each holds, what their
+odds are, and whether they won.
+
+This is worth stating plainly because it is the thing most likely to be assumed.
+FHE is not a mixer. Unlinking a deposit from an address is a zero-knowledge
+property and would need a shielded pool underneath this one, which is a different
+protocol rather than a setting.
+
+### Deposit caps would be *harder* here, not easier
+
+V3's real failure was the whale — odds track balance, so a large enough depositor
+wins constantly — and V4 answered with per-wallet deposit caps and a prize cap.
+Under FHE a cap is enforceable on an encrypted balance without revealing it, which
+sounds like an improvement and is a trap:
+
+- a cap is defeated by splitting across wallets, in **any** system, because Sybil
+  resistance needs identity and FHE does not provide it; and
+- in V4 the community could *see* a whale splitting. Here nobody can.
+
+So the honest position is that our privacy property makes this problem worse, and
+a cap we shipped would bind less than PoolTogether's does. It is not in the
+contract for that reason.
+
 ---
 
-### If you are the only depositor, you win every round
+### If you are the only depositor, you win the ordinary tier every round
 
 Worth saying before it is noticed, because it looks rigged and is not. The
 threshold is drawn uniformly from [0, totalWeight), and a lone holder's weight IS

@@ -166,7 +166,7 @@ export function PoolScreen() {
       tab === "deposit" ? "Depositing" : "Withdrawing",
       tab === "deposit"
         ? "Your position is in the pool, encrypted, and starts earning weight now."
-        : "The transaction landed. Asking for more than you hold moves nothing, by design — check your position.",
+        : "The transaction landed — check your position to see whether it moved. A withdrawal is all-or-nothing: if the amount is more than you hold, or more than the pool has liquid, nothing moves and nothing is lost. A smaller amount goes through.",
       async () => {
         const enc = await encrypt({
           contractAddress: POOL,
@@ -306,6 +306,22 @@ export function PoolScreen() {
               </span>
             </div>
           </div>
+
+          {/* B3. The second cause of a silent no-op, named BEFORE the signature
+              rather than after it. The contract cannot tell "more than you hold"
+              from "more than the pool has liquid" — both clamp to zero and both
+              succeed — but the interface can say that both exist. */}
+          {tab === "withdraw" && (
+            <div style={css("margin-top:12px;border:1px solid #f0d97a;background:var(--accent-soft);border-radius:14px;padding:11px 14px")}>
+              <span style={css("font:650 11.5px var(--display);color:#7a5f00")}>Withdrawals are all-or-nothing</span>
+              <p style={css("margin:5px 0 0;font:400 11.5px/1.55 var(--display);color:#7a5f00")}>
+                Ask for more than you hold — or more than the pool has liquid right now, because
+                some principal sits in Zama&apos;s vault between batches — and the transaction
+                succeeds having moved nothing. <b style={css("font-weight:650")}>Nothing is lost</b>:
+                your position is untouched and a smaller amount goes straight through.
+              </p>
+            </div>
+          )}
 
           {/* preconditions, shown rather than discovered */}
           <div style={css("margin-top:12px;border:1px solid var(--line);border-radius:14px;padding:4px 14px")}>
