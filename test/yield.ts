@@ -1,4 +1,5 @@
 import { expect } from "chai";
+import { setFlatPrize } from "./tiers";
 import { ethers, fhevm } from "hardhat";
 import { FhevmType } from "@fhevm/hardhat-plugin";
 import type { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
@@ -75,7 +76,7 @@ describe("yield", () => {
     srcAddr = await source.getAddress();
 
     await (await pool.setYieldSource(srcAddr)).wait();
-    await (await pool.setPrize(PRIZE)).wait();
+    await setFlatPrize(pool, PRIZE);
 
     // The pot the mock pays out of. Simulated, and labelled as such.
     await (await token.mint(srcAddr, 10_000_000n)).wait();

@@ -1,4 +1,5 @@
 import { expect } from "chai";
+import { setFlatPrize } from "./tiers";
 import { ethers, fhevm } from "hardhat";
 import { FhevmType } from "@fhevm/hardhat-plugin";
 
@@ -21,6 +22,9 @@ import { FhevmType } from "@fhevm/hardhat-plugin";
 const DAY = 24 * 60 * 60;
 const PRIZE = 1_000n;
 
+/** Carried between the two ordering tests, which is the whole comparison. */
+let forwardWinner = "";
+
 /** Finds an r where both users clear their own threshold, so both should win. */
 function findR(drawId: number, a: string, b: string, total: bigint): bigint {
   const uniform = (entropy: bigint, upper: bigint): bigint => {
@@ -33,11 +37,16 @@ function findR(drawId: number, a: string, b: string, total: bigint): bigint {
     }
     return x % upper;
   };
+  // The tier is part of the hash now, and FLAT_K puts the reachable tier at 2
+  // with k = 1, so the range is totalWeight exactly as before.
   const th = (r: bigint, who: string): bigint =>
     uniform(
       BigInt(
         ethers.keccak256(
-          ethers.AbiCoder.defaultAbiCoder().encode(["uint64", "uint32", "address"], [r, drawId, who]),
+          ethers.AbiCoder.defaultAbiCoder().encode(
+            ["uint64", "uint32", "address", "uint8"],
+            [r, drawId, who, 2],
+          ),
         ),
       ),
       total,
@@ -68,7 +77,7 @@ async function setup() {
     await (await token.mint!(who!.address, 1_000_000n)).wait();
     await (await token.connect(who!).setOperator!(poolAddr, until)).wait();
   }
-  await (await pool.setPrize!(PRIZE)).wait();
+  await setFlatPrize(pool, PRIZE);
 
   // Alice and Bob hold exactly the same amount for exactly the same time.
   for (const who of [alice, bob]) {
@@ -93,8 +102,8 @@ async function won(pool: any, poolAddr: string, who: any): Promise<bigint> {
   return (await fhevm.userDecryptEuint(FhevmType.euint64, h, poolAddr, who)) as bigint;
 }
 
-describe("the reserve decides by order, and the keeper picks the order", () => {
-  it("pays whoever is accrued FIRST when the reserve holds one prize", async () => {
+describe("B1 — the reserve still decides, but the keeper no longer picks", () => {
+  it("pays the SAME winner whichever order the array is in", async () => {
     const { alice, bob, pool, poolAddr } = await setup();
 
     // Both hold half the weight; pick randomness where both clear their threshold.
@@ -103,16 +112,20 @@ describe("the reserve decides by order, and the keeper picks the order", () => {
     await (await pool.forceReveal!(1, r, total)).wait();
 
     // Both really are winners under the public rule.
-    expect(await pool.thresholdFor!(1, alice!.address)).to.be.lessThan(total / 2n);
-    expect(await pool.thresholdFor!(1, bob!.address)).to.be.lessThan(total / 2n);
+    expect(await pool["thresholdFor(uint32,address,uint8)"]!(1, alice!.address, 2)).to.be.lessThan(total / 2n);
+    expect(await pool["thresholdFor(uint32,address,uint8)"]!(1, bob!.address, 2)).to.be.lessThan(total / 2n);
 
     await (await pool.accrueMany!([alice!.address, bob!.address], 1)).wait();
 
-    expect(await won(pool, poolAddr, alice)).to.equal(PRIZE, "first in the array is paid");
-    expect(await won(pool, poolAddr, bob)).to.equal(0n, "second gets nothing — the reserve was spent");
+    // One of them is paid and the other is not — the reserve holds one prize.
+    // WHICH one is now a function of keccak256(drawId, user) and nothing else.
+    const a1 = await won(pool, poolAddr, alice);
+    const b1 = await won(pool, poolAddr, bob);
+    expect(a1 + b1).to.equal(PRIZE, "exactly one prize is paid");
+    forwardWinner = a1 === PRIZE ? "alice" : "bob";
   });
 
-  it("pays the OTHER one when the array is reversed — same draw, same randomness", async () => {
+  it("reversing the array does NOT reverse the outcome — this is the fix", async () => {
     const { alice, bob, pool, poolAddr } = await setup();
 
     const total = 2n * 10_000n * BigInt(DAY);
@@ -121,8 +134,14 @@ describe("the reserve decides by order, and the keeper picks the order", () => {
 
     await (await pool.accrueMany!([bob!.address, alice!.address], 1)).wait();
 
-    expect(await won(pool, poolAddr, bob)).to.equal(PRIZE, "reversing the array reverses the outcome");
-    expect(await won(pool, poolAddr, alice)).to.equal(0n);
+    const a2 = await won(pool, poolAddr, alice);
+    const b2 = await won(pool, poolAddr, bob);
+    expect(a2 + b2).to.equal(PRIZE, "still exactly one prize");
+    const reverseWinner = a2 === PRIZE ? "alice" : "bob";
+    expect(reverseWinner).to.equal(
+      forwardWinner,
+      "the same address wins whichever way the keeper passes the array",
+    );
   });
 
   it("pays both when the reserve covers both — so it is scarcity, not the rule", async () => {

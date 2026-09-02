@@ -114,7 +114,7 @@ describe("accrue, measured on Sepolia", () => {
     await (await token.mint(me, 10_000_000n)).wait();
     const now = (await ethers.provider.getBlock("latest"))!.timestamp;
     await (await token.setOperator(addr, now + 365 * 24 * 3600)).wait();
-    await (await pool.setPrize(5_000n)).wait();
+    await setFlatPrize(pool, 5_000n);
 
     let e = await fhevm.createEncryptedInput(addr, me).add64(100_000n).encrypt();
     await (await pool.fundReserve(e.handles[0]!, e.inputProof)).wait();

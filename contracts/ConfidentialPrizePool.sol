@@ -79,7 +79,19 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
     enum DrawStatus {
         None,
         Open,
-        Revealed
+        Revealed,
+        /**
+         * B5. A draw nobody revealed, abandoned after a timeout.
+         *
+         * `openDraw` refuses to start while the previous draw is unresolved, so
+         * a keeper that dies mid-draw wedges the machine permanently — the last
+         * draw stays Open and every later one is blocked behind it. This is the
+         * way out, and it is deliberately unattractive: anyone may reveal during
+         * the whole timeout, so abandoning a draw requires the entire world to
+         * ignore it for `CANCEL_AFTER`, and the window is carried into the next
+         * draw so no participant loses weight for having been there.
+         */
+        Cancelled
     }
 
     struct Draw {
@@ -94,8 +106,33 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
 
     uint32 public drawCount;
 
-    /// Per-winner prize, plaintext and fixed. §5.4 sizes the reserve against it.
-    uint64 public prize;
+    /**
+     * The prize tiers, plaintext and fixed. PoolTogether's structure, sized by
+     * derivation rather than by choice — the arithmetic is in the README and in
+     * `docs/tier-derivation.md`, and picking these numbers instead of deriving
+     * them is exactly how this pool once ran for hours paying nothing.
+     *
+     * `k[t]` is not a tuning knob with a vague meaning. Because
+     * `P(user i wins tier t) = weight_i / (totalWeight * k[t])` and the weights
+     * sum to `totalWeight`, the expected winners of tier `t` per draw is exactly
+     * `1 / k[t]` — independent of how the balances are distributed, so the
+     * schedule does not move when a whale arrives or leaves.
+     *
+     * Index 0 is the grand prize (rarest). A participant is awarded the BEST
+     * tier they cleared, never several.
+     */
+    uint8 public constant TIERS = 3;
+    uint64[TIERS] public tierPrize;
+    uint128[TIERS] public tierK;
+
+    /**
+     * The largest prize, cached so `accrue` does not re-read the array.
+     *
+     * Also the number the reserve has to be able to cover: the reserve is sized
+     * by the AVERAGE payout and this is the variance, which is the whole reason
+     * the tier sizes are derived rather than chosen.
+     */
+    uint64 public grandPrize;
 
     /// Funds the prizes. Encrypted, because its size is a claim about the pool.
     euint64 private _reserve;
@@ -142,17 +179,54 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
     /**
      * Who may reconfigure the pool.
      *
-     * Immutable and set to the deployer, with no transfer function, because the
-     * narrowest thing that works is the thing to ship: the only two functions
-     * that need it are `setYieldSource` and `setPrize`, and a full ownership
-     * lifecycle would be surface nobody asked for.
+     * MUTABLE, and only so it can be given up. The previous deployment had no
+     * access control at all — anyone could point the pool at a yield source of
+     * their choosing, and `setYieldSource` grants that address operator
+     * authority over the pool's balance, so it was a one-transaction drain. The
+     * fix made it immutable, which closed the hole and left a different one: a
+     * key that can never be surrendered is a permanent trust assumption in a
+     * contract whose entire pitch is that you do not have to trust anyone.
      *
-     * The previous deployment had NO access control at all, which meant anyone
-     * could point the pool at a yield source of their choosing -- and
-     * `setYieldSource` grants that address operator authority over the pool's
-     * own balance, so it was a one-transaction drain.
+     * B6. `renounceOwnership` sets this to zero, after which every configuration
+     * function reverts forever and the pool is finished. That is the intended
+     * end state once the tiers are set and the source is wired.
      */
-    address public immutable owner;
+    address public owner;
+
+    /**
+     * B6. How far the tier prizes may move in one call, and how often.
+     *
+     * `setTiers` decides who gets paid what, so an owner who can rewrite it
+     * between draws can rewrite the outcome of a draw already in flight. These
+     * two bounds do not remove that power — renouncing does — but they make it
+     * incremental and visible rather than instant and total.
+     */
+    uint64 public constant MAX_PRIZE_MULTIPLE = 2;
+    uint40 public constant TIER_CHANGE_INTERVAL = 6 hours;
+    uint40 public tiersSetAt;
+
+    /**
+     * B5. How long an Open draw may sit before anyone may abandon it.
+     *
+     * Long on purpose. Revealing is permissionless for the whole of it, so
+     * cancelling requires every participant and every observer to ignore a draw
+     * for a full day. The cost of being wrong here is a discarded window, and
+     * the cost of not having it is a pool that is bricked by one dead process.
+     */
+    uint40 public constant CANCEL_AFTER = 24 hours;
+
+    /**
+     * B4. What a keeper is paid for one `accrueMany` call, from the reserve.
+     *
+     * Nobody was being paid to run this. The keeper burns real gas on behalf of
+     * every participant and is reimbursed by nothing, which makes the liveness
+     * of the whole pool a favour somebody is doing it. PoolTogether solves the
+     * same problem with draw auctions; this is the cheap version of the same
+     * idea.
+     *
+     * Taken AFTER every prize in the batch, never before — see `accrueMany`.
+     */
+    uint64 public keeperFee;
 
     /**
      * The shortest a draw window may be.
@@ -196,6 +270,19 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
 
     error NoObservations();
     error TimestampInFuture();
+
+    /// B5
+    event DrawCancelled(uint32 indexed drawId, uint40 at);
+    error NotStale(uint40 cancellableAt);
+    /// B6
+    event TiersSet(uint64[TIERS] prizes, uint128[TIERS] k);
+    event OwnershipRenounced(address indexed was);
+    error PrizeMovedTooFar();
+    error TooSoonToChangeTiers(uint40 changeableAt);
+    error BadTierShape();
+    /// B4
+    event KeeperFeeSet(uint64 fee);
+    event KeeperPaid(address indexed keeper, uint32 indexed drawId, uint256 accrued);
 
     constructor(IERC7984 asset_, uint40 minPeriod_) {
         asset = asset_;
@@ -410,7 +497,11 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
      *     why an empty pool is refused here rather than discovered later.
      */
     function openDraw() external returns (uint32 drawId) {
-        if (drawCount != 0 && _draws[drawCount].status != DrawStatus.Revealed) {
+        if (
+            drawCount != 0 &&
+            _draws[drawCount].status != DrawStatus.Revealed &&
+            _draws[drawCount].status != DrawStatus.Cancelled
+        ) {
             revert PreviousDrawUnresolved();
         }
         // A pool nobody has deposited into has a null aggregate handle, and
@@ -419,7 +510,18 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
 
         // Draws stay permissionless and stop being free-running. Without this a
         // window two seconds long pays exactly what a window of a day pays.
-        uint40 previous = drawCount == 0 ? genesis : _draws[drawCount].snapshotAt;
+        //
+        // B5. A cancelled draw hands its window BACK rather than closing it, so
+        // the weight participants earned while it was open is not discarded by
+        // somebody else's keeper dying. The next draw simply covers both.
+        uint40 previous;
+        if (drawCount == 0) {
+            previous = genesis;
+        } else if (_draws[drawCount].status == DrawStatus.Cancelled) {
+            previous = _draws[drawCount].periodStart;
+        } else {
+            previous = _draws[drawCount].snapshotAt;
+        }
         if (block.timestamp < uint256(previous) + minPeriod) {
             revert TooSoon(previous + minPeriod);
         }
@@ -512,10 +614,20 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
      * Because every input is public, the rejection sampling that removes modulo
      * bias runs in plaintext and costs no FHE at all.
      */
-    function thresholdFor(uint32 drawId, address user) public view returns (uint128) {
+    function thresholdFor(uint32 drawId, address user, uint8 tier) public view returns (uint128) {
         Draw storage d = _draws[drawId];
         if (d.status != DrawStatus.Revealed) revert DrawNotRevealed();
-        return uint128(_uniform(uint256(keccak256(abi.encode(d.r, drawId, user))), d.totalWeight));
+        if (tier >= TIERS) revert BadTierShape();
+        // The tier widens the RANGE rather than narrowing the zone, which is the
+        // same arithmetic as V5's `getWinningZone` read from the other side:
+        // P(win tier t) = weight / (totalWeight * k[t]).
+        uint256 upper = uint256(d.totalWeight) * uint256(tierK[tier]);
+        return uint128(_uniform(uint256(keccak256(abi.encode(d.r, drawId, user, tier))), upper));
+    }
+
+    /// The ordinary tier, kept so callers that predate tiers still read something true.
+    function thresholdFor(uint32 drawId, address user) external view returns (uint128) {
+        return thresholdFor(drawId, user, TIERS - 1);
     }
 
     /**
@@ -612,8 +724,91 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
     }
 
     /// Sets the per-winner prize. Plaintext by design; the reserve is not.
-    function setPrize(uint64 prize_) external onlyOwner {
-        prize = prize_;
+    /**
+     * B6. Sets the tier prizes and their odds, within bounds.
+     *
+     * Three constraints, each closing something the unbounded version left open:
+     *
+     *   - `k` must be strictly decreasing toward the last tier, and the last
+     *     must be 1. That is what makes tier 0 the grand prize and the last tier
+     *     the every-draw one, so the shape cannot be inverted by a typo.
+     *   - No prize may move by more than `MAX_PRIZE_MULTIPLE` in either
+     *     direction. Setting the first tiers is unbounded because there is
+     *     nothing to move from.
+     *   - Not more often than `TIER_CHANGE_INTERVAL`. An owner who can rewrite
+     *     the payouts between draws can rewrite the outcome of a draw already in
+     *     flight; this makes that incremental and visible instead of instant.
+     *
+     * None of it substitutes for renouncing, which is the actual answer.
+     */
+    function setTiers(uint64[TIERS] calldata prizes, uint128[TIERS] calldata k) external onlyOwner {
+        if (k[TIERS - 1] != 1) revert BadTierShape();
+        for (uint8 t = 0; t + 1 < TIERS; t++) {
+            if (k[t] <= k[t + 1]) revert BadTierShape();
+            if (prizes[t] <= prizes[t + 1]) revert BadTierShape();
+        }
+        if (tiersSetAt != 0) {
+            if (block.timestamp < uint256(tiersSetAt) + TIER_CHANGE_INTERVAL) {
+                revert TooSoonToChangeTiers(tiersSetAt + TIER_CHANGE_INTERVAL);
+            }
+            for (uint8 t = 0; t < TIERS; t++) {
+                uint64 was = tierPrize[t];
+                if (was != 0) {
+                    if (prizes[t] > was * MAX_PRIZE_MULTIPLE) revert PrizeMovedTooFar();
+                    if (prizes[t] * MAX_PRIZE_MULTIPLE < was) revert PrizeMovedTooFar();
+                }
+            }
+        }
+        for (uint8 t = 0; t < TIERS; t++) {
+            tierPrize[t] = prizes[t];
+            tierK[t] = k[t];
+        }
+        grandPrize = prizes[0];
+        tiersSetAt = uint40(block.timestamp);
+        emit TiersSet(prizes, k);
+    }
+
+    /// B4. What one `accrueMany` call pays its caller, out of the reserve.
+    function setKeeperFee(uint64 fee) external onlyOwner {
+        keeperFee = fee;
+        emit KeeperFeeSet(fee);
+    }
+
+    /**
+     * B6. Gives up the ability to reconfigure anything, permanently.
+     *
+     * After this the tiers, the yield source and the keeper fee are whatever
+     * they were, forever. It is the intended end state: everything else in this
+     * contract is checkable by someone who does not trust us, and the owner key
+     * was the last thing that was not.
+     */
+    function renounceOwnership() external onlyOwner {
+        emit OwnershipRenounced(owner);
+        owner = address(0);
+    }
+
+    /**
+     * B5. Abandons a draw nobody revealed, so the pool cannot be bricked.
+     *
+     * `openDraw` refuses while the previous draw is unresolved, so a keeper that
+     * dies between opening and revealing stops the machine permanently. This is
+     * the only way out, and it is permissionless because a recovery path that
+     * needs the owner is not a recovery path.
+     *
+     * THE GRIND THIS ADMITS, stated rather than discovered: a keeper that
+     * dislikes a draw's randomness could refuse to reveal it and cancel after a
+     * day. It gains little — revealing is permissionless for the entire day, so
+     * any participant can settle it, and the cancelled window is handed to the
+     * next draw rather than discarded, so nobody's weight is lost. What it costs
+     * an attacker is a day of everyone else not noticing.
+     */
+    function cancelDraw(uint32 drawId) external {
+        Draw storage d = _draws[drawId];
+        if (d.status != DrawStatus.Open) revert DrawNotOpen();
+        uint40 at = d.snapshotAt + CANCEL_AFTER;
+        if (block.timestamp < at) revert NotStale(at);
+        d.status = DrawStatus.Cancelled;
+        emit DrawCancelled(drawId, uint40(block.timestamp));
     }
 
     /// Seeds the reserve the prizes are paid from.
@@ -642,7 +837,7 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
     function accrue(address user, uint32 drawId) public {
         Draw storage d = _draws[drawId];
         if (d.status != DrawStatus.Revealed) revert DrawNotRevealed();
-        if (prize == 0) revert PrizeNotSet();
+        if (grandPrize == 0) revert PrizeNotSet();
         if (accrued[drawId][user]) return;
         accrued[drawId][user] = true;
 
@@ -653,11 +848,22 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
                 : _snapshotCumulative(user, drawId - 1, _draws[drawId - 1].snapshotAt)
         );
 
-        // Public threshold, encrypted weight, strict comparison. An address with
+        // Public thresholds, encrypted weight, strict comparison. An address with
         // no history before the snapshot has weight zero and `gt` is strict, so
-        // it cannot win whatever its threshold turns out to be.
-        ebool won = FHE.gt(weight, thresholdFor(drawId, user));
-        euint64 credit = FHE.select(won, FHE.asEuint64(prize), FHE.asEuint64(0));
+        // it cannot win whatever its thresholds turn out to be.
+        //
+        // Built from the commonest tier upward so the rarest overrides: a
+        // participant is credited the BEST tier they cleared, never several. FHE
+        // has no branches, so every tier is evaluated for everyone and the
+        // operation sequence does not depend on the outcome — which is the
+        // property the whole contract is built to keep, now measured across
+        // three comparisons instead of one.
+        euint64 credit = FHE.asEuint64(0);
+        for (uint8 i = TIERS; i > 0; i--) {
+            uint8 t = i - 1;
+            ebool won = FHE.gt(weight, thresholdFor(drawId, user, t));
+            credit = FHE.select(won, FHE.asEuint64(tierPrize[t]), credit);
+        }
 
         // The prize is only awarded if the reserve can cover it. Without this a
         // tail run of winners would mint balance the pool does not hold.
@@ -678,11 +884,71 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
         emit Accrued(user, drawId);
     }
 
-    /// Chunked accrual. Each entry is independent, so a chunk that reverts costs nothing else.
+    /**
+     * Chunked accrual, in an order the caller does not choose.
+     *
+     * B1. `accrue` pays only if `tryDecrease(_reserve, credit)` succeeds, so a
+     * reserve that cannot cover every winner pays whoever is asked about FIRST.
+     * When that order was the caller's array, the keeper decided who won under a
+     * condition it could not see — `test/reserve-order.ts` proved it by reversing
+     * one array and reversing the outcome. Sorting by `keccak256(drawId, user)`
+     * inside the contract makes the order a function of the draw and the address
+     * and nothing else, so every caller and every permutation produce the same
+     * result.
+     *
+     * It does not make the keeper powerless — a keeper can still stop — but it
+     * removes the one power that was invisible.
+     *
+     * Insertion sort: chunks are bounded by the HCU ceiling at four or five
+     * entries, so O(n^2) on n<=8 is cheaper than anything cleverer.
+     *
+     * B4. The fee is taken AFTER every prize in the batch, never before, so a
+     * keeper being paid can never be the reason a winner was not.
+     */
     function accrueMany(address[] calldata users, uint32 drawId) external {
-        for (uint256 i = 0; i < users.length; i++) {
-            accrue(users[i], drawId);
+        uint256 n = users.length;
+        address[] memory order = new address[](n);
+        for (uint256 i = 0; i < n; i++) order[i] = users[i];
+
+        for (uint256 i = 1; i < n; i++) {
+            address candidate = order[i];
+            uint256 key = uint256(keccak256(abi.encode(drawId, candidate)));
+            uint256 j = i;
+            while (j > 0 && uint256(keccak256(abi.encode(drawId, order[j - 1]))) > key) {
+                order[j] = order[j - 1];
+                j--;
+            }
+            order[j] = candidate;
         }
+
+        for (uint256 i = 0; i < n; i++) accrue(order[i], drawId);
+
+        _payKeeper(drawId, n);
+    }
+
+    /**
+     * Pays the caller for the batch, out of what the reserve can spare.
+     *
+     * Bounded by the same `tryDecrease` the prizes use, so an underfunded reserve
+     * declines the fee exactly as it declines a prize — and because this runs
+     * last, everything the batch was going to pay has already been taken.
+     */
+    function _payKeeper(uint32 drawId, uint256 count) private {
+        if (keeperFee == 0 || count == 0) return;
+        euint64 fee = FHE.asEuint64(keeperFee);
+
+        // The success flag is USED, not discarded. Written the other way once —
+        // `(, euint64 next)` and an unconditional transfer — and the reserve
+        // declined the fee on the books while the tokens left anyway, so a
+        // keeper could be paid out of a prize after all. `tryDecrease` is an
+        // accounting result; the effect has to be gated on it.
+        (ebool ok, euint64 next) = FHESafeMath.tryDecrease(_reserve, fee);
+        euint64 paid = FHE.select(ok, fee, FHE.asEuint64(0));
+        _reserve = next;
+        FHE.allowThis(_reserve);
+        FHE.allowTransient(paid, address(asset));
+        asset.confidentialTransfer(msg.sender, paid);
+        emit KeeperPaid(msg.sender, drawId, count);
     }
 
     /**

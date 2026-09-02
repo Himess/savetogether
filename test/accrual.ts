@@ -1,4 +1,5 @@
 import { expect } from "chai";
+import { setFlatPrize } from "./tiers";
 import { ethers, fhevm } from "hardhat";
 import { FhevmType } from "@fhevm/hardhat-plugin";
 import type { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
@@ -89,7 +90,7 @@ describe("accrual", () => {
       await (await token.connect(who).setOperator(poolAddr, until)).wait();
     }
 
-    await (await pool.setPrize(PRIZE)).wait();
+    await setFlatPrize(pool, PRIZE);
     const e = await fhevm.createEncryptedInput(poolAddr, funder.address).add64(100_000n).encrypt();
     await (await pool.connect(funder).fundReserve(e.handles[0], e.inputProof)).wait();
   });
@@ -213,7 +214,7 @@ describe("accrual", () => {
     for (const who of [funder, alice]) {
       await (await token.connect(who).setOperator(addr, until)).wait();
     }
-    await (await small.setPrize(PRIZE)).wait();
+    await setFlatPrize(small, PRIZE);
     const e = await fhevm.createEncryptedInput(addr, funder.address).add64(1_000n).encrypt();
     await (await small.connect(funder).fundReserve(e.handles[0], e.inputProof)).wait();
 

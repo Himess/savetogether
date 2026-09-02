@@ -1,4 +1,5 @@
 import { expect } from "chai";
+import { setFlatPrize } from "./tiers";
 import { ethers, fhevm } from "hardhat";
 import { FhevmType } from "@fhevm/hardhat-plugin";
 
@@ -46,7 +47,7 @@ describe("SteakhouseReplicaSource", () => {
     await (await token.mint!(srcAddr, 50_000_000n)).wait();
 
     await (await pool.setYieldSource!(srcAddr)).wait();
-    await (await pool.setPrize!(PRIZE)).wait();
+    await setFlatPrize(pool, PRIZE);
 
     for (const who of [alice, bob]) {
       const e = await fhevm.createEncryptedInput(poolAddr, who!.address).add64(100_000n).encrypt();

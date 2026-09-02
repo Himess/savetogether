@@ -22,4 +22,26 @@ contract PrizePoolHarness is ConfidentialPrizePool {
     function forceReveal(uint32 drawId, uint64 r, uint128 total) external {
         _applyReveal(drawId, r, total);
     }
+
+    /**
+     * TEST-ONLY. Writes the tier table with none of `setTiers`' guards.
+     *
+     * `setTiers` requires strictly decreasing prizes and strictly decreasing `k`,
+     * which is right for production — it stops the tier order being inverted by a
+     * typo — and makes a genuinely FLAT shape impossible to express. Most of this
+     * suite predates tiers and asserts `winnings == PRIZE`, which is still the
+     * behaviour that must hold for an ordinary winner.
+     *
+     * Setting every tier to the same prize keeps those assertions exact. Doing it
+     * with a huge `k` instead does not: a test that forces `totalWeight` to 1
+     * makes `upper = k` and every weight clears it, so the rare tiers become
+     * reachable and the winner is paid the wrong tier. That is how this was found.
+     */
+    function forceTiers(uint64[3] calldata prizes, uint128[3] calldata k) external {
+        for (uint8 t = 0; t < 3; t++) {
+            tierPrize[t] = prizes[t];
+            tierK[t] = k[t];
+        }
+        grandPrize = prizes[0];
+    }
 }

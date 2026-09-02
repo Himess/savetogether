@@ -1,4 +1,5 @@
 import { expect } from "chai";
+import { FLAT_K, flatPrizes, setFlatPrize } from "./tiers";
 import { ethers, fhevm } from "hardhat";
 import type { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 
@@ -56,16 +57,31 @@ describe("access control and the draw floor", () => {
     ).to.be.revertedWithCustomError(pool, "NotTheOwner");
   });
 
-  it("refuses setPrize from a stranger", async () => {
-    await expect(pool.connect(stranger).setPrize(1n)).to.be.revertedWithCustomError(
+  it("refuses setTiers from a stranger", async () => {
+    await expect(
+      pool.connect(stranger).setTiers(flatPrizes(1n), FLAT_K),
+    ).to.be.revertedWithCustomError(pool, "NotTheOwner");
+  });
+
+  it("refuses setKeeperFee from a stranger", async () => {
+    await expect(pool.connect(stranger).setKeeperFee(1n)).to.be.revertedWithCustomError(
+      pool,
+      "NotTheOwner",
+    );
+  });
+
+  it("refuses renounceOwnership from a stranger", async () => {
+    await expect(pool.connect(stranger).renounceOwnership()).to.be.revertedWithCustomError(
       pool,
       "NotTheOwner",
     );
   });
 
   it("lets the owner do both", async () => {
-    await (await pool.connect(owner).setPrize(25n)).wait();
-    expect(await pool.prize()).to.equal(25n);
+    await setFlatPrize(pool.connect(owner), 25n);
+    // setFlatPrize goes through the harness, so every tier pays the same.
+    expect(await pool.grandPrize()).to.equal(25n);
+    expect(await pool.tierPrize(2)).to.equal(25n);
   });
 
   it("does not hand a stranger operator authority over the pool's balance", async () => {

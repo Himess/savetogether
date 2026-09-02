@@ -56,6 +56,9 @@ contract SteakhouseReplicaSource is IYieldSource, ZamaEthereumConfig {
     euint64 private _principal;
     euint64 private _pending;
 
+    /// B2. Principal already sent to the vault, so "half" means half of the rest.
+    euint64 private _inVault;
+
     /// Batches joined and not yet claimed.
     uint256[] private _openBatches;
 
@@ -168,7 +171,7 @@ contract SteakhouseReplicaSource is IYieldSource, ZamaEthereumConfig {
      * anywhere the adapter had not already chosen.
      */
     function joinVault() external returns (uint256 batchId) {
-        // HALF THE PRINCIPAL, and neither half of that is arbitrary.
+        // HALF OF WHAT IS STILL HERE, and every word of that is load-bearing.
         //
         // Not the whole balance: this contract also holds the pot its yield is
         // paid from, and joining that would send the prize reserve into the
@@ -179,12 +182,43 @@ contract SteakhouseReplicaSource is IYieldSource, ZamaEthereumConfig {
         // keeper's clock, and this contract does not unwind shares on demand, so
         // sending everything would make withdrawal asynchronous. Half is the
         // liquidity buffer a real vault keeps, for the same reason.
-        euint64 amount = FHE.shr(_principal, 1);
+        //
+        // B2. And not half of the SAME number every time, which is what the
+        // first version did. It shifted `_principal` and never decremented it,
+        // so "half" meant half of the original on every call and the function was
+        // permissionless: two calls moved the whole principal, more reached the
+        // pot. Nothing was stolen — the batcher credits this contract and
+        // `claimShares` recovers it — but liquidity is what got spent, and
+        // *principal is withdrawable at any time* is a liquidity claim.
+        // `test/withdraw-buffer.ts` pinned it before this fix existed.
+        (, euint64 remaining) = FHESafeMath.tryDecrease(_principal, _inVault);
+        euint64 amount = FHE.shr(remaining, 1);
+        (, euint64 nextInVault) = FHESafeMath.tryAdd(_inVault, amount);
+        _inVault = nextInVault;
+        FHE.allowThis(_inVault);
+
         batchId = depositBatcher.currentBatchId();
         FHE.allowTransient(amount, address(token));
         token.confidentialTransferAndCall(address(depositBatcher), amount, "");
         _openBatches.push(batchId);
         emit JoinedVault(batchId, uint40(block.timestamp));
+    }
+
+    /**
+     * How much principal is in the vault rather than here.
+     *
+     * Encrypted, and it stays that way: it is a strict function of the principal,
+     * so publishing it would publish a fixed fraction of the pool's deposits.
+     *
+     * It is why `joinVault` can stay permissionless now. Before, the function was
+     * safe in its DESTINATION — it could only send value where the adapter had
+     * already chosen — and that was mistaken for being safe in its EFFECT.
+     * Bounded, repetition converges rather than draining: each call moves half of
+     * what remains, so the buffer approaches zero without reaching it, and the
+     * pot is never touched at all.
+     */
+    function inVault() external view returns (euint64) {
+        return _inVault;
     }
 
     /// Collects vault shares once a batch has settled. Permissionless.

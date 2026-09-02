@@ -192,26 +192,43 @@ describe("W1 — withdrawal with principal in the vault", () => {
  * and the rubric's load-bearing line is about liquidity: *principal is
  * withdrawable at any time.*
  */
-describe("W1b — joinVault is repeatable", () => {
-  it("moves half the principal AGAIN on a second call, because principal never went down", async () => {
+describe("B2 — joinVault is bounded, so repeating it converges", () => {
+  it("moves half of what REMAINS, not half of the original, on a second call", async () => {
     const { alice, token, pool, poolAddr, source } = await setup();
     const tokenAddr = await token.getAddress();
 
     await deposit(pool, poolAddr, alice, 100_000n);
 
     await (await source.joinVault!()).wait(); // 50,000 out, 50,000 left
-    await (await source.joinVault!()).wait(); // 50,000 out again — nothing left
+    await (await source.joinVault!()).wait(); // 25,000 out, 25,000 left
 
     const walBefore = await wallet(token, tokenAddr, alice);
-    await withdraw(pool, poolAddr, alice, 50_000n);
+    await withdraw(pool, poolAddr, alice, 25_000n);
 
+    // Before B2 the second call moved another 50,000 and the buffer was empty,
+    // so this withdrawal paid nothing. Bounded, the second call moves half of
+    // the 50,000 that is left, so 25,000 is still here and 50,000 comes out over
+    // two asks rather than none.
     expect((await wallet(token, tokenAddr, alice)) - walBefore).to.equal(
-      0n,
-      "after two joins the buffer is empty and even half cannot come out",
+      25_000n,
+      "half of the remainder stayed behind, so a smaller ask still pays",
     );
-    expect(await position(pool, poolAddr, alice)).to.equal(
-      100_000n,
-      "still nothing is lost — the whole position is intact and waiting on a batch",
+    expect(await position(pool, poolAddr, alice)).to.equal(75_000n);
+  });
+
+  it("never empties the buffer however many times it is called", async () => {
+    const { alice, token, pool, poolAddr, source } = await setup();
+    const tokenAddr = await token.getAddress();
+    await deposit(pool, poolAddr, alice, 100_000n);
+
+    // Permissionless and unbounded in COUNT — the bound is on the amount.
+    for (let i = 0; i < 8; i++) await (await source.joinVault!()).wait();
+
+    const walBefore = await wallet(token, tokenAddr, alice);
+    await withdraw(pool, poolAddr, alice, 300n);
+    expect((await wallet(token, tokenAddr, alice)) - walBefore).to.equal(
+      300n,
+      "eight joins later there is still liquidity, because each takes half of the rest",
     );
   });
 });

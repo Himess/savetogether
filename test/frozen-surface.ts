@@ -1,4 +1,5 @@
 import { expect } from "chai";
+import { setFlatPrize } from "./tiers";
 import { ethers, fhevm } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
@@ -49,7 +50,12 @@ describe("the frozen surface survives V2", () => {
         await (await token.connect(who!).setOperator!(poolAddr, until)).wait();
       }
 
-      await (await pool.setPrize!(PRIZE)).wait();
+      // PoolPreV2Harness predates tiers entirely and still has setPrize.
+      if (name === "PoolPreV2Harness") {
+        await (await pool.setPrize!(PRIZE)).wait();
+      } else {
+        await setFlatPrize(pool, PRIZE);
+      }
       const seed = await fhevm
         .createEncryptedInput(poolAddr, funder!.address)
         .add64(100_000n)
@@ -75,12 +81,49 @@ describe("the frozen surface survives V2", () => {
     });
   }
 
-  it("costs exactly the same before and after the fix", () => {
+  /**
+   * C2. The surface is NOT frozen any more, and this test says so rather than
+   * being deleted for saying so.
+   *
+   * V2 added access control and a draw floor and left `accrue` untouched, which
+   * is what the original version of this test proved. Tiers changed `accrue`: it
+   * now runs three comparisons and three selects where it ran one of each. So the
+   * before/after figures no longer match, and pretending otherwise would be worse
+   * than losing the property.
+   *
+   * WHAT SURVIVES, and it is the half that carried the argument: winner and loser
+   * still cost the SAME AS EACH OTHER on the tiered contract. The 306-sample
+   * result was never about the absolute number — it was about the difference
+   * between two outcomes being zero, and that is asserted below on the new shape.
+   */
+  it("records the new baseline, and keeps winner == loser on it", () => {
     const before = gas["PoolPreV2Harness"]!;
     const after = gas["PrizePoolHarness"]!;
-    console.log(`      before V2  ${before.winner} / ${before.loser}`);
-    console.log(`      after V2   ${after.winner} / ${after.loser}`);
+    console.log(`      pre-tier   ${before.winner} / ${before.loser}`);
+    console.log(`      tiered     ${after.winner} / ${after.loser}`);
     console.log(`      delta      ${after.winner - before.winner} / ${after.loser - before.loser}`);
+
+    // THE CLAIM THAT MATTERS, and it is sharper than "identical".
+    //
+    // Winner and loser differ by 12 gas on BOTH contracts, and 12 is not noise —
+    // it is intrinsic calldata cost, which varies with the zero-byte count of the
+    // address argument and has nothing to do with the outcome. That is why the
+    // equality methodology measures execution gas rather than gasUsed.
+    //
+    // So the assertion is not that the gap is zero. It is that tiers did not
+    // CHANGE the gap: three comparisons and three selects added 70,867 gas to
+    // both sides equally and zero outcome-dependence to either.
+    const gapBefore = before.winner - before.loser;
+    const gapAfter = after.winner - after.loser;
+    console.log(`      winner-loser gap  ${gapBefore} -> ${gapAfter}  (intrinsic calldata, not outcome)`);
+    expect(gapAfter).to.equal(
+      gapBefore,
+      "tiers must add no outcome-dependence — the gap must be exactly what it was",
+    );
+    expect(after.winner - before.winner).to.equal(
+      after.loser - before.loser,
+      "and the tier cost must land equally on both sides",
+    );
 
     fs.mkdirSync(path.join(__dirname, "..", "spikes", "out"), { recursive: true });
     fs.writeFileSync(
@@ -98,8 +141,5 @@ describe("the frozen surface survives V2", () => {
         2,
       ),
     );
-
-    expect(after.winner).to.equal(before.winner);
-    expect(after.loser).to.equal(before.loser);
   });
 });
