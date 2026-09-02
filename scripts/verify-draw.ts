@@ -31,7 +31,7 @@
 import { ethers, fhevm } from "hardhat";
 import { FhevmType } from "@fhevm/hardhat-plugin";
 
-const POOL = process.env.POOL ?? "0x1d8A0d653027833E4e8eA4DE67B90512Aad7B85f";
+const POOL = process.env.POOL ?? "0x021585bE0100a8D838876432730f308bC7B168D6";
 
 /** PoolTogether's UniformRandomNumber.uniform, in TypeScript. */
 function uniform(entropy: bigint, upperBound: bigint): bigint {
@@ -47,13 +47,25 @@ function uniform(entropy: bigint, upperBound: bigint): bigint {
   return x % upperBound;
 }
 
-function thresholdFor(r: bigint, drawId: number, user: string, totalWeight: bigint): bigint {
+/** Three thresholds per user now, and every one is still a pure function of public inputs. */
+function thresholdFor(
+  r: bigint,
+  drawId: number,
+  user: string,
+  totalWeight: bigint,
+  tier: number,
+  k: bigint,
+): bigint {
   const entropy = BigInt(
     ethers.keccak256(
-      ethers.AbiCoder.defaultAbiCoder().encode(["uint64", "uint32", "address"], [r, drawId, user]),
+      ethers.AbiCoder.defaultAbiCoder().encode(
+        ["uint64", "uint32", "address", "uint8"],
+        [r, drawId, user, tier],
+      ),
     ),
   );
-  return uniform(entropy, totalWeight);
+  // The tier widens the RANGE, so the odds are weight / (totalWeight * k).
+  return uniform(entropy, totalWeight * k);
 }
 
 async function main(): Promise<void> {
@@ -83,7 +95,7 @@ async function main(): Promise<void> {
   // Chunked: public RPCs cap getLogs at 50,000 blocks, and querying from 0 is
   // how this script failed the first time it was pointed at a real endpoint.
   const latest = await ethers.provider.getBlockNumber();
-  const DEPLOY = Number(process.env.FROM_BLOCK ?? 11_609_800);
+  const DEPLOY = Number(process.env.FROM_BLOCK ?? 11616324);
   const users: string[] = [];
   const seen = new Set<string>();
   for (let from = DEPLOY; from <= latest; from += 9_000) {
@@ -97,20 +109,40 @@ async function main(): Promise<void> {
   console.log(`\nparticipants ${users.length} (from public Deposited events — identities are NOT hidden)`);
 
   // ---- 1. PUBLIC: every threshold, recomputed and compared ----
-  console.log(`\n1. thresholds recomputed from public inputs, checked against the contract`);
-  let ok = 0;
-  for (const u of users) {
-    const mine = thresholdFor(r, drawId, u, totalWeight);
-    const theirs = BigInt(await pool.thresholdFor!(drawId, u));
-    const match = mine === theirs;
-    if (match) ok++;
-    console.log(
-      `   ${u}  ${match ? "match" : "MISMATCH"}  ${mine.toString().padStart(16)}` +
-        `   ${((Number(mine) / Number(totalWeight)) * 100).toFixed(2)}% of total weight`,
-    );
-    if (!match) console.log(`      contract says ${theirs}`);
+  const TIERS = Number(await pool.TIERS!());
+  const k: bigint[] = [];
+  const prize: bigint[] = [];
+  for (let t = 0; t < TIERS; t++) {
+    k.push(BigInt(await pool.tierK!(t)));
+    prize.push(BigInt(await pool.tierPrize!(t)));
   }
-  console.log(`   ${ok}/${users.length} thresholds reproduce exactly`);
+  console.log(
+    `\ntiers    ${prize.map((p, i) => `${Number(p) / 1e6} cUSDC every ${k[i]} draw(s)`).join("   |   ")}`,
+  );
+
+  console.log(`\n1. every threshold recomputed from public inputs, checked against the contract`);
+  let ok = 0;
+  let checked = 0;
+  for (const u of users) {
+    const parts: string[] = [];
+    for (let t = 0; t < TIERS; t++) {
+      const mine = thresholdFor(r, drawId, u, totalWeight, t, k[t]!);
+      // The overload has to be named explicitly — ethers cannot pick between
+      // thresholdFor(uint32,address) and thresholdFor(uint32,address,uint8),
+      // and the ambiguity surfaces as `invalid BigNumberish value: null`.
+      const theirs = BigInt(await pool["thresholdFor(uint32,address,uint8)"]!(drawId, u, t));
+      checked++;
+      if (mine === theirs) {
+        ok++;
+        const share = (Number(mine) / (Number(totalWeight) * Number(k[t]!))) * 100;
+        parts.push(`t${t} ${share.toFixed(2)}%`);
+      } else {
+        parts.push(`t${t} MISMATCH contract=${theirs} mine=${mine}`);
+      }
+    }
+    console.log(`   ${u}  ${parts.join("   ")}`);
+  }
+  console.log(`   ${ok}/${checked} thresholds reproduce exactly`);
 
   // ---- 2. PUBLIC: the sampling is unbiased ----
   const MAX = (1n << 256n) - 1n;
@@ -124,17 +156,25 @@ async function main(): Promise<void> {
   if (!users.map((u) => u.toLowerCase()).includes(me.toLowerCase())) {
     console.log(`   ${me} is not a participant in this pool — nothing to verify`);
   } else {
-    const myThreshold = thresholdFor(r, drawId, me, totalWeight);
+    const myThresholds = k.map((kk, t) => thresholdFor(r, drawId, me, totalWeight, t, kk));
     // weightFor grants the handle to the caller, so this is a transaction.
     const tx = await pool.weightFor!(drawId, me);
     await tx.wait();
     const handle: string = await pool.weightFor!.staticCall(drawId, me);
     const weight = (await fhevm.userDecryptEuint(FhevmType.euint128, handle, POOL, signer!)) as bigint;
-    const shouldWin = weight > myThreshold;
     console.log(`   my weight     ${weight}`);
-    console.log(`   my threshold  ${myThreshold}`);
-    console.log(`   rule says     ${shouldWin ? "WIN" : "no win"}`);
-    console.log(`   my odds this draw: ${((Number(weight) / Number(totalWeight)) * 100).toFixed(2)}%`);
+    let bestTier = -1;
+    for (let t = 0; t < TIERS; t++) {
+      const win = weight > myThresholds[t]!;
+      console.log(
+        `   tier ${t}        threshold ${myThresholds[t]}  ${win ? "CLEARED" : "not cleared"}` +
+          `   (odds ${((Number(weight) / (Number(totalWeight) * Number(k[t]!))) * 100).toFixed(3)}%)`,
+      );
+      if (win && bestTier < 0) bestTier = t;
+    }
+    console.log(
+      `   rule says     ${bestTier < 0 ? "no win" : `WIN tier ${bestTier}, ${Number(prize[bestTier]!) / 1e6} cUSDC`}`,
+    );
     const accrued: boolean = await pool.accrued!(drawId, me);
     console.log(`   accrued       ${accrued}`);
   }

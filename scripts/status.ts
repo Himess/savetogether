@@ -1,7 +1,7 @@
 import { ethers, fhevm } from "hardhat";
 import { FhevmType } from "@fhevm/hardhat-plugin";
-const POOL = "0x1d8A0d653027833E4e8eA4DE67B90512Aad7B85f";
-const SRC = "0x15331b79E80EF6606a1aD4C0b13F7EA49482e8A5";
+const POOL = "0x021585bE0100a8D838876432730f308bC7B168D6";
+const SRC = "0x57bC5cD7Be1231F73161ecE05a01f9E24370d85E";
 const U = 1_000_000n;
 
 async function main(): Promise<void> {
@@ -15,7 +15,7 @@ async function main(): Promise<void> {
     catch (e) { return `not readable by me (${String(e).slice(0, 40)}…)`; }
   };
   console.log("draws        ", await pool.drawCount!());
-  console.log("prize        ", (await pool.prize!()) / U, "cUSDC");
+  console.log("tiers        ", [0,1,2].map(async()=>0) && (await Promise.all([0,1,2].map((i)=>pool.tierPrize!(i)))).map((x)=>Number(x)/1e6).join(" / "), "cUSDC");
   console.log("yieldSource  ", await pool.yieldSource!());
   console.log("my position  ", await dec(await pool.confidentialBalanceOf!(me), POOL));
   console.log("my winnings  ", await dec(await pool.winningsOf!(me), POOL));

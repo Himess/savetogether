@@ -162,18 +162,33 @@ async function logBreakEven(pool: Contract, elapsed: bigint): Promise<void> {
       ethers.provider,
     );
     const rate = BigInt(await src.rateBps());
-    const prize = BigInt(await pool.prize());
-    // A backlog catch-up can settle seconds apart; the number worth printing is
-    // the one for a normal round, so the period is the floor.
+
+    // TIERS, not a single prize. This read `pool.prize()` after the pool grew
+    // tiers, the call threw, and the catch below swallowed it — so the diagnostic
+    // added specifically to make an underfunded reserve visible was itself
+    // silently dead. That is the failure it exists to prevent, one layer up.
+    const tiers = Number(await pool.TIERS());
+    let expected = 0n;
+    let grand = 0n;
+    for (let t = 0; t < tiers; t++) {
+      const prize = BigInt(await pool.tierPrize(t));
+      const k = BigInt(await pool.tierK(t));
+      expected += prize / k;
+      if (t === 0) grand = prize;
+    }
+
     const seconds = elapsed < BigInt(PERIOD_SECONDS) ? BigInt(PERIOD_SECONDS) : elapsed;
     const YEAR = 31_536_000n;
-    const breakEven = (prize * 10_000n * YEAR) / (rate * seconds);
+    const breakEven = (expected * 10_000n * YEAR) / (rate * seconds);
     log(
-      `harvest ok — over ${seconds}s at ${Number(rate) / 100}%/yr this round needs ` +
-        `~${(Number(breakEven) / 1e6).toLocaleString("en-US")} cUSDC of principal to fund the prize`,
+      `harvest ok — over ${seconds}s at ${Number(rate) / 100}%/yr the EXPECTED payout of ` +
+        `${(Number(expected) / 1e6).toFixed(2)} cUSDC needs ~${(Number(breakEven) / 1e6).toLocaleString("en-US")} ` +
+        `cUSDC of principal; the grand prize is ${(Number(grand) / 1e6).toFixed(2)} and the reserve ` +
+        `must hold that much before one can be paid`,
     );
-  } catch {
-    // Never let a log line take the keeper down.
+  } catch (e) {
+    // Logged, not swallowed. A diagnostic that dies quietly is worse than none.
+    log(`break-even line unavailable: ${(e as Error).message.slice(0, 90)}`);
   }
 }
 
@@ -196,6 +211,29 @@ async function tick(pool: Contract): Promise<void> {
 
   // 3) Only then open new work — and fund it first.
   if (count === 0) {
+    // WAIT ONE PERIOD BEFORE THE FIRST DRAW, and this is not tidiness.
+    //
+    // The reserve fills from harvest alone, and the source is deployed moments
+    // before the keeper starts, so the first harvest covers about zero seconds
+    // and yields about zero. Draw 1 then awards a prize an empty reserve cannot
+    // cover and credits the winner ZERO — silently, because a declined
+    // `tryDecrease` is indistinguishable from losing.
+    //
+    // With a sole depositor the ordinary tier is won with certainty, so this is
+    // not a small probability. Simulated over 20,000 trials with an unfunded
+    // first round it is a 97% chance of a clamp, first one at round 1 every
+    // time, and it is exactly what draw 1 of the tiered pool did on chain: the
+    // rule said WIN tier 1, the winner got nothing. Prize sizing cannot fix it —
+    // only having something to pay from can.
+    const since = await elapsedSinceSettle(pool);
+    if (since < BigInt(PERIOD_SECONDS)) {
+      log(
+        `holding the first draw: the source has accrued ${since}s of the ` +
+          `${PERIOD_SECONDS}s a full round needs, and opening now would award a prize ` +
+          `an empty reserve cannot pay`,
+      );
+      return;
+    }
     try {
       await harvest(pool);
       await (await pool.openDraw()).wait();

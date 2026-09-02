@@ -43,7 +43,17 @@ function simulate(balances: number[], rounds: number): Result {
   let paid = 0;
 
   for (let r = 1; r <= rounds; r++) {
-    reserve += H;
+    // ROUND 1 GETS NOTHING, and the first version of this gave it a full harvest.
+    // The source is deployed moments before the first draw, so the first harvest
+    // covers about zero seconds and yields about zero. Observed on chain: the
+    // rule said WIN tier 1 on draw 1 of the tiered pool and the winner was
+    // credited zero, because the reserve was empty and a declined tryDecrease
+    // looks exactly like losing.
+    //
+    // It matters more than one round of drift. With a sole depositor the ordinary
+    // tier is won with certainty, so round 1 is not a 3% risk — it is a CERTAIN
+    // clamp, and no amount of prize sizing changes that.
+    reserve += r === 1 ? 0 : H;
 
     for (const w of balances) {
       // Independent uniform threshold per tier, exactly as the contract does.
