@@ -26,7 +26,12 @@ const POOL_ABI = [
   "function winningsOf(address) view returns (bytes32)",
   "function pendingOf(address) view returns (bytes32)",
   "function drawCount() view returns (uint32)",
-  "function prize() view returns (uint64)",
+  // Tiers. `prize()` was removed when the pool grew them, and reading it against
+  // the tiered contract comes back as a bare "missing revert data" — the SDK
+  // asking for a function that is not there looks exactly like an RPC fault.
+  "function TIERS() view returns (uint8)",
+  "function tierPrize(uint256) view returns (uint64)",
+  "function tierK(uint256) view returns (uint128)",
   "function asset() view returns (address)",
   "function drawAt(uint32) view returns (tuple(uint40 periodStart, uint40 snapshotAt, uint8 status, bytes32 encR, bytes32 encTotalWeight, uint64 r, uint128 totalWeight))",
 ];
@@ -46,7 +51,10 @@ export interface PoolPosition {
 export interface PoolStatus {
   readonly round: number;
   readonly state: "none" | "open" | "revealed";
+  /** The grand prize — the largest, and the one the reserve must be able to cover. */
   readonly prize: bigint;
+  /** Every tier, largest first, with how often each is expected to be won. */
+  readonly tiers: readonly { prize: bigint; everyNDraws: bigint }[];
   readonly snapshotAt: number;
   readonly randomness: bigint;
 }
@@ -76,15 +84,24 @@ export class PoolClient {
   async status(): Promise<PoolStatus> {
     const pool = this.pool;
     const round = Number(await pool.drawCount!());
-    const prize = BigInt(await pool.prize!());
+    const count = Number(await pool.TIERS!());
+    const tiers: { prize: bigint; everyNDraws: bigint }[] = [];
+    for (let t = 0; t < count; t++) {
+      tiers.push({
+        prize: BigInt(await pool.tierPrize!(t)),
+        everyNDraws: BigInt(await pool.tierK!(t)),
+      });
+    }
+    const prize = tiers[0]?.prize ?? 0n;
     if (round === 0) {
-      return { round: 0, state: "none", prize, snapshotAt: 0, randomness: 0n };
+      return { round: 0, state: "none", prize, tiers, snapshotAt: 0, randomness: 0n };
     }
     const d = await pool.drawAt!(round);
     return {
       round,
       state: STATES[Number(d.status)] ?? "none",
       prize,
+      tiers,
       snapshotAt: Number(d.snapshotAt),
       randomness: BigInt(d.r),
     };

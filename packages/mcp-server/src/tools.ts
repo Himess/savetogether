@@ -1011,7 +1011,16 @@ export class SaveTogetherTools {
     // prize read as "Prize 1000000" — a number the model has every reason to
     // repeat to the user as a million.
     const pt = this.token(this.ctx.config.pool!.token);
-    const prize = `${formatAmount(s.prize, pt.decimals)} ${pt.symbol}`;
+    // Every tier, with its odds. One number would be a lie now: the pool pays
+    // three different prizes, and `everyNDraws` is literally how often each is
+    // expected to be won — a property that holds whatever the balances are.
+    const prize = s.tiers
+      .map((t) =>
+        t.everyNDraws === 1n
+          ? `${formatAmount(t.prize, pt.decimals)} ${pt.symbol} every draw`
+          : `${formatAmount(t.prize, pt.decimals)} ${pt.symbol} every ${t.everyNDraws} draws`,
+      )
+      .join(", ");
     return {
       ok: true,
       text: `Round ${s.round}, ${s.state}. Prize ${prize}. Weights frozen at ${when}.${tail}`,
