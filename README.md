@@ -312,6 +312,22 @@ prize; a **1800s** round needs **~1,752**. The keeper prints this number every t
 it harvests, so the figure that has to be beaten sits next to the round that has to
 beat it.
 
+**Principal floor.** Tier and prize sizes are only valid against a stated
+principal, because the harvest scales with it. At 12,401 cUSDC held the expected
+payout needs **3,066 cUSDC** of principal to break even — **4.0x headroom**. Most
+of that principal is the deployer's seed: **withdrawing it during a submission
+window would push utilisation up and the reserve warm-up out, silently**, because
+a reserve that cannot cover a prize credits the winner zero and a declined
+decrease is indistinguishable from losing.
+
+**Warm-up.** The reserve starts empty and fills from harvest alone, so the first
+few rounds after a deploy are the only window in which a large prize can fail to
+be paid. Simulated over 20,000 trials: **3.2-3.6% chance of one clamp, median at
+round 2, p90 at round 4** — after which it is effectively zero. **Deploy, let the
+keeper run past round 10, and only then record anything.** Do not pre-fund the
+reserve to shorten this; a hand-funded pot is what the paired test in
+`test/replica-source.ts` exists to rule out.
+
 **Gas.** A full keeper round — harvest, open, reveal, accrue — is roughly 1.5M gas.
 At 2 gwei that is ~0.003 ETH, so a 300-second cadence costs **~0.95 ETH a day** and
 a 1800-second cadence **~0.16 ETH**. The deployed keeper runs at 1800s for exactly
