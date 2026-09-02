@@ -16,7 +16,7 @@ Season 4.
 | **Pool** | [`0x021585bE0100a8D838876432730f308bC7B168D6`](https://sepolia.etherscan.io/address/0x021585bE0100a8D838876432730f308bC7B168D6) |
 | **Settles in** | cUSDC — Zama's own confidential USDC, [`0x7c5BF43B…3639`](https://sepolia.etherscan.io/address/0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639) |
 | **Yield source** | [`0x57bC5cD7…d85E`](https://sepolia.etherscan.io/address/0x57bC5cD7Be1231F73161ecE05a01f9E24370d85E) — a Steakhouse Confidential Prime replica, wired into the vault below |
-| **Zama's vault batcher** | [`0x48758559…F53b`](https://sepolia.etherscan.io/address/0x48758559c14d4d92b4C74A99660B6a8dbe85F53b) — the pool's principal is in [batch 281](https://sepolia.etherscan.io/tx/0xeb71ffb5ad7165f88ec1b97a702cc261036da148bb1c9d684fc6dc262782de15) |
+| **Zama's vault batcher** | [`0x48758559…F53b`](https://sepolia.etherscan.io/address/0x48758559c14d4d92b4C74A99660B6a8dbe85F53b) — the pool's principal is in [batch 284](https://sepolia.etherscan.io/tx/0x1f0b29b4fe48fad023633c9b6cf75cbfe0259f9f605987b36466704b86c21265) |
 | **Session module** | [`0xE5c667c0…6Cf6`](https://sepolia.etherscan.io/address/0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6) |
 | **Network** | Sepolia (11155111) |
 
@@ -246,10 +246,10 @@ vault and is not affiliated with Steakhouse Financial or Morpho.
 
 ### The composition, on chain
 
-The pool's principal is in **batch 281** of Zama's own batcher:
+The pool's principal is in **batch 284** of Zama's own batcher:
 
 ```
-tx        0xeb71ffb5ad7165f88ec1b97a702cc261036da148bb1c9d684fc6dc262782de15
+tx        0x1f0b29b4fe48fad023633c9b6cf75cbfe0259f9f605987b36466704b86c21265
 batcher   0x48758559c14d4d92b4C74A99660B6a8dbe85F53b
 shares    0x13F7d34A4f0102734F19E3Ff16e068Fe194B28c4   (Confidential steakcUSDC)
 ```
