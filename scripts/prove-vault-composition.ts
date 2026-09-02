@@ -1,7 +1,24 @@
 import { ethers, fhevm } from "hardhat";
-const SRC = process.env.SRC ?? "0x57bC5cD7Be1231F73161ecE05a01f9E24370d85E";
-const SHARE = "0x13F7d34A4f0102734F19E3Ff16e068Fe194B28c4";
-const BATCHER = "0x48758559c14d4d92b4C74A99660B6a8dbe85F53b";
+import * as fs from "fs";
+import * as path from "path";
+
+/**
+ * Read at RUN time, not baked in at edit time.
+ *
+ * A previous pass claimed to have done this and had not: the substitution
+ * replaced the address VALUE, so the constant was still a literal and the script
+ * kept pointing at the source from the deployment before last. It joined a batch
+ * for a contract that no longer holds anything of the pool's — which is the exact
+ * failure the change was supposed to prevent, committed with a message saying it
+ * had been prevented.
+ */
+const deployment = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "..", "out", "deployment.json"), "utf8"),
+) as { yieldSource: string; vaultShare: string; depositBatcher: string };
+
+const SRC = process.env.SRC ?? deployment.yieldSource;
+const SHARE = deployment.vaultShare;
+const BATCHER = deployment.depositBatcher;
 
 async function main(): Promise<void> {
   await fhevm.initializeCLIApi();

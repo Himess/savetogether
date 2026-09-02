@@ -10,6 +10,24 @@ import {IYieldSource} from "./interfaces/IYieldSource.sol";
 interface IDepositBatcher {
     function currentBatchId() external view returns (uint256);
     function claim(uint256 batchId, address account) external;
+    /// The confidential share token this batcher mints into. Read, never guessed.
+    function toToken() external view returns (address);
+}
+
+/**
+ * Zama's redeem batcher — the mirror of the deposit one.
+ *
+ * `fromToken` is the confidential share, `toToken` is cUSDC, and `vault()` is the
+ * same ERC-4626 both sides settle against. Checked on chain rather than taken
+ * from the address reference, which lists a different cShare than the one the
+ * deposit batcher actually mints (`Confidential mvUSDC` against the
+ * `csteakcUSDC (Mock)` that is really used).
+ */
+interface IRedeemBatcher {
+    function currentBatchId() external view returns (uint256);
+    function claim(uint256 batchId, address account) external;
+    function fromToken() external view returns (address);
+    function toToken() external view returns (address);
 }
 
 /**
@@ -46,6 +64,22 @@ contract SteakhouseReplicaSource is IYieldSource, ZamaEthereumConfig {
     IERC7984 public immutable token;
     IDepositBatcher public immutable depositBatcher;
 
+    /**
+     * The way back out, which the first version of this contract did not have.
+     *
+     * Zama's vault is served by a PAIR of batchers, and the mainnet product works
+     * the same way — app.zama.org offers Deposit and Withdraw against the same
+     * Steakhouse Confidential Prime vault, one batching cUSDC in and the other
+     * batching shares out. Composing with only half of that made "principal is
+     * withdrawable at any time" depend on a buffer rather than on the vault, and
+     * the limitation was documented instead of fixed.
+     *
+     * Both are read off the deposit batcher rather than passed in, so the share
+     * token cannot drift from the one the batcher actually mints.
+     */
+    IRedeemBatcher public immutable redeemBatcher;
+    IERC7984 public immutable shareToken;
+
     /// The replica's rate, in basis points a year. Ours, and labelled as ours.
     uint64 public immutable rateBps;
 
@@ -62,8 +96,13 @@ contract SteakhouseReplicaSource is IYieldSource, ZamaEthereumConfig {
     /// Batches joined and not yet claimed.
     uint256[] private _openBatches;
 
+    /// Redeem batches asked for and not yet collected.
+    uint256[] private _openRedeems;
+
     event JoinedVault(uint256 indexed batchId, uint40 at);
     event ClaimedShares(uint256 indexed batchId, uint40 at);
+    event RequestedUnwind(uint256 indexed batchId, uint40 at);
+    event ClaimedUnwound(uint256 indexed batchId, uint40 at);
 
     error NotController();
 
@@ -72,14 +111,30 @@ contract SteakhouseReplicaSource is IYieldSource, ZamaEthereumConfig {
         _;
     }
 
+    error BatcherMismatch();
+
     constructor(
         IERC7984 token_,
         IDepositBatcher depositBatcher_,
+        IRedeemBatcher redeemBatcher_,
         uint64 rateBps_,
         address controller_
     ) {
         token = token_;
         depositBatcher = depositBatcher_;
+        redeemBatcher = redeemBatcher_;
+
+        // The share token is whatever the deposit batcher mints, and the redeem
+        // batcher must consume exactly that and return exactly our asset. Asserted
+        // here rather than assumed, because the two batchers are separate
+        // deployments and a mismatched pair would send shares somewhere they can
+        // never come back from — and the published address reference already lists
+        // the wrong cShare, so "it is in the docs" is not a check.
+        address share = depositBatcher_.toToken();
+        if (redeemBatcher_.fromToken() != share) revert BatcherMismatch();
+        if (redeemBatcher_.toToken() != address(token_)) revert BatcherMismatch();
+        shareToken = IERC7984(share);
+
         rateBps = rateBps_;
         controller = controller_;
         lastAccrual = uint40(block.timestamp);
@@ -116,10 +171,19 @@ contract SteakhouseReplicaSource is IYieldSource, ZamaEthereumConfig {
     /**
      * Returns principal from this contract's liquidity.
      *
-     * It does not unwind vault shares, and that is a limitation rather than an
-     * oversight: unwinding is a batch round trip, so an on-demand redemption
-     * would make withdrawal asynchronous. Whatever the buffer cannot cover, the
-     * token declines to move and the pool credits the difference back.
+     * It pays from the buffer and does not unwind shares INLINE, which is a
+     * different statement from the one this comment used to make. Unwinding is a
+     * batch round trip on Zama's keeper's clock, so doing it inside a withdrawal
+     * would make every withdrawal asynchronous — the wrong trade for the common
+     * case, where the buffer covers it and the money is instant.
+     *
+     * What changed is that the money is no longer stranded when the buffer does
+     * not cover it. `requestUnwind` brings it back through Zama's redeem batcher,
+     * which is how the mainnet product works too: app.zama.org has a Withdraw tab
+     * against this same vault, batched, and it says so on the screen. Whatever
+     * the buffer cannot cover the token declines to move, the pool credits the
+     * difference back, and a smaller ask — or the same ask after a batch settles
+     * — goes through.
      */
     function redeem(euint64 amount, address to) external onlyController returns (euint64 sent) {
         _settle();
@@ -225,6 +289,65 @@ contract SteakhouseReplicaSource is IYieldSource, ZamaEthereumConfig {
     function claimShares(uint256 batchId) external {
         depositBatcher.claim(batchId, address(this));
         emit ClaimedShares(batchId, uint40(block.timestamp));
+    }
+
+    /**
+     * Sends every vault share back through Zama's redeem batcher.
+     *
+     * The mirror of `joinVault`, and the reason it exists is that without it
+     * "principal is withdrawable at any time" rested on a buffer rather than on
+     * the vault: whatever had been joined could only come back if somebody
+     * happened to deposit more. Zama's own app has both directions against this
+     * same vault, so composing with only one half was a gap in the replica rather
+     * than a property of the design.
+     *
+     * ALL of the shares, not half. `joinVault` keeps a buffer because entering is
+     * optional and reversible; leaving is the recovery path, and a recovery path
+     * that only recovers half is not one. The batch is still Zama's keeper's
+     * clock — this asks, it does not withdraw.
+     *
+     * Permissionless for the same reason `joinVault` is: it moves this contract's
+     * own shares to a destination fixed in the constructor, and unwinding can only
+     * ever increase the liquidity available to depositors.
+     */
+    function requestUnwind() external returns (uint256 batchId) {
+        euint64 shares = shareToken.confidentialBalanceOf(address(this));
+        batchId = redeemBatcher.currentBatchId();
+        FHE.allowTransient(shares, address(shareToken));
+        shareToken.confidentialTransferAndCall(address(redeemBatcher), shares, "");
+        _openRedeems.push(batchId);
+        emit RequestedUnwind(batchId, uint40(block.timestamp));
+    }
+
+    /**
+     * Collects the cUSDC a settled redeem batch returned, and books it.
+     *
+     * `claim` returns nothing, so how much came back is measured as the change in
+     * this contract's own balance rather than taken from a return value. That is
+     * not defensive style — it is the only way to know, and it is also the only
+     * version that stays correct once the vault has real yield: what comes out is
+     * shares times a price that moved, not what went in.
+     *
+     * `_principal` is untouched. The depositors' claim did not change because the
+     * money moved between two places this contract controls; only `_inVault` does,
+     * so the next `joinVault` sees the buffer that actually exists.
+     */
+    function claimUnwound(uint256 batchId) external {
+        euint64 before = token.confidentialBalanceOf(address(this));
+        redeemBatcher.claim(batchId, address(this));
+        euint64 present = token.confidentialBalanceOf(address(this));
+
+        (, euint64 returned) = FHESafeMath.tryDecrease(present, before);
+        (, euint64 left) = FHESafeMath.tryDecrease(_inVault, returned);
+        _inVault = left;
+        FHE.allowThis(_inVault);
+
+        emit ClaimedUnwound(batchId, uint40(block.timestamp));
+    }
+
+    /// Redeem batches asked for and not yet collected.
+    function openRedeems() external view returns (uint256[] memory) {
+        return _openRedeems;
     }
 
     // ----------------------------------------------------------------------

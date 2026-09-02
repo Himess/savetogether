@@ -38,12 +38,34 @@ async function setup() {
   await pool.waitForDeployment();
   const poolAddr = await pool.getAddress();
 
+  // The share token the vault mints, and the pair of batchers that mint and burn
+  // it — the same shape as Zama's Sepolia deployment, where a deposit batcher and
+  // a redeem batcher serve one ERC-4626 vault in opposite directions.
+  const share = await Token.deploy("csteakcUSDC", "csteakcUSDC", "");
+  await share.waitForDeployment();
+  const shareAddr = await share.getAddress();
+
   const Batcher = await ethers.getContractFactory("MockDepositBatcher");
-  const batcher = await Batcher.deploy();
+  const batcher = await Batcher.deploy(shareAddr);
   await batcher.waitForDeployment();
 
+  const Redeem = await ethers.getContractFactory("MockRedeemBatcher");
+  const redeem = await Redeem.deploy(shareAddr, tokenAddr);
+  await redeem.waitForDeployment();
+
+  // Both batchers are pre-funded with what they hand out; minting against a real
+  // vault is not the part under test.
+  await (await share.mint!(await batcher.getAddress(), 10_000_000n)).wait();
+  await (await token.mint!(await redeem.getAddress(), 10_000_000n)).wait();
+
   const Source = await ethers.getContractFactory("SteakhouseReplicaSource");
-  const source = await Source.deploy(tokenAddr, await batcher.getAddress(), RATE_BPS, poolAddr);
+  const source = await Source.deploy(
+    tokenAddr,
+    await batcher.getAddress(),
+    await redeem.getAddress(),
+    RATE_BPS,
+    poolAddr,
+  );
   await source.waitForDeployment();
 
   const until = (await ethers.provider.getBlock("latest"))!.timestamp + 365 * DAY;
@@ -51,7 +73,7 @@ async function setup() {
   await (await token.connect(alice!).setOperator!(poolAddr, until)).wait();
   await (await pool.setYieldSource!(await source.getAddress())).wait();
 
-  return { deployer, alice, token, pool, poolAddr, source };
+  return { deployer, alice, token, tokenAddr, pool, poolAddr, source, share, batcher, redeem };
 }
 
 /** Alice's pool balance in the clear. She owns the handle, so she can read it. */
@@ -230,5 +252,101 @@ describe("B2 — joinVault is bounded, so repeating it converges", () => {
       300n,
       "eight joins later there is still liquidity, because each takes half of the rest",
     );
+  });
+});
+
+/**
+ * The way back out, which is the half the first version did not have.
+ *
+ * Zama's vault is served by a PAIR of batchers and the mainnet product works the
+ * same way — app.zama.org shows Deposit and Withdraw tabs against the same
+ * Steakhouse Confidential Prime vault, one batching cUSDC in and the other
+ * batching shares out. Composing with only the deposit half made *principal is
+ * withdrawable at any time* rest on a buffer instead of on the vault.
+ *
+ * These tests are the difference between "the money is illiquid until somebody
+ * else deposits" and "the money comes back".
+ */
+describe("the round trip through Zama's vault, both directions", () => {
+  it("brings principal back out of the vault and makes it withdrawable again", async () => {
+    const { alice, token, tokenAddr, pool, poolAddr, source, batcher, redeem } = await setup();
+
+    await deposit(pool, poolAddr, alice, 100_000n);
+    const joined = await (await source.joinVault!()).wait();
+    const batchId = (await source.openBatches!())[0];
+    expect(joined).to.not.equal(null);
+
+    // Asking for everything moves nothing while half is still in the vault.
+    let walBefore = await wallet(token, tokenAddr, alice);
+    await withdraw(pool, poolAddr, alice, 100_000n);
+    expect((await wallet(token, tokenAddr, alice)) - walBefore).to.equal(
+      0n,
+      "the buffer cannot cover it yet",
+    );
+
+    // The batch settles; the source collects its shares.
+    await (await batcher.advance!()).wait();
+    await (await source.claimShares!(batchId)).wait();
+
+    // Now unwind: shares go back through the redeem batcher and return as cUSDC.
+    await (await source.requestUnwind!()).wait();
+    const redeemBatch = (await source.openRedeems!())[0];
+    await (await redeem.advance!()).wait();
+    await (await source.claimUnwound!(redeemBatch)).wait();
+
+    // And the same withdrawal that moved nothing now pays in full.
+    walBefore = await wallet(token, tokenAddr, alice);
+    await withdraw(pool, poolAddr, alice, 100_000n);
+    expect((await wallet(token, tokenAddr, alice)) - walBefore).to.equal(
+      100_000n,
+      "everything comes back once the redeem batch settles",
+    );
+    expect(await position(pool, poolAddr, alice)).to.equal(0n, "and the position is empty");
+  });
+
+  it("books the unwind against _inVault, so joinVault sees the buffer that exists", async () => {
+    const { alice, token, tokenAddr, pool, poolAddr, source, batcher, redeem } = await setup();
+
+    await deposit(pool, poolAddr, alice, 100_000n);
+    await (await source.joinVault!()).wait(); // 50,000 out
+    await (await batcher.advance!()).wait();
+    await (await source.claimShares!((await source.openBatches!())[0])).wait();
+    await (await source.requestUnwind!()).wait();
+    await (await redeem.advance!()).wait();
+    await (await source.claimUnwound!((await source.openRedeems!())[0])).wait();
+
+    // _inVault is back to zero, so the NEXT join halves the whole principal
+    // again rather than halving what it wrongly believes is left. Getting this
+    // wrong strands liquidity permanently after one round trip.
+    await (await source.joinVault!()).wait();
+
+    const walBefore = await wallet(token, tokenAddr, alice);
+    await withdraw(pool, poolAddr, alice, 50_000n);
+    expect((await wallet(token, tokenAddr, alice)) - walBefore).to.equal(
+      50_000n,
+      "the buffer refilled, so the next join halves the full principal again",
+    );
+  });
+
+  it("refuses a batcher pair that does not match", async () => {
+    const { tokenAddr, poolAddr } = await setup();
+    const Token = await ethers.getContractFactory("ERC7984Mock");
+    const other = await Token.deploy("other", "other", "");
+    await other.waitForDeployment();
+
+    const Batcher = await ethers.getContractFactory("MockDepositBatcher");
+    const b = await Batcher.deploy(await other.getAddress());
+    await b.waitForDeployment();
+
+    // A redeem batcher for a DIFFERENT share than the deposit batcher mints would
+    // send shares somewhere they can never come back from.
+    const Redeem = await ethers.getContractFactory("MockRedeemBatcher");
+    const wrong = await Redeem.deploy(tokenAddr, tokenAddr);
+    await wrong.waitForDeployment();
+
+    const Source = await ethers.getContractFactory("SteakhouseReplicaSource");
+    await expect(
+      Source.deploy(tokenAddr, await b.getAddress(), await wrong.getAddress(), RATE_BPS, poolAddr),
+    ).to.be.revertedWithCustomError(Source, "BatcherMismatch");
   });
 });

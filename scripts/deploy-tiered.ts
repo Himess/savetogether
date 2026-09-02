@@ -17,6 +17,18 @@ const CUSDC = "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639";
 const USDC = "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF";
 const DEPOSIT_BATCHER = "0x48758559c14d4d92b4C74A99660B6a8dbe85F53b";
 
+/**
+ * Zama SERVES THE VAULT WITH A PAIR of batchers, and the mainnet product does
+ * too: app.zama.org has Deposit and Withdraw tabs against the same Steakhouse
+ * Confidential Prime vault. Composing with only the deposit half is what made
+ * "principal is withdrawable at any time" rest on a buffer.
+ *
+ * Verified on chain rather than taken from the address reference, which lists
+ * Confidential mvUSDC as cShare while the deposit batcher actually mints
+ * csteakcUSDC (Mock). The constructor re-checks the pair anyway.
+ */
+const REDEEM_BATCHER = "0xe94E9afdDd43a19C2914739e9279cb6Fe287BEb0";
+
 const U = 1_000_000n;
 
 /**
@@ -74,10 +86,13 @@ async function main(): Promise<void> {
   console.log(`pool     ${poolAddr}`);
 
   const Source = await ethers.getContractFactory("SteakhouseReplicaSource");
-  const source = await Source.deploy(CUSDC, DEPOSIT_BATCHER, RATE_BPS, poolAddr);
+  const source = await Source.deploy(CUSDC, DEPOSIT_BATCHER, REDEEM_BATCHER, RATE_BPS, poolAddr);
   await source.waitForDeployment();
   const srcAddr = await source.getAddress();
-  console.log(`source   ${srcAddr}  (${Number(RATE_BPS) / 100}% a year, bounded joinVault)`);
+  console.log(`source   ${srcAddr}  (${Number(RATE_BPS) / 100}% a year, both vault directions)`);
+  console.log(`  shares   ${await source.shareToken!()}`);
+  console.log(`  in       ${DEPOSIT_BATCHER}`);
+  console.log(`  out      ${REDEEM_BATCHER}`);
 
   await (await pool.setYieldSource!(srcAddr)).wait();
   await (await pool.setTiers!(TIER_PRIZES, TIER_K)).wait();
@@ -121,6 +136,7 @@ async function main(): Promise<void> {
     yieldSource: srcAddr,
     yieldSourceKind: "SteakhouseReplicaSource",
     depositBatcher: DEPOSIT_BATCHER,
+    redeemBatcher: REDEEM_BATCHER,
     vaultShare: "0x13F7d34A4f0102734F19E3Ff16e068Fe194B28c4",
     module: "0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6",
     rateBps: RATE_BPS.toString(),

@@ -16,6 +16,32 @@ const DAY = 24 * 60 * 60;
 const PRIZE = 5_000n;
 const RATE_BPS = 100_000n;
 
+/**
+ * The source now takes BOTH batchers and checks they are a matching pair at
+ * construction — a redeem batcher for a different share than the deposit batcher
+ * mints would send shares somewhere they can never come back from.
+ */
+async function deploySource(Token: any, tokenAddr: string, controller: string, rate: bigint) {
+  const share = await Token.deploy("csteakcUSDC", "csteakcUSDC", "");
+  await share.waitForDeployment();
+  const Dep = await ethers.getContractFactory("MockDepositBatcher");
+  const dep = await Dep.deploy(await share.getAddress());
+  await dep.waitForDeployment();
+  const Red = await ethers.getContractFactory("MockRedeemBatcher");
+  const red = await Red.deploy(await share.getAddress(), tokenAddr);
+  await red.waitForDeployment();
+  const Source = await ethers.getContractFactory("SteakhouseReplicaSource");
+  const source = await Source.deploy(
+    tokenAddr,
+    await dep.getAddress(),
+    await red.getAddress(),
+    rate,
+    controller,
+  );
+  await source.waitForDeployment();
+  return { source, share, dep, red };
+}
+
 describe("SteakhouseReplicaSource", () => {
   it("funds a prize from the replica's rate, and pays nothing without a harvest", async () => {
     await fhevm.initializeCLIApi();
@@ -33,8 +59,7 @@ describe("SteakhouseReplicaSource", () => {
 
     // The batcher is only reached by joinVault, which this test does not call;
     // the pool address stands in so the constructor has something non-zero.
-    const Source = await ethers.getContractFactory("SteakhouseReplicaSource");
-    const source = await Source.deploy(tokenAddr, poolAddr, RATE_BPS, poolAddr);
+    const { source } = await deploySource(Token, tokenAddr, poolAddr, RATE_BPS);
     await source.waitForDeployment();
     const srcAddr = await source.getAddress();
 
@@ -101,9 +126,7 @@ describe("SteakhouseReplicaSource", () => {
     const pool = await Pool.deploy(tokenAddr, 0);
     await pool.waitForDeployment();
     const poolAddr = await pool.getAddress();
-
-    const Source = await ethers.getContractFactory("SteakhouseReplicaSource");
-    const source = await Source.deploy(tokenAddr, poolAddr, RATE_BPS, poolAddr);
+    const { source } = await deploySource(Token, tokenAddr, poolAddr, RATE_BPS);
     await source.waitForDeployment();
     await (await pool.setYieldSource!(await source.getAddress())).wait();
 
@@ -134,9 +157,7 @@ describe("SteakhouseReplicaSource", () => {
     const token = await Token.deploy("gUSDC", "gUSDC", "");
     await token.waitForDeployment();
     const tokenAddr = await token.getAddress();
-
-    const Source = await ethers.getContractFactory("SteakhouseReplicaSource");
-    const source = await Source.deploy(tokenAddr, tokenAddr, RATE_BPS, tokenAddr);
+    const { source } = await deploySource(Token, tokenAddr, tokenAddr, RATE_BPS);
     await source.waitForDeployment();
 
     await expect(

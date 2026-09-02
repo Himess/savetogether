@@ -27,7 +27,7 @@ const MODULE = "0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6";
 /** The composed deployment: Zama's own cUSDC, six decimals, wrapper-only mint. */
 const TOKEN = "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639";
 const UNDERLYING = "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF";
-const POOL = "0x021585bE0100a8D838876432730f308bC7B168D6";
+const POOL = "0x118Bc19eE40f2d3AB9c3B798F3e08f220e8d88DA";
 
 const out: Record<string, unknown> = {};
 
@@ -107,7 +107,7 @@ async function main(): Promise<void> {
         // The pool's own source, not the standalone adapter this used to name.
         // That one reported batch 271 — a real number about a contract holding
         // none of the pool's money, while the pool's principal sat in 281.
-        adapter: "0x57bC5cD7Be1231F73161ecE05a01f9E24370d85E",
+        adapter: "0x3C5645E138Fd91a12d76ffC01fE42c9523010f64",
         batcher: "0x48758559c14d4d92b4C74A99660B6a8dbe85F53b",
       },
       allowedOrigins: ["http://localhost:3000"],

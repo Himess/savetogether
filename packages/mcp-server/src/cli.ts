@@ -83,7 +83,7 @@ async function writeClaudeConfig(): Promise<string> {
 }
 
 /** The prize pool, and the token it settles in. One product, one config. */
-const POOL_ADDRESS = "0x021585bE0100a8D838876432730f308bC7B168D6";
+const POOL_ADDRESS = "0x118Bc19eE40f2d3AB9c3B798F3e08f220e8d88DA";
 const POOL_TOKEN = "cUSDC";
 
 const SEPOLIA_STARTER_TOKENS: readonly TokenEntry[] = [

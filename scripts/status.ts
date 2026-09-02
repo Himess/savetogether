@@ -1,7 +1,7 @@
 import { ethers, fhevm } from "hardhat";
 import { FhevmType } from "@fhevm/hardhat-plugin";
-const POOL = "0x021585bE0100a8D838876432730f308bC7B168D6";
-const SRC = "0x57bC5cD7Be1231F73161ecE05a01f9E24370d85E";
+const POOL = "0x118Bc19eE40f2d3AB9c3B798F3e08f220e8d88DA";
+const SRC = "0x3C5645E138Fd91a12d76ffC01fE42c9523010f64";
 const U = 1_000_000n;
 
 async function main(): Promise<void> {
