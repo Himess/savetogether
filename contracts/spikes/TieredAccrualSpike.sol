@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 pragma solidity ^0.8.27;
 
-import {FHE, euint64, euint128, ebool, externalEuint128} from "@fhevm/solidity/lib/FHE.sol";
+import {FHE, euint64, euint128, ebool, externalEuint64, externalEuint128} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 
 /**
@@ -134,6 +134,50 @@ contract TieredAccrualSpike is ZamaEthereumConfig {
 
     function encTotal() external view returns (euint128) {
         return _encTotal;
+    }
+
+    /**
+     * B0 — what PER-TIER reserves cost.
+     *
+     * V5 accumulates liquidity per tier and pays each tier from its own share.
+     * That is not bookkeeping taste: a single pot cannot absorb a prize that
+     * fires once every hundred draws, because the pot is sized by the AVERAGE
+     * payout and the grand prize is the variance. We have one reserve.
+     *
+     * The shape that fixes it does a bounded decrease against each tier's own
+     * reserve, with the credit zeroed for the tiers that did not win, so the
+     * operation sequence is identical whatever happened.
+     */
+    euint64[4] private _tierReserve;
+
+    function seedTierReserves(externalEuint64 amount, bytes calldata proof, uint8 n) external {
+        euint64 v = FHE.fromExternal(amount, proof);
+        for (uint8 i = 0; i < n; i++) {
+            _tierReserve[i] = v;
+            FHE.allowThis(_tierReserve[i]);
+        }
+    }
+
+    function accrueTieredWithReserves(address user, uint64[] calldata prizes, uint128[] calldata k) external {
+        euint128 w = _weight[user];
+        euint64 credit = FHE.asEuint64(0);
+        for (uint256 i = prizes.length; i > 0; i--) {
+            uint256 t = i - 1;
+            ebool won = FHE.gt(w, _thresholdFor(user, t, k[t]));
+            credit = FHE.select(won, FHE.asEuint64(prizes[t]), credit);
+        }
+        // One bounded decrease per tier, on that tier's own reserve.
+        for (uint256 t = 0; t < prizes.length; t++) {
+            euint64 want = FHE.select(FHE.gt(w, _thresholdFor(user, t, k[t])), FHE.asEuint64(prizes[t]), FHE.asEuint64(0));
+            ebool ok = FHE.ge(_tierReserve[t], want);
+            euint64 taken = FHE.select(ok, want, FHE.asEuint64(0));
+            _tierReserve[t] = FHE.sub(_tierReserve[t], taken);
+            FHE.allowThis(_tierReserve[t]);
+        }
+        _credit[user] = credit;
+        FHE.allowThis(credit);
+        FHE.allow(credit, user);
+        emit Accrued(user, uint8(prizes.length));
     }
 
     function creditOf(address user) external view returns (euint64) {
