@@ -20,7 +20,7 @@ const SEPOLIA = 11155111;
  * while the pool's actual principal sat in 281. The number was real and the
  * subject was wrong, which is worse than an error.
  */
-const ZAMA_VAULT_ADAPTER = "0x15331b79E80EF6606a1aD4C0b13F7EA49482e8A5";
+const ZAMA_VAULT_ADAPTER = "0x57bC5cD7Be1231F73161ecE05a01f9E24370d85E";
 const ZAMA_DEPOSIT_BATCHER = "0x48758559c14d4d92b4C74A99660B6a8dbe85F53b";
 
 function flag(name: string): string | undefined {
@@ -60,7 +60,7 @@ async function main(): Promise<void> {
     moduleAddress: flag("--module") ?? "0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6",
     aclAddress: "0xf0Ffdc93b7E186bC2f8CB3dAA75D86d1930A433D",
     pool: {
-      address: flag("--pool") ?? "0x1d8A0d653027833E4e8eA4DE67B90512Aad7B85f",
+      address: flag("--pool") ?? "0x021585bE0100a8D838876432730f308bC7B168D6",
       // cUSDC, because Zama’s vault batcher takes cUSDC and a pool that
       // settles in anything else could never join a batch.
       token: "cUSDC",

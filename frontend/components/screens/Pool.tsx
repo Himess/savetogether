@@ -86,7 +86,16 @@ export function PoolScreen() {
   const { data: drawCount } = useReadContract({
     abi: POOL_ABI, address: POOL, functionName: "drawCount", query: { refetchInterval: 15_000 },
   });
-  const { data: prize } = useReadContract({ abi: POOL_ABI, address: POOL, functionName: "prize" });
+  const t0 = useReadContract({ abi: POOL_ABI, address: POOL, functionName: "tierPrize", args: [0n] });
+  const t1 = useReadContract({ abi: POOL_ABI, address: POOL, functionName: "tierPrize", args: [1n] });
+  const t2 = useReadContract({ abi: POOL_ABI, address: POOL, functionName: "tierPrize", args: [2n] });
+  const k0 = useReadContract({ abi: POOL_ABI, address: POOL, functionName: "tierK", args: [0n] });
+  const k1 = useReadContract({ abi: POOL_ABI, address: POOL, functionName: "tierK", args: [1n] });
+  const tiers = [
+    { label: "Grand", prize: t0.data as bigint | undefined, every: k0.data as bigint | undefined },
+    { label: "Middle", prize: t1.data as bigint | undefined, every: k1.data as bigint | undefined },
+    { label: "Every draw", prize: t2.data as bigint | undefined, every: 1n },
+  ];
   const { data: rateBps } = useReadContract({
     abi: YIELD_ABI, address: YIELD_SOURCE, functionName: "rateBps",
   });
@@ -197,8 +206,42 @@ export function PoolScreen() {
 
           <div style={css("display:flex;flex-wrap:wrap;gap:22px 44px;margin-top:28px")}>
             <Metric label="Round" value={round === 0 ? "—" : `#${round}`} />
-            <Metric label="Prize" value={prize === undefined ? "—" : fmtUnits6(prize as bigint)} unit="cUSDC" />
+            <Metric label="Grand prize" value={t0.data === undefined ? "—" : fmtUnits6(t0.data as bigint)} unit="cUSDC" />
             <Metric label="Funded by yield at" value={apy} />
+          </div>
+
+          {/* Three prizes cannot be shown as one number, and the odds are the
+              half worth showing: k is literally "one winner every k draws", and
+              it holds whatever the balances are — a whale arriving does not
+              change the schedule, only who tends to be on it. */}
+          <div style={css("margin-top:26px;border:1px solid var(--line);border-radius:16px;overflow:hidden")}>
+            {tiers.map((t, i) => (
+              <div
+                key={t.label}
+                style={css(
+                  "display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 18px;" +
+                    (i === 0 ? "background:var(--accent-soft);" : "background:var(--surface);") +
+                    (i > 0 ? "border-top:1px solid var(--line);" : ""),
+                )}
+              >
+                <span style={css("display:flex;flex-direction:column;gap:2px")}>
+                  <span style={css("font:700 13px var(--display);color:" + (i === 0 ? "#7a5f00" : "var(--ink)"))}>
+                    {t.label}
+                  </span>
+                  <span style={css("font:400 11.5px var(--display);color:var(--ink-3)")}>
+                    {t.every === undefined
+                      ? "—"
+                      : t.every === 1n
+                        ? "one winner every draw"
+                        : "one winner every " + t.every.toString() + " draws"}
+                  </span>
+                </span>
+                <span style={css("font:750 18px var(--display);font-variant-numeric:tabular-nums;white-space:nowrap")}>
+                  {t.prize === undefined ? "—" : fmtUnits6(t.prize)}
+                  <span style={css("font:600 11px var(--mono);color:var(--ink-3)")}> cUSDC</span>
+                </span>
+              </div>
+            ))}
           </div>
 
           {/* The argument, stated where it is being scored. */}
@@ -213,7 +256,7 @@ export function PoolScreen() {
                   notice it. Winning every round looks rigged until you are told
                   it is arithmetic — and the alternative, making a lone holder
                   lose, would be the actually wrong behaviour. */}
-              <li><b style={css("color:var(--ink);font-weight:650")}>If you are the only depositor, you win every round.</b> That is the weighted draw being correct, not a special case: you hold all of the weight, so your threshold is always below it. Odds only become interesting once someone else is in.</li>
+              <li><b style={css("color:var(--ink);font-weight:650")}>If you are the only depositor, you win the ordinary tier every round.</b> That is the weighted draw being correct, not a special case: you hold all of the weight, so your threshold is always below it. The rarer tiers stay rare — holding everything gets you the grand prize about once every hundred draws, not every draw. Odds only become interesting once someone else is in.</li>
             </ol>
           </div>
 

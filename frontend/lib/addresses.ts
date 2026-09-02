@@ -11,9 +11,9 @@
  */
 export const SEPOLIA_CHAIN_ID = 11155111;
 
-/** Deployed by scripts/deploy-composed.ts — see out/deployment.json. */
+/** Deployed by scripts/deploy-tiered.ts — see out/deployment.json. */
 export const POOL = (process.env.NEXT_PUBLIC_POOL ??
-  "0x1d8A0d653027833E4e8eA4DE67B90512Aad7B85f") as `0x${string}`;
+  "0x021585bE0100a8D838876432730f308bC7B168D6") as `0x${string}`;
 
 /** The pool's settlement token: Zama's deployed cUSDC, six decimals. */
 export const TOKEN = (process.env.NEXT_PUBLIC_TOKEN ??
@@ -56,7 +56,7 @@ export const DEPOSIT_BATCHER = "0x48758559c14d4d92b4C74A99660B6a8dbe85F53b" as c
  * a prize funded from its appreciation would never be paid. The APY the Vault
  * screen shows is read from this contract, not written into the page.
  */
-export const YIELD_SOURCE = "0x15331b79E80EF6606a1aD4C0b13F7EA49482e8A5" as const;
+export const YIELD_SOURCE = "0x57bC5cD7Be1231F73161ecE05a01f9E24370d85E" as const;
 
 /** SaveTogetherSession — the module that holds the encrypted budget. */
 export const MODULE = "0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6" as const;

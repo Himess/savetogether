@@ -74,7 +74,7 @@ export function VaultScreen() {
     abi: YIELD_ABI, address: YIELD_SOURCE, functionName: "rateBps",
     query: { refetchInterval: 30_000 },
   });
-  const { data: prize } = useReadContract({ abi: POOL_ABI, address: POOL, functionName: "prize" });
+  const { data: prize } = useReadContract({ abi: POOL_ABI, address: POOL, functionName: "grandPrize" });
   const { data: openBatches, refetch: refetchBatches } = useReadContract({
     abi: VAULT_SOURCE_ABI, address: YIELD_SOURCE, functionName: "openBatches",
     query: { refetchInterval: 20_000 },
@@ -120,7 +120,7 @@ export function VaultScreen() {
 
           <div style={css("display:flex;flex-wrap:wrap;gap:22px 44px;margin-top:28px")}>
             <Metric label="Rate" value={`${apy}%`} />
-            <Metric label="Prize per draw" value={prize === undefined ? "—" : fmtUnits6(prize as bigint)} unit="cUSDC" />
+            <Metric label="Grand prize" value={prize === undefined ? "—" : fmtUnits6(prize as bigint)} unit="cUSDC" />
             <Metric label="Reserve at start" value="0" unit="always" />
           </div>
 

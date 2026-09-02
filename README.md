@@ -13,9 +13,9 @@ Season 4.
 | | |
 | --- | --- |
 | **Live** | **https://ghostpool-himess.vercel.app** |
-| **Pool** | [`0x1d8A0d653027833E4e8eA4DE67B90512Aad7B85f`](https://sepolia.etherscan.io/address/0x1d8A0d653027833E4e8eA4DE67B90512Aad7B85f) |
+| **Pool** | [`0x021585bE0100a8D838876432730f308bC7B168D6`](https://sepolia.etherscan.io/address/0x021585bE0100a8D838876432730f308bC7B168D6) |
 | **Settles in** | cUSDC — Zama's own confidential USDC, [`0x7c5BF43B…3639`](https://sepolia.etherscan.io/address/0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639) |
-| **Yield source** | [`0x15331b79…e8A5`](https://sepolia.etherscan.io/address/0x15331b79E80EF6606a1aD4C0b13F7EA49482e8A5) — a Steakhouse Confidential Prime replica, wired into the vault below |
+| **Yield source** | [`0x57bC5cD7…d85E`](https://sepolia.etherscan.io/address/0x57bC5cD7Be1231F73161ecE05a01f9E24370d85E) — a Steakhouse Confidential Prime replica, wired into the vault below |
 | **Zama's vault batcher** | [`0x48758559…F53b`](https://sepolia.etherscan.io/address/0x48758559c14d4d92b4C74A99660B6a8dbe85F53b) — the pool's principal is in [batch 281](https://sepolia.etherscan.io/tx/0xeb71ffb5ad7165f88ec1b97a702cc261036da148bb1c9d684fc6dc262782de15) |
 | **Session module** | [`0xE5c667c0…6Cf6`](https://sepolia.etherscan.io/address/0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6) |
 | **Network** | Sepolia (11155111) |

@@ -6,7 +6,15 @@ export const POOL_ABI = [
   { type: "function", name: "winningsOf", stateMutability: "view", inputs: [{ name: "user", type: "address" }], outputs: [{ type: "bytes32" }] },
   { type: "function", name: "pendingOf", stateMutability: "view", inputs: [{ name: "user", type: "address" }], outputs: [{ type: "bytes32" }] },
   { type: "function", name: "drawCount", stateMutability: "view", inputs: [], outputs: [{ type: "uint32" }] },
-  { type: "function", name: "prize", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
+  // Three tiers now. `grandPrize` is tier 0 and the array is indexed 0..2.
+  { type: "function", name: "grandPrize", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
+  { type: "function", name: "tierPrize", stateMutability: "view", inputs: [{ type: "uint256" }], outputs: [{ type: "uint64" }] },
+  { type: "function", name: "tierK", stateMutability: "view", inputs: [{ type: "uint256" }], outputs: [{ type: "uint128" }] },
+  { type: "function", name: "TIERS", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
+  // B5. A draw nobody revealed can be abandoned after a day, by anyone.
+  { type: "function", name: "cancelDraw", stateMutability: "nonpayable", inputs: [{ type: "uint32" }], outputs: [] },
+  { type: "function", name: "keeperFee", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
+  { type: "function", name: "owner", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
   { type: "function", name: "accrued", stateMutability: "view", inputs: [{ type: "uint32" }, { type: "address" }], outputs: [{ type: "bool" }] },
   // Permissionless and unconditional: anyone may call it for anyone, and it does
   // the same thing whether that address won or not. A claim only a winner would
