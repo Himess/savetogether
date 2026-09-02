@@ -19,6 +19,7 @@ Season 4.
 | **Zama's vault batcher** | [`0x48758559…F53b`](https://sepolia.etherscan.io/address/0x48758559c14d4d92b4C74A99660B6a8dbe85F53b) — the pool's principal is in [batch 284](https://sepolia.etherscan.io/tx/0x1f0b29b4fe48fad023633c9b6cf75cbfe0259f9f605987b36466704b86c21265) |
 | **Session module** | [`0xE5c667c0…6Cf6`](https://sepolia.etherscan.io/address/0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6) |
 | **Network** | Sepolia (11155111) |
+| **Source** | all three contracts [verified on Etherscan](https://sepolia.etherscan.io/address/0x021585bE0100a8D838876432730f308bC7B168D6#code) — `scripts/verify-all.sh` reproduces it from `out/deployment.json` |
 
 ---
 

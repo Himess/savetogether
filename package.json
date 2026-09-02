@@ -14,7 +14,8 @@
     "test:pool": "hardhat test test/ConfidentialPrizePool.ts test/access-control.ts test/frozen-surface.ts test/equality-invariants.ts test/draw-ordering.ts test/accrual.ts test/yield.ts test/replica-source.ts test/withdraw-buffer.ts test/reserve-order.ts test/phase-b.ts test/c1-indistinguishability.ts test/storage-cost.ts",
     "test:sepolia": "hardhat test test/d1-wrapper-revert.ts test/e1-wrap-path.ts test/sepolia-deposit.ts --network sepolia",
     "build:sdk": "npm run build -w @savetogether/sdk",
-    "hosted": "node packages/hosted/dist/cli.js"
+    "hosted": "node packages/hosted/dist/cli.js",
+    "verify:all": "bash scripts/verify-all.sh"
   },
   "dependencies": {
     "@fhevm/solidity": "^0.11.1",
