@@ -1,24 +1,44 @@
 /* Design tokens lifted from GhostLend, so the two projects read as one hand. */
 @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
+/*
+ * AC. The accent is the navy the mark is drawn in, and the yellow is gone.
+ *
+ * They land together on purpose: the mark was already `#1B3A5C`, so repainting a
+ * screen at a time would have left the logo arguing with the interface it sits in.
+ *
+ * `--accent-ink` exists because navy-on-navy is unreadable where the old yellow
+ * was a background with dark text on it. Anything that WAS a yellow fill with
+ * `#1a1a1a` text is now a navy fill with `--on-accent` text; anything that was
+ * yellow text on a light ground is `--accent` directly.
+ *
+ * The semantic three are muted rather than dropped. `•••` and a real `0` must stay
+ * visually distinct after this — that distinction is the product, and flattening a
+ * palette is exactly how it gets lost — so `--ink-3` keeps enough contrast against
+ * `--ink` to separate a hidden value from a known one.
+ */
 :root {
-  --bg: #f4f3f1;
+  --bg: #fafaf9;
   --surface: #ffffff;
-  --surface-2: #faf9f6;
-  --panel: #171512;
-  --ink: #1a1815;
-  --ink-2: #615d54;
-  --ink-3: #9a958a;
-  --line: #eae7df;
-  --line-2: #ddd9cf;
-  --accent: #ffd208;
-  --accent-soft: #fff3bd;
-  --green: #1c8f5a;
-  --green-bg: #e7f4ec;
-  --amber: #c68a00;
-  --amber-bg: #fdf3dd;
-  --red: #d13c3c;
-  --red-bg: #fbecec;
+  --surface-2: #f4f4f2;
+  --panel: #121820;
+  --ink: #16191d;
+  --ink-2: #565c64;
+  --ink-3: #8d939b;
+  --line: #e4e4e1;
+  --line-2: #cfcfca;
+  --accent: #1b3a5c;
+  --accent-ink: #1b3a5c;
+  --accent-soft: #eef2f7;
+  --accent-line: #c6d2e0;
+  --on-accent: #ffffff;
+  --green: #2f6b4f;
+  --green-bg: #eaf2ee;
+  --amber: #8a6d3b;
+  --amber-bg: #f6f1e8;
+  --amber-line: #ded3c0;
+  --red: #8c3a3a;
+  --red-bg: #f7eded;
   --display: 'Archivo', system-ui, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, monospace;
 }
@@ -149,7 +169,7 @@ main { width: 100%; }
   background: currentColor;
 }
 .pill--idle   { color: var(--ink-3); background: var(--surface-2); border-color: var(--line); }
-.pill--open   { color: var(--amber); background: var(--amber-bg); border-color: #f0dfae; }
+.pill--open   { color: var(--amber); background: var(--amber-bg); border-color: var(--amber-line); }
 .pill--live   { color: var(--green); background: var(--green-bg); border-color: #bfe3ce; }
 
 /* -------------------------------------------------------------- controls -- */
@@ -158,8 +178,8 @@ main { width: 100%; }
 
 button {
   background: var(--accent);
-  color: var(--ink);
-  border: 1px solid #e8bf07;
+  color: var(--on-accent);
+  border: 1px solid var(--accent);
   border-radius: 9px;
   padding: 10px 18px;
   font: 700 14px/1 var(--display);
@@ -216,8 +236,8 @@ input:focus {
 
 .banner {
   background: var(--amber-bg);
-  border: 1px solid #f0dfae;
-  color: #8a6200;
+  border: 1px solid var(--amber-line);
+  color: var(--amber);
   border-radius: 11px;
   padding: 14px 16px;
   margin-bottom: 18px;

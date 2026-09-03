@@ -154,3 +154,101 @@ Recorded because a threat model listing only successful defences is not evidence
 - **Emitted handles were undecryptable.** `within` and `sent` were granted to the owner and the session key but not to the module itself; `userDecrypt` authorises against the reading contract as well as the account. The contract compiled, every budget test passed, and the two-failure-mode distinction — the reason those handles exist — was silently dead.
 - **`openSession` was front-runnable.** The session key travels in mempool calldata; anyone could resubmit a pending open with the same key and permanently burn it for the cost of gas. Closed with an EIP-712 consent signature from the key.
 - **The gate's own first result was underpowered.** At 20 samples per path the low-value rates read 45% / 30% / 20%, which looks like a trend. Resampling at 60 per path collapsed it to 30.0% / 31.7% / 26.7%. The design is powered to ±13 points — the spread the small run appeared to show — so this is a detection failure of a real effect rather than a shrug.
+
+---
+
+## 12. Inherited from Zama's vault, measured 2026-09-03
+
+Three exposures that come from the contracts we call rather than the ones we deploy.
+Recorded because a threat model that stops at its own trust boundary stops early.
+
+### 12.1 A lone depositor is revealed, and we are usually the lone depositor
+
+`joinVault()`'s batch aggregate is published in cleartext when the batch settles. Batch
+286 had exactly one participant — this pool — so the chain records that SaveTogether
+supplied 6,000.000000 cUSDC. Nine of the last ten deposit batches on that batcher had a
+single participant.
+
+Zama documents this ("A lone depositor is fully revealed… the sum of one value is the
+value"). Individual depositor balances are unaffected; what leaks is a pool-level
+aggregate. Both mitigations were measured and neither is affordable at this size — see
+[`leakage.md` §7](leakage.md) for the numbers.
+
+### 12.2 Two brick conditions that no documentation page mentions
+
+From the batcher's own verified source (`out/batcher-src.txt`, OpenZeppelin
+`BatcherConfidential.sol` 0.5.3), inside `dispatchBatchCallback`:
+
+```solidity
+// If wrapper is full, this reverts. Will brick batcher.
+// If output is less than toToken().rate() batch can never be finalized.
+toToken().wrap(address(this), swappedAmount);
+```
+
+Neither appears anywhere under `docs.zama.org/protocol/confidential-vault`. The published
+failure taxonomy is "empty batch, paused, or deadline passed", plus retry on a reverting
+vault call. A permanently unfinalizable batch — output below the wrapper rate — is a
+fourth outcome the state diagram does not contain, and a bricked batcher is a fifth.
+
+`SteakhouseReplicaSource` has no path that detects either. Our principal is currently in a
+**finalized** batch so nothing is stranded, and `requestUnwind()` gives a way out of the
+share leg. The exposure is a future `joinVault()` landing in a batch that cannot finalise,
+which would strand that tranche until the deadline cancels it.
+
+### 12.3 We compile against a different FHEVM library version than the batcher
+
+Read from the batcher's verified standard-JSON input: it resolves
+`@fhevm-solidity-0.13.0/lib/FHE.sol`. We declare `@fhevm/solidity: ^0.11.1` and resolve to
+**0.11.1** — two minor versions apart, across a boundary we call in both directions.
+
+The OpenZeppelin confidential-contracts versions **agree**: the batcher uses 0.5.3 and our
+`^0.5.1` resolves to 0.5.3, so the ERC-7984 semantics we compile against are the ones it
+implements. Nothing has been observed to break — 36 draws and ten settled batches — but no
+test pins the assumption, and `docs.zama.org` publishes an archived `v0.10` documentation
+tree precisely because these versions move.
+
+### 12.4 Settlement is permissionless in the code and operator-driven in practice
+
+`dispatchBatch()` and `dispatchBatchCallback()` carry no access modifier, and simulating
+`dispatchBatch()` from an arbitrary address succeeds. All ten dispatches of batches 285–294
+were nonetheless sent by the batchers' own `owner()`, and the callbacks by the same address
+through Multicall3.
+
+The distinction that matters: the callback requires a `decryptionProof` that passes
+`FHE.checkSignatures`, and only Zama's decryption service produces one. "Anyone can call
+it" is true; "anyone can produce the argument it needs" is not. A user acting alone can
+drive a stuck batch to *cancellation* after the deadline, not to finalisation. The same
+dependency governs `unwrap`: the D1 run's 100 cUSDC unwrap was still unsettled 80 minutes
+later, which is why the Wrap screen now shows the pending state rather than an unchanged
+balance.
+
+### 12.5 A single balance change in a window is recoverable from `totalWeight`
+
+Confirmed on live data 2026-09-04, draw 33. Same shape as §12.1: an aggregate that
+becomes an individual value when one contributor dominates it — except this one is
+ours rather than inherited, and it was found by turning our own measurement
+technique around.
+
+`totalWeight / window` gives the pool's total balance, which `STATE-NOW.md` §1 uses
+to validate a reading. Run across consecutive draws it solves for an individual:
+
+```
+totalWeight_N = prevBalance × window + delta × (snapshotAt − eventTime)
+```
+
+Every term but `delta` is public. On draw 33 the residual divided exactly:
+**540.000000 cUSDC recovered**, matching that depositor's own decrypted record
+(12,000 → 12,540) to the unit.
+
+Requires a window with exactly **one** balance-changing event — and `Claimed` is one,
+because `_drain` folds a credit into the balance. At six depositors and a draw every
+~44 minutes, that is the common case.
+
+Not mitigated by encrypting `totalWeight` (8.3×, and it removes the public
+auditability the draw exists to prove) and not mitigated by batching deposits — a
+single-participant batch is a single-event window, which is Zama's own documented
+limitation restated. The anonymity set is co-movers in the same window; it grows with
+participation and nothing enforces it.
+
+Full arithmetic, conditions and worked numbers in [`leakage.md` §8](leakage.md).
+`scripts/x1-window-solve.ts` reproduces it against live chain data.

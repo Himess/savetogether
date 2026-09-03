@@ -71,9 +71,31 @@ never have worked, and why a public HTTPS endpoint was not optional.
 ## Redeploying
 
 ```
-npm run build:packages
-# copy packages/{sdk,console,mcp-server,hosted}/{package.json,dist} to /opt/ghostpool
-ssh root@<vps> "cd /opt/ghostpool && npm install --omit=dev && systemctl restart ghostpool-hosted"
+npm run deploy:hosted
+```
+
+**The origin host is not in this repository, and that is deliberate.** It lives in
+`probe/secrets.json` (git-ignored) as `hostedHost`, beside the deploy key. If you do
+not have that file, you are not the operator of this deployment.
+
+This repository is public and that box holds the keeper's key, the session keys and
+the hosted server. `survivorsbyashborn.com` is behind Cloudflare, so publishing the
+origin hands back the one thing Cloudflare provides — and it would do so during the
+window when the service most needs to stay up. The address was briefly written here
+after a deploy and removed for that reason; it never reached a commit.
+
+The previous placeholder — `root@<vps>`, and `root@HOST` in `keeper-deploy.md` — is
+not the fix either: it is what made the last deploy cost twelve `ssh` probes to
+identify one machine. Naming *where the address lives* is the difference. The script
+reads it, so nobody has to know it by heart.
+
+Verify from outside afterwards, not from the box:
+
+```
+curl -o /dev/null -w "%{http_code}
+"   -H "Authorization: Bearer zzzz" https://survivorsbyashborn.com/ghostpool/api/session
+# 404 = the route exists and rejected the token. 401 = no header. 404 on a
+# no-header request means the OLD build is still running.
 ```
 
 Existing MCP URLs survive it, as long as `.env` is left alone.

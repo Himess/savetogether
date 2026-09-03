@@ -123,12 +123,33 @@ export function BalancesScreen() {
         ))}
 
         <div style={css("padding:18px 0 20px;border-top:1px solid var(--line);margin-top:6px")}>
-          {hasPermit !== true ? (
+          {/* R1/R8. The Pool screen explains its zeros and this one did not — the
+              same defect seen from the other side, on the screen whose whole
+              subtitle is about which values are readable. A zero HANDLE means no
+              ciphertext was ever written, which is public and needs no permit, so
+              offering to decrypt it is offering to decrypt nothing. Both screens
+              now say the same thing in the same order. */}
+          {!address ? (
+            <p style={css("margin:0;font:400 12px/1.5 var(--display);color:var(--ink-3)")}>
+              Connect a wallet to see the confidential rows. Until then they read{" "}
+              <span style={css("font-family:var(--mono)")}>—</span> rather than{" "}
+              <span style={css("font-family:var(--mono)")}>0</span>: there is no address to ask about,
+              which is a different thing from an empty one.
+            </p>
+          ) : inputs.length === 0 ? (
+            <p style={css("margin:0;font:400 12px/1.5 var(--display);color:var(--ink-3)")}>
+              Every confidential row above is a <b style={css("font-weight:650")}>real zero, not a
+              hidden number</b> — this address holds none of these tokens and has never deposited, so
+              no encrypted value exists to read. A hidden value would show{" "}
+              <span style={css("font-family:var(--mono)")}>••••••</span> instead, and there would be
+              something here to decrypt.
+            </p>
+          ) : hasPermit !== true ? (
             <>
               <button
                 onClick={() => grantPermit([CUSDC, POOL])}
                 disabled={granting || !onSepolia || !address}
-                style={css("padding:11px 18px;border-radius:12px;border:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,#ffdf5c,#ffd208);font:700 13px var(--display);color:#1a1a1a;cursor:pointer")}
+                style={css("padding:11px 18px;border-radius:12px;border:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,#24507d,#1b3a5c);font:700 13px var(--display);color:var(--on-accent);cursor:pointer")}
               >
                 {granting ? "Waiting for signature…" : "Decrypt everything"}
               </button>

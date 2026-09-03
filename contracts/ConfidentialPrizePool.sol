@@ -565,11 +565,17 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
      * Publishes R and the total weight once the KMS has signed off on them.
      *
      * The status check comes BEFORE `checkSignatures`, and that ordering is the
-     * point: `checkSignatures` carries no replay guard of its own
-     * (`GhostLendPool.sol:520` says so in as many words), so without this a
-     * draw could be finalised repeatedly. Re-finalising is also how a keeper
-     * would grind R, which makes this guard the A6 mitigation rather than
+     * point: `FHE.checkSignatures` verifies that the KMS signed these cleartexts
+     * for these handles and nothing more — it carries no replay guard of its own,
+     * so the same valid proof can be presented again and again. Without the
+     * status check a draw could be finalised repeatedly. Re-finalising is also how
+     * a keeper would grind R, which makes this guard the A6 mitigation rather than
      * housekeeping.
+     *
+     * An earlier version of this comment cited `GhostLendPool.sol:520` for the
+     * replay claim. That file is from a different project and does not exist in
+     * this repository, so the citation was unfollowable. The property is stated
+     * directly above instead, and `test/draw-ordering.ts` pins it.
      */
     function revealDraw(
         uint32 drawId,

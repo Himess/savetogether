@@ -34,7 +34,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 import { formatAmount, parseAmount, type SaveTogetherConfig, type TokenEntry } from "./config";
-import { sanitiseChainText, untrusted } from "./sanitize";
+import { COARSE_BUCKET, coarsenBudget, sanitiseChainText, untrusted } from "./sanitize";
 import { Vault } from "./vault";
 
 const ERC20_ABI = [
@@ -384,17 +384,40 @@ export class SaveTogetherTools {
   }
 
   /** Boolean only. Never leaks either side of the comparison. */
+  /**
+   * Whether an amount fits, answered against a COARSENED budget.
+   *
+   * The exact predicate was an oracle. `left >= amount` is monotone, free, and
+   * was neither counted nor logged, so binary search recovered the budget to the
+   * unit — 40 calls for a realistic figure, inside the hosted server's
+   * 60-per-minute window. `test/g1-can-afford-oracle.ts` performs the search and
+   * then pins the fix.
+   *
+   * The answer is now computed against `remaining` rounded DOWN to
+   * `COARSE_BUCKET`, so every budget sharing a bucket answers identically to
+   * every probe and no number of calls separates them. Rounding down means a
+   * "yes" is always a real yes; the cost is that an amount inside the residue is
+   * refused even though it would have gone through, and the description says so.
+   */
   async canAfford(args: { token: string; amount: string }): Promise<ToolResult> {
     const t = this.token(args.token);
     const wanted = parseAmount(args.amount, t.decimals);
     const live = this.requireLive();
-    const ok = await live.session.canAfford(t.address, wanted);
+
+    const remaining = await live.session.remainingExact(t.address);
+    const coarse = coarsenBudget(remaining);
+    const ok = coarse >= wanted;
+
+    const bucket = `${Number(COARSE_BUCKET) / 10 ** t.decimals} ${t.symbol}`;
     return {
       ok: true,
       text: ok
         ? `Yes — ${args.amount} ${t.symbol} is within the remaining budget.`
-        : `No — ${args.amount} ${t.symbol} exceeds the remaining budget.`,
-      data: { affordable: ok },
+        : `No — ${args.amount} ${t.symbol} is not within the budget as measured. ` +
+          `This answer is computed against the budget rounded down to the nearest ${bucket}, ` +
+          `so an amount within that rounding is refused here even though the transfer itself ` +
+          `would succeed. Try a smaller figure, or send it and let the on-chain budget decide.`,
+      data: { affordable: ok, coarsenedBy: COARSE_BUCKET.toString() },
     };
   }
 

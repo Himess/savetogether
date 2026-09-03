@@ -12,10 +12,20 @@ function navStyle(active: boolean): CSSProperties {
     padding: "9px 12px", borderRadius: "12px", cursor: "pointer",
     fontFamily: "var(--display)", fontSize: "14.5px", fontWeight: active ? 650 : 500,
     letterSpacing: "-0.01em", textAlign: "left", whiteSpace: "nowrap",
-    color: active ? "#1a1a1a" : "#4a473e", backgroundColor: "transparent",
-    backgroundImage: active ? "linear-gradient(180deg,#fff0a6,#ffda40)" : "none",
-    border: active ? "1px solid rgba(0,0,0,.05)" : "1px solid transparent",
-    boxShadow: active ? "0 6px 15px rgba(255,210,8,.28), inset 0 1px 0 rgba(255,255,255,.55)" : "none",
+    // AF. When yellow was the accent, a solid block here cost nothing: yellow was
+    // decoration and the eye did not read it as an instruction. Navy is not
+    // decoration — it now means "this is the action" — so a solid navy nav item
+    //competed with the deposit button for the same signal, and on the Pool
+    // screen the two were the same size.
+    //
+    // The solid fill is reserved for actions. Being on a page is stated with
+    // navy text on a tint, which is louder than the inactive items and quieter
+    // than anything you can press.
+    color: active ? "var(--accent-ink)" : "var(--ink-2)",
+    backgroundColor: active ? "var(--accent-soft)" : "transparent",
+    backgroundImage: "none",
+    border: active ? "1px solid var(--accent-line)" : "1px solid transparent",
+    boxShadow: "none",
   };
 }
 
@@ -25,14 +35,18 @@ const ICON: Record<Route, ReactNode> = {
   vault: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="6.4" rx="7.3" ry="3.1"/><path d="M4.7 6.4v5.4c0 1.7 3.3 3.1 7.3 3.1s7.3-1.4 7.3-3.1V6.4"/><path d="M4.7 11.8v5.4c0 1.7 3.3 3.1 7.3 3.1s7.3-1.4 7.3-3.1v-5.4"/></svg>),
   chat: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M20.5 12c0 4.3-3.8 7.7-8.5 7.7-1.1 0-2.2-.2-3.2-.5L3.5 21l1.4-4.1A7.3 7.3 0 0 1 3.5 12c0-4.3 3.8-7.7 8.5-7.7s8.5 3.4 8.5 7.7Z"/><path d="M8.5 11.5h7M8.5 14.5h4"/></svg>),
   verify: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3.2l7.2 2.7v5.4c0 4.4-3 8.3-7.2 9.5-4.2-1.2-7.2-5.1-7.2-9.5V5.9Z"/><path d="M9 12.2l2.1 2.1L15.4 10"/></svg>),
+  position: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M3 19h18"/><path d="M5 19v-6M10 19V7M15 19v-9M20 19v-4"/></svg>),
+  break: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3.2l7.2 2.7v5.4c0 4.4-3 8.3-7.2 9.5-4.2-1.2-7.2-5.1-7.2-9.5V5.9Z"/><path d="M9.6 9.6l4.8 4.8M14.4 9.6l-4.8 4.8"/></svg>),
+  rubric: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3.5h9.5L19 7v13.5H6z"/><path d="M15 3.5V7h4"/><path d="M9 12.5l1.6 1.6L14 10.7"/><path d="M9 17h6"/></svg>),
   balances: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="2.5" y="6" width="19" height="13" rx="3"/><path d="M2.5 10h19"/><path d="M16 14.5h2.5"/></svg>),
 };
 
 const ITEMS: { r: Route; label: ReactNode }[] = [
   { r: "pool", label: (<span>Pool <span style={css("opacity:.5;font-weight:500")}>· Win</span></span>) },
   { r: "wrap", label: "Wrap" },
-  { r: "vault", label: (<span>Vault <span style={css("opacity:.5;font-weight:500")}>· Earn</span></span>) },
   { r: "verify", label: (<span>Verify <span style={css("opacity:.5;font-weight:500")}>· the draw</span></span>) },
+  { r: "position", label: (<span>Your position <span style={css("opacity:.5;font-weight:500")}>· yours only</span></span>) },
+  { r: "break", label: (<span>Try to break it <span style={css("opacity:.5;font-weight:500")}>· 5 attacks</span></span>) },
   { r: "chat", label: (<span>Talk to it <span style={css("opacity:.5;font-weight:500")}>· MCP</span></span>) },
   { r: "balances", label: "Balances" },
 ];
@@ -49,10 +63,15 @@ export function Sidebar() {
   // detected wallet, so prefer MetaMask and fall back rather than guessing.
   const doConnect = () => {
     if (isConnected) { disconnect(); return; }
+    // The demo connector is only in the list when NEXT_PUBLIC_DEMO_ADDRESS is set
+    // (see lib/wagmi.ts), so this branch cannot be reached in a normal build. It
+    // exists so the per-address, plaintext parts of the UI — the accrual badge
+    // most of all — can be photographed without a browser extension.
+    const demo = connectors.find((c) => c.type === "mock");
     const injected = connectors.filter(
       (c) => c.type === "injected" || /injected|metamask|rabby|coinbase|brave/i.test(c.name),
     );
-    const pick = injected.find((c) => /metamask/i.test(c.name)) ?? injected[0] ?? connectors[0];
+    const pick = demo ?? injected.find((c) => /metamask/i.test(c.name)) ?? injected[0] ?? connectors[0];
     if (pick === undefined) {
       toast("No wallet detected — install MetaMask, then reload", "err");
       return;
@@ -72,7 +91,15 @@ export function Sidebar() {
     <aside style={css("position:sticky;top:14px;align-self:flex-start;height:calc(100vh - 28px);width:264px;flex:none;background:var(--surface);border:1px solid var(--line);border-radius:24px;box-shadow:0 1px 2px rgba(20,18,12,.04),0 10px 30px rgba(20,18,12,.03)")}>
       <div style={css("display:flex;flex-direction:column;height:100%;padding:22px 15px 16px")}>
         <div style={css("display:flex;align-items:center;gap:9px;padding:2px 9px 6px")}>
-          <svg width="23" height="25" viewBox="0 0 24 26" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12v11.4c0 1.3 1.5 2 2.5 1.1L6.6 22c.5-.5 1.4-.5 2 0l1.4 1.3c.6.5 1.4.5 2 0l1.4-1.3c.5-.5 1.4-.5 2 0l2.1 1.5c1 .9 2.5.2 2.5-1.1V12C22 6.48 17.52 2 12 2Z" fill="var(--ink)"/><circle cx="9" cy="12" r="1.55" fill="#fff"/><circle cx="15" cy="12" r="1.55" fill="#fff"/></svg>
+          {/* AB. The mark beside LIVE text, not the PNG lockup.
+              The lockup is set in Poppins, which is not one of this site's faces —
+              using it here would either import a third font or render the wordmark
+              in a typeface nothing else uses. The mark is an image because it is a
+              drawing; the name is text because text stays crisp at every size and
+              inherits the palette. The lockup keeps the favicon, the OG card and
+              the README, where it sits alone. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/savetogether-mark-512.png" alt="" width={26} height={26} style={css("display:block;border-radius:6px")} />
           <span style={css("font:800 21px var(--display);letter-spacing:-.03em;color:var(--ink)")}>SAVETOGETHER</span>
         </div>
         <p style={css("margin:0 9px 18px;font:500 11.5px/1.45 var(--display);color:var(--ink-3)")}>

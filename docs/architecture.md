@@ -143,6 +143,12 @@ The MCP layer keeps two principals distinct, and the word "agent" appears nowher
 
 By default the model never sees an amount. `balance` and `remaining` return an opaque reference. `reveal: true` requires a click on the local console, every call, and there is no setting that disables it. `can_afford` answers the common question with a boolean instead.
 
+**`can_afford` needed a correction, and it is the sharpest illustration of the split above.** One boolean discloses one bit and never the figure — that part was always true. But the predicate `left >= amount` is monotone, free, uncounted and caller-parameterised, so a *sequence* of them binary-searches the budget exactly: `test/g1-can-afford-oracle.ts` recovers a six-decimal figure in **40 calls**, inside the hosted server's 60-per-minute allowance. Its description used to claim it "leaks neither the budget nor anything else", which was true per call and false in aggregate.
+
+It is now answered against the budget rounded **down** to 50-token buckets, so every budget sharing a bucket answers identically to every probe and the search has nothing left to divide. Rounding down means a yes is always a real yes — the coarse answer can refuse something affordable but can never approve something that would fail on chain.
+
+The lesson generalises past this one tool: **the leak was not in the cryptography.** The session client always decrypted the budget to answer, so the ciphertext never gave way. What leaked was the shape of the answer crossing into the model's hands. Any free, repeatable, caller-parameterised predicate over a secret is an oracle regardless of what it is computed over — which is why the sweep in `bundle/G1-BUDGET-ORACLE.md` checked all seventeen tools for that shape rather than for encryption.
+
 **Sealed mode** puts the amount input on the console: the user types it, the session client encrypts it, and the model receives `{status, ok_ref, sent_ref}` — no number, and none afterwards either.
 
 **`unwrap`, and the one limit here that is not on chain.** Going back to ERC-20 publishes the

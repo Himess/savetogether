@@ -142,3 +142,163 @@ line 322 with both endpoints in the clear. Only the amount is encrypted.
 **Paying a winner by transfer would publish who won.** This is the source-level
 reason the prize is an encrypted per-participant credit rather than a payment,
 and it is not a matter of preference.
+
+---
+
+## 7. The vault leg publishes an exact aggregate
+
+Measured 2026-09-03. This is a leak the pool itself does not create; it is inherited
+from how Zama's deposit batcher settles, and this project's integration walks into it.
+
+**What happens.** `SteakhouseReplicaSource.joinVault()` sends cUSDC into Zama's deposit
+batcher. When the batch is dispatched, `dispatchBatchCallback(batchId, cleartextAmount,
+proof)` carries the decrypted **aggregate** of that batch in cleartext calldata. With more
+than one participant that aggregate hides everyone inside it. With exactly one, the sum of
+one value is the value.
+
+**Batch 286 had exactly one participant: this pool.** The chain therefore records that
+SaveTogether supplied **6,000.000000 cUSDC** into the vault. Nine of the last ten deposit
+batches on that batcher had a single participant, so this is the normal case rather than
+an unlucky one.
+
+Zama documents the property precisely, on
+`docs.zama.org/protocol/confidential-vault/concepts/confidentiality`:
+
+> **A lone depositor is fully revealed.** The dispatch gate is age-only, with no minimum
+> participant count. A batch that reaches its minimum age with a single depositor reveals
+> that depositor's exact amount when the aggregate is decrypted — the sum of one value is
+> the value.
+
+**What it costs, precisely.** No depositor's position is affected. Individual balances
+never enter the batcher — only the pool's own supply does — so this discloses a
+*pool-level aggregate*, in the same category as `totalWeight` (§3). Two differences
+matter: `totalWeight` is published by our choice and defended in the README, this is not;
+and this figure is more precise, being an exact cUSDC amount rather than a weight.
+
+**Both mitigations were measured. Neither is shipped.**
+
+| mitigation | measured cost | verdict |
+|---|---|---|
+| Wait for a batch that already has co-participants | 1 of 10 batches ever had more than one; expected wait **≈ 28 hours** per `joinVault` | unaffordable — the yield leg would stall |
+| Pad the batch with encrypted-zero joins to an anonymity set of five | 1,271,270 gas and 0.001486 ETH per pad → **0.00594 ETH and four separately funded wallets** per join | roughly doubles the per-round cost (keeper burn is 0.005915 ETH/draw) and needs wallet infrastructure that does not exist |
+
+Repeated joins from one address accumulate into a single position, so the padding wallets
+cannot be reused within a batch. At this deployment's size neither pays for itself, so the
+disclosure is the mitigation. Reproduce with the `Joined(uint256,address,bytes32)` logs on
+`0x48758559c14d4d92b4C74A99660B6a8dbe85F53b` and by decoding `dispatchBatchCallback`
+inside the operator's Multicall3 transactions.
+
+---
+
+## 8. A single balance change in a window is exactly recoverable from `totalWeight`
+
+Confirmed on live data 2026-09-04, on draw 33 of the deployed pool. This is our own
+measurement technique turned around: `STATE-NOW.md` §1 derives the pool's total
+balance from `totalWeight / window` and uses it to validate a reading. The same
+arithmetic recovers an individual.
+
+### The near-miss, first — because almost right is indistinguishable from right
+
+The first run of this attack filtered only `Deposited` and `Withdrawn`. It solved
+**three** windows and printed all three with the same confidence:
+
+| draw | solved | true | |
+|---|---|---|---|
+| 33 | **540.000000** | 540 | correct |
+| 34 | 543.242947 | 250 | **wrong** |
+| 36 | 219.000000 | 200 | **wrong** |
+
+Nothing about the two wrong ones looked wrong. They carried the right number of
+decimals, sat in a plausible range, and one of them even reported `exact: true`
+against its own arithmetic. Only checking them against the depositors' real amounts
+separated them from the correct one.
+
+The cause: **`Claimed` moves a balance too.** `_drain` folds a pending credit into
+the balance and pushes an observation, so a claim shifts `totalWeight` exactly as a
+deposit does. An incomplete filter under-counts the events in a window, so a window
+with two changes looks like a window with one, and the residual gets attributed
+entirely to the event the filter happened to see.
+
+With the complete filter, one window qualifies and it is exact. **The attack is easy
+to get almost right, and an almost-right answer here is a confident wrong number
+about somebody's balance** — which is worth stating before the arithmetic, because
+anyone reproducing this will hit it.
+
+### The equation
+
+`totalWeight` is the sum of balance-seconds over the window, so for a window
+containing one balance-changing event:
+
+```
+totalWeight_N = prevBalance × window + delta × (snapshotAt − eventTime)
+```
+
+Everything except `delta` is public:
+
+| term | where it comes from |
+|---|---|
+| `window`, `snapshotAt` | `drawAt(N)` — published |
+| `eventTime` | the block timestamp of the `Deposited` / `Withdrawn` / `Claimed` log |
+| `prevBalance` | `totalWeight / window` of the previous revealed draw |
+| `totalWeight_N` | published at reveal |
+
+So `delta` is the only unknown, and the equation **solves rather than bounds**.
+
+### Worked, on a real draw
+
+```
+draw 33: window 7500s, one deposit at +7476s
+  carried-in balance : 19000 cUSDC      (from draw 32's totalWeight / window)
+  totalWeight        : 142512960000000
+  base if unchanged  : 142500000000000
+  residual           :     12960000000
+  residual / 24s     : 540.000000 cUSDC   — integer-exact
+```
+
+Cross-checked against that depositor's **own decrypted observation record**: their
+balance moved `12,000 → 12,540`. Delta **540**. Recovered from public data alone,
+to the unit. `scripts/x1-window-solve.ts` reproduces it.
+
+### The exact conditions
+
+It requires **all** of:
+
+1. A window containing exactly **one** balance-changing event. `Claimed` counts —
+   `_drain` folds a pending credit into the balance and pushes an observation, so a
+   claim moves `totalWeight` exactly as a deposit does. A first pass that filtered
+   only `Deposited`/`Withdrawn` mis-attributed the residual and produced wrong
+   figures for two other draws; the complete filter left one window, and that one is
+   exact.
+2. The previous draw revealed, so `prevBalance` is available.
+3. `prevBalance` dividing evenly into the previous window — otherwise integer
+   truncation propagates and the answer is close but not exact.
+
+With six depositors and a draw roughly every 44 minutes, most windows carry zero or
+one event, so condition 1 is the common case rather than the rare one.
+
+### What it recovers, precisely
+
+The **balance delta**, not the deposit amount. Those differ when a transaction moves
+more than one thing: draw 33's 540 was a 500 cUSDC deposit plus a 40 cUSDC pending
+credit that `deposit` drained in the same call. An observer learns 540 and cannot
+split it — which narrows the disclosure slightly and does not remove it.
+
+### The mitigation, honestly
+
+The anonymity set is **the number of participants who change balance in the same
+window**. It grows with participation and nothing in the contract enforces a minimum.
+At six depositors it is frequently one.
+
+**Not encrypting `totalWeight`.** That was measured at 8.3× and rejected because it
+removes public auditability of the draw — the trade has not changed and this finding
+does not change it. What changes is the honest statement of the boundary: the
+aggregate is underdetermined **only when several people move in the same window**.
+
+### Not fixed by batching deposits
+
+Batching the pool's own deposits would protect a reveal that does not exist here — a
+deposit enters as `euint64` and is never decrypted, which is precisely why Zama
+batches and we do not need to. And against this finding it fails for Zama's own
+documented reason: *"a lone depositor is fully revealed; the sum of one value is the
+value."* A single-participant batch is a single-event window. Batching schedules
+co-participants; it does not create them.

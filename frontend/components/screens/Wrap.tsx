@@ -1,9 +1,9 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { useDecryptValues, useEncrypt, useGrantPermit, useHasPermit } from "@zama-fhe/react-sdk";
 import { css } from "@/lib/css";
-import { shortAddr } from "@/lib/format";
+import { shortAddr, showConfidential } from "@/lib/format";
 import { CUSDC, EXPLORER, USDC } from "@/lib/addresses";
 import { ERC20_ABI, ERC7984_ABI } from "@/lib/abis";
 import { useOnSepolia } from "@/lib/chain";
@@ -13,6 +13,41 @@ import { TokenIcon } from "@/components/TokenIcon";
 
 const ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
 const UNIT = 1_000_000n; // USDC and cUSDC are both 6 decimals; the wrapper is 1:1
+
+/**
+ * An unwrap request that has been filed but has not landed.
+ *
+ * `unwrap` debits the cUSDC in the same transaction and then STOPS. The
+ * underlying only moves when somebody calls `finalizeUnwrap` with a KMS
+ * decryption proof, and that somebody is Zama's operator — the same dependency
+ * the batchers have. Measured on 2026-09-03: a 100 cUSDC unwrap was still
+ * unsettled eighty minutes later, with nothing on this screen to say so.
+ *
+ * The screen used to say the USDC "arrives when it settles" and then showed a
+ * balance that had not changed, which reads as a failure rather than as a queue.
+ * This keeps the request visible until the balance actually moves.
+ */
+type PendingUnwrap = { amount: string; at: number; hash: string; baseline: string };
+const PENDING_KEY = "savetogether.pendingUnwrap.v1";
+
+function loadPending(addr: string | undefined): PendingUnwrap | null {
+  if (!addr) return null;
+  try {
+    const raw = window.localStorage.getItem(`${PENDING_KEY}.${addr.toLowerCase()}`);
+    return raw ? (JSON.parse(raw) as PendingUnwrap) : null;
+  } catch {
+    return null; // private windows and blocked site data both throw here
+  }
+}
+function savePending(addr: string, v: PendingUnwrap | null): void {
+  try {
+    const k = `${PENDING_KEY}.${addr.toLowerCase()}`;
+    if (v === null) window.localStorage.removeItem(k);
+    else window.localStorage.setItem(k, JSON.stringify(v));
+  } catch {
+    /* storage unavailable — the panel just will not persist across a reload */
+  }
+}
 
 /**
  * Where the privacy starts, and the one step that is not private.
@@ -71,21 +106,70 @@ export function WrapScreen() {
     enabled: enabled && hasPermit === true && inputs.length > 0,
   });
 
-  const confidential = useMemo(() => {
-    if (!address) return "—";
-    if (cHandle === undefined) return "…";
-    if (cHandle === ZERO) return "0";
-    if (hasPermit !== true) return "•••";
-    if (isFetching) return "…";
-    const v = clear?.[cHandle as `0x${string}`];
-    return v === undefined ? "•••" : (Number(v) / 1e6).toLocaleString();
-  }, [cHandle, hasPermit, isFetching, clear]);
+  // Was a hand-rolled copy of `showConfidential` with the same five states.
+  // Correct, and still a second implementation that had to be kept in sync by
+  // hand — which is the drift the shared helper exists to stop.
+  const confidential = useMemo(
+    () =>
+      showConfidential({
+        connected: !!address,
+        handle: cHandle,
+        permitted: hasPermit === true,
+        fetching: isFetching,
+        clear: cHandle ? clear?.[cHandle as `0x${string}`] : undefined,
+      }),
+    [address, cHandle, hasPermit, isFetching, clear],
+  );
 
   const refresh = async () => {
     await refetchUsdc();
     await refetchAllowance();
     await refetchC();
   };
+
+  // ---------------------------------------------------------- pending unwrap
+  const [pending, setPending] = useState<PendingUnwrap | null>(null);
+  useEffect(() => setPending(loadPending(address)), [address]);
+
+  // The request is settled when the public USDC balance has risen by at least
+  // what was asked for. Comparing against the balance recorded at request time
+  // rather than against a delta keeps this correct across reloads.
+  useEffect(() => {
+    if (!pending || !address || usdc === undefined) return;
+    if (usdc - BigInt(pending.baseline) >= BigInt(pending.amount)) {
+      savePending(address, null);
+      setPending(null);
+    }
+  }, [pending, address, usdc]);
+
+  // Nothing tells the page when the operator finalises, so it has to look.
+  useEffect(() => {
+    if (!pending) return;
+    const t = setInterval(() => void refetchUsdc(), 20_000);
+    return () => clearInterval(t);
+  }, [pending, refetchUsdc]);
+
+  const waitedMin = pending ? Math.max(0, Math.round((Date.now() - pending.at) / 60_000)) : 0;
+
+  /**
+   * W9. Why unwrapping is unavailable, said rather than implied.
+   *
+   * The wrap half of this screen already gated on its preconditions and showed
+   * the reason; this half was fully enabled against a balance of zero. Same
+   * screen, same class of bug as the Pool tabs disagreeing.
+   */
+  const unwrapBlocked: string | null = useMemo(() => {
+    if (!address) return "Connect a wallet to unwrap.";
+    if (!onSepolia) return "Switch your wallet to Sepolia first.";
+    if (outUnits === 0n) return "Enter an amount above zero.";
+    if (cHandle === ZERO) return "You hold no cUSDC yet — wrap some above first.";
+    if (hasPermit !== true) return "Decrypt your balance first, so you can see what you are unwrapping.";
+    const v = cHandle ? clear?.[cHandle as `0x${string}`] : undefined;
+    if (v !== undefined && outUnits > BigInt(v as string | number | bigint)) {
+      return "That is more cUSDC than you hold. ERC-7984 clamps rather than reverting, so this would succeed and move nothing.";
+    }
+    return null;
+  }, [address, onSepolia, outUnits, cHandle, hasPermit, clear]);
 
   const approved = (allowance ?? 0n) >= units;
   const holds = (usdc ?? 0n) >= units;
@@ -132,9 +216,15 @@ export function WrapScreen() {
             </button>
           )}
 
-          <div style={css("margin-top:26px;display:flex;gap:10px;align-items:flex-start;background:var(--accent-soft);border:1px solid #f0d97a;border-radius:14px;padding:14px 16px")}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8a6d00" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={css("flex:none;margin-top:1px")}><path d="M12 3.5l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg>
-            <p style={css("margin:0;font:400 12.5px/1.55 var(--display);color:#7a5f00")}>
+          {/* R6. This was an amber panel with a warning triangle, which told a
+              first-time visitor something was wrong at the exact moment we were
+              being straight with them. Wrapping being public is not a hazard; it
+              is a fact, and stating it is the most honest sentence on the screen.
+              Neutral information styling, and an info glyph rather than a
+              warning one. */}
+          <div style={css("margin-top:26px;display:flex;gap:10px;align-items:flex-start;background:var(--surface-2);border:1px solid var(--line-2);border-radius:14px;padding:14px 16px")}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={css("flex:none;margin-top:1px")}><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.6"/></svg>
+            <p style={css("margin:0;font:400 12.5px/1.55 var(--display);color:var(--ink-2)")}>
               <b style={css("font-weight:700")}>Wrapping is public.</b> Anyone reading the chain can see that this address
               wrapped this much — it is an ordinary ERC-20 transfer into the wrapper. What they cannot see is anything you
               do afterwards. This is the one step in the whole product that is not private, and saying so is the point:
@@ -229,7 +319,7 @@ export function WrapScreen() {
               ).then(refresh);
             }}
             disabled={busy || units === 0n || !approved || !holds || !onSepolia || !address}
-            style={css(`width:100%;margin-top:14px;padding:14px;border-radius:13px;border:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,#ffdf5c,#ffd208);color:#1a1a1a;font:700 14px var(--display);box-shadow:0 5px 15px rgba(255,210,8,.3);cursor:pointer;opacity:${busy || units === 0n || !approved || !holds || !onSepolia ? ".55" : "1"}`)}
+            style={css(`width:100%;margin-top:14px;padding:14px;border-radius:13px;border:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,#24507d,#1b3a5c);color:var(--on-accent);font:700 14px var(--display);box-shadow:0 5px 15px rgba(27,58,92,.28);cursor:pointer;opacity:${busy || units === 0n || !approved || !holds || !onSepolia ? ".55" : "1"}`)}
           >
             Wrap into cUSDC
           </button>
@@ -255,7 +345,7 @@ export function WrapScreen() {
           <div style={css("margin-top:26px;padding-top:20px;border-top:1px solid var(--line)")}>
             <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap")}>
               <span style={css("font:700 15px var(--display)")}>Go back to public USDC</span>
-              <span style={css("padding:4px 10px;border-radius:999px;background:#fdecec;border:1px solid #f3c2c2;font:700 10.5px var(--display);color:#a11;white-space:nowrap")}>
+              <span style={css("padding:4px 10px;border-radius:999px;background:var(--amber-bg);border:1px solid #d9cfbc;font:700 10.5px var(--display);color:var(--amber);white-space:nowrap")}>
                 publishes the amount
               </span>
             </div>
@@ -297,20 +387,88 @@ export function WrapScreen() {
                       userAddress: address,
                       values: [{ type: "euint64", value: outUnits }],
                     });
-                    return writeContractAsync({
+                    const hash = await writeContractAsync({
                       abi: ERC7984_ABI,
                       address: CUSDC,
                       functionName: "unwrap",
                       args: [address, address, enc.encryptedValues[0] as `0x${string}`, enc.inputProof],
                     });
+                    // Record it before the refresh: the cUSDC is gone from this
+                    // point and the USDC has not arrived, and that gap is the
+                    // whole reason this panel exists.
+                    const p: PendingUnwrap = {
+                      amount: outUnits.toString(),
+                      at: Date.now(),
+                      hash,
+                      baseline: (usdc ?? 0n).toString(),
+                    };
+                    savePending(address, p);
+                    setPending(p);
+                    return hash;
                   },
                 ).then(refresh);
               }}
-              disabled={busy || encrypting || outUnits === 0n || !onSepolia || !address}
+              disabled={unwrapBlocked !== null || busy || encrypting}
               style={css(`width:100%;margin-top:14px;padding:13px;border-radius:13px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--ink);font:700 13.5px var(--display);cursor:pointer;opacity:${busy || outUnits === 0n || !onSepolia ? ".55" : "1"}`)}
             >
               {encrypting ? "Encrypting…" : "Unwrap to public USDC"}
             </button>
+
+            {/* W9. The wrap half was gated with its reason shown and this half was
+                not — fully enabled against a balance of zero, on the same screen. */}
+            {unwrapBlocked !== null && !busy && !encrypting && (
+              <p style={css("margin:9px 0 0;font:600 11.5px/1.5 var(--display);color:var(--amber)")}>
+                {unwrapBlocked}
+              </p>
+            )}
+
+            {/* The queue, made visible. Without this the screen debits the cUSDC,
+                promises USDC "when it settles", and then shows an unchanged
+                balance for an hour — which reads as a failure rather than a
+                wait. Settlement is `finalizeUnwrap` with a KMS proof, sent by
+                Zama's operator, and no ETA is knowable from here. */}
+            {pending && (
+              <div style={css("margin-top:14px;padding:13px 14px;border-radius:13px;border:1px solid #d9cfbc;background:var(--amber-bg)")}>
+                <div style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
+                  <span style={css("width:8px;height:8px;border-radius:999px;background:#c99a2e;flex:none")} />
+                  <span style={css("font:700 12.5px var(--display);color:var(--amber)")}>
+                    Unwrap filed — {(Number(pending.amount) / 1e6).toLocaleString()} cUSDC
+                  </span>
+                  <span style={css("font:400 11px var(--display);color:var(--amber)")}>
+                    waiting {waitedMin < 1 ? "under a minute" : `${waitedMin} min`}
+                  </span>
+                </div>
+                <p style={css("margin:8px 0 0;font:400 11px/1.6 var(--display);color:var(--amber)")}>
+                  Your cUSDC is already debited. The USDC has not arrived yet, and that is
+                  expected: <span style={css("font-family:var(--mono)")}>unwrap</span> only files
+                  the request. The underlying moves when someone calls{" "}
+                  <span style={css("font-family:var(--mono)")}>finalizeUnwrap</span> with a KMS
+                  decryption proof — in practice Zama&apos;s operator, on no fixed schedule.
+                  Nothing is lost while you wait, and this panel clears itself when the balance
+                  moves.
+                </p>
+                <div style={css("margin-top:8px;display:flex;gap:12px;flex-wrap:wrap")}>
+                  <a
+                    href={`${EXPLORER}/tx/${pending.hash}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={css("font:600 11px var(--display);color:var(--amber);text-decoration:underline")}
+                  >
+                    the request →
+                  </a>
+                  <button
+                    onClick={() => {
+                      if (!address) return;
+                      savePending(address, null);
+                      setPending(null);
+                    }}
+                    style={css("border:0;background:none;padding:0;font:600 11px var(--display);color:var(--amber);cursor:pointer;text-decoration:underline")}
+                  >
+                    dismiss
+                  </button>
+                </div>
+              </div>
+            )}
 
             <p style={css("margin:10px 0 0;font:400 11px/1.55 var(--display);color:var(--ink-3)")}>
               Asynchronous by design — the request goes in, the KMS decrypts, and the USDC lands

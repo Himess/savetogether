@@ -2,11 +2,13 @@
 
 # 🎟 SaveTogether
 
-### No-loss prize savings where your balance, your odds, and whether you won all stay encrypted
+### Zama's confidential yield, paid as a prize instead of as interest — with the winner and the odds encrypted too
 
-**Deposit confidential USDC. Your principal is never at risk — only the yield becomes a prize.
-Every round a winner is drawn, weighted by how much you held and for how long, and nobody can
-see your balance, your odds, or your result. Not other depositors. Not the keeper. Not the pool.**
+**Your money stays in Zama's vault, earning exactly as it does today. Instead of taking your
+interest in equal shares, you turn it into a chance at all of it. A round you do not win costs
+you that round's yield and nothing else — the principal is untouched and withdrawable whenever
+you like. And nobody can see your balance, your odds, or your result. Not other depositors. Not
+the keeper. Not the pool.**
 
 <br/>
 
@@ -16,8 +18,8 @@ see your balance, your odds, or your result. Not other depositors. Not the keepe
 [![Zama Developer Program S4](https://img.shields.io/badge/Zama%20Dev%20Program%20S4-Bounty%20Track-C9A227?style=for-the-badge&labelColor=1a1a1a)](https://www.zama.org/)
 
 [![Live](https://img.shields.io/badge/▶%20Live-ghostpool--himess.vercel.app-2fbf7a?style=flat-square)](https://ghostpool-himess.vercel.app)
-[![Contracts](https://img.shields.io/badge/contracts-3%20verified-success?style=flat-square)](#-deployed-sepolia)
-[![Tests](https://img.shields.io/badge/tests-176%20passing-brightgreen?style=flat-square)](#-testing)
+[![Contracts](https://img.shields.io/badge/contracts-2%20exact%20·%201%20similar-success?style=flat-square)](#-deployed-sepolia)
+[![Tests](https://img.shields.io/badge/tests-200%20passing-brightgreen?style=flat-square)](#-testing)
 [![Composed with](https://img.shields.io/badge/composed%20with-Zama's%20Confidential%20Vault-5c9bff?style=flat-square)](https://app.zama.org/earn)
 [![License](https://img.shields.io/badge/license-BSD--3--Clause--Clear-blue?style=flat-square)](./LICENSE)
 
@@ -31,15 +33,74 @@ see your balance, your odds, or your result. Not other depositors. Not the keepe
 
 **Zama and Steakhouse × Morpho already shipped the supply side.** `app.zama.org`
 runs a confidential vault — Steakhouse Confidential Prime USDC, **7.20% APY,
-$40.5M deposited** — where you shield your deposit and earn encrypted yield in
-batches.
+40,252,088.60 USDC deposited** *(read from `app.zama.org/earn` on 2026-09-04 — it moved
+from 7.19% and 40,251,401.78 the day before, so treat every figure here as dated rather
+than current)* — where your deposit, your shares and your yield are all encrypted.
 
-You can hide what you save. **You still cannot hide what you win.**
+That vault already hides everything about your savings: the deposit, the shares and
+the yield are all encrypted. Nothing here improves on that, and this project would be
+dishonest to claim otherwise.
 
-> Every prize-savings protocol broadcasts it. PoolTogether's TWAB is public, so
-> your balance, your odds and your result are readable by anyone with an RPC
-> endpoint. SaveTogether is that product with the broadcast removed — and it
-> settles in the same cUSDC and earns through the same vault.
+**Zama shipped confidential yield. We turned that yield into a prize — and hid the
+winner and the odds.**
+
+Both halves earn their place. *Who won* is the obvious secret. *What each
+participant's odds were* is the second one — and it is a question that **does not
+exist** when everyone earns pro rata. Yield paid in proportion has no winner, so it
+creates no "who" to hide. A prize does. That gap is the whole contribution, and it is
+not that Zama failed to conceal earnings.
+
+### What this actually is
+
+Zama's vault puts confidential USDC into Morpho and pays the yield to everyone in
+proportion. SaveTogether is **the same money in the same vault with a different
+distribution policy**: instead of paying that yield pro rata, it pays all of it to one
+or a few participants, chosen by a draw weighted by how much you held and for how long.
+
+| | Zama's vault | SaveTogether |
+|---|---|---|
+| Where the money goes | Morpho, earning | the same |
+| **Who receives the yield** | **everyone, pro rata** | **one or a few, by draw** |
+| Principal | always yours | always yours |
+| Downside | none | none |
+
+In one sentence: **you keep your money in Zama's vault, and instead of taking your
+interest in equal shares, you turn it into a chance at all of it.**
+
+**A loser does not lose.** They forgo that round's yield and nothing else — principal
+is untouched, withdrawable at any time, and never at risk. "Received no interest this
+round" and "lost money" are different things, and the distance between them is the
+entire no-loss claim.
+
+### Three points of composition, not one
+
+- **The same token.** The deposit batcher's `toToken` *is* cUSDC — read off the chain,
+  not off a docs page. A pool settling in its own token could never join a batch, and
+  the composition would be a diagram rather than a transaction.
+- **The same vault.** `joinVault()` goes through Zama's deployed deposit batcher and
+  real shares come back. Our principal is in [batch 286](#the-composition-on-chain).
+- **The same flow.** Wrap, deposit, stay confidential — identical to `app.zama.org`,
+  except that what you hold at the end is a ticket rather than interest.
+
+### Where PoolTogether comes in
+
+PoolTogether invented no-loss prize savings and we follow its draw construction closely
+enough to cite it by function name. What we do not follow is its transparency: V5's
+TWAB is public, so a depositor's balance, odds and result are readable by anyone with
+an RPC endpoint. That is fine for them and fatal for this — so the draw is the same
+idea evaluated over ciphertext.
+
+The confidentiality difference is the headline; there is a **structural** one underneath
+it that costs us. V5's `TwabController` stores at most **one observation per period in a
+fixed-size ring buffer that overwrites**. Ours appends one observation per deposit to a
+growable array, because a ring buffer that overwrites needs to know which entry is stale,
+and on an encrypted balance that comparison is not free.
+
+`test/storage-cost.ts` measures both sides rather than asserting the trade: 60,000 gas per
+cold observation, three storage slots each, and a pre-initialisation table showing
+cardinality 8 pays back after 9 observations, 16 after 18, 32 after 37, 64 after 74. We
+took the append, and it is the same decision as the accrual cost below — the price of not
+branching on anything encrypted.
 
 ---
 
@@ -56,6 +117,7 @@ You can hide what you save. **You still cannot hide what you win.**
 - [Claiming announces nothing](#-claiming-announces-nothing)
 - [Where the prize comes from](#-where-the-prize-comes-from)
 - [What we measured](#-what-we-measured)
+- [Try to break it](#-try-to-break-it)
 - [Testing](#-testing)
 - [What is hidden, and what is not](#-what-is-hidden-and-what-is-not)
 - [Running it](#-running-it)
@@ -70,11 +132,18 @@ You can hide what you save. **You still cannot hide what you win.**
 
 ### Ours
 
-| Contract | Address | Purpose |
-|---|---|---|
-| **ConfidentialPrizePool** | [`0xa9B69D…6631`](https://sepolia.etherscan.io/address/0xa9B69Dc9F9f4C4512c926ba9eA432eBcF0026631#code) | TWAB, the draw, three encrypted prize tiers |
-| **SteakhouseReplicaSource** | [`0xDa596e…3695`](https://sepolia.etherscan.io/address/0xDa596e47029839eA7E1990f97F106fd6d2e33695#code) | the yield, and both directions into Zama's vault |
-| **SaveTogetherSession** | [`0xE5c667…6Cf6`](https://sepolia.etherscan.io/address/0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6#code) | encrypted, on-chain-bounded session budgets |
+| Contract | Address | Purpose | Etherscan |
+|---|---|---|---|
+| **ConfidentialPrizePool** | [`0xa9B69D…6631`](https://sepolia.etherscan.io/address/0xa9B69Dc9F9f4C4512c926ba9eA432eBcF0026631#code) | TWAB, the draw, three encrypted prize tiers | **Exact Match** |
+| **SteakhouseReplicaSource** | [`0xDa596e…3695`](https://sepolia.etherscan.io/address/0xDa596e47029839eA7E1990f97F106fd6d2e33695#code) | the yield, and both directions into Zama's vault | **Similar Match** ⚠ |
+| **SaveTogetherSession** | [`0xE5c667…6Cf6`](https://sepolia.etherscan.io/address/0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6#code) | encrypted, on-chain-bounded session budgets | **Exact Match** |
+
+All three are verified and all three show their source. Two are Exact Matches;
+`SteakhouseReplicaSource` is a **Similar Match**, which Etherscan renders with an amber
+check rather than a green one — the runtime bytecode matches, the trailing metadata hash
+does not. That is a compiler-settings or source-path difference between the verification
+input and the build that was deployed, and it is not the same claim as the other two.
+`scripts/verify-all.sh` reproduces all three but does not assert which kind it got.
 
 ### Zama's, which we call and never deploy
 
@@ -115,6 +184,38 @@ graph LR
 | **The vault composition** | **Real.** Zama's deployed batchers, real shares, on chain, both directions. |
 | **The rate** | **Ours.** Zama's Sepolia vault is idle-only with no yield adapter — measured — so nothing about it appreciates and a prize funded from its appreciation would never be paid. |
 
+### What mainnet does that Sepolia does not
+
+Read from `app.zama.org/earn` on **2026-09-04**, and from Zama's withdraw guide:
+
+| | mainnet | our Sepolia measurement |
+|---|---|---|
+| Deposit batch | dispatched in **~15h 42m** | median 1.4 h, range 6 min – 8.8 h |
+| **Withdraw batch** | **~4d 15h 34m** | no directional split at all |
+| Redeem minimum batch age | **7 days**, by design | 1 second |
+| APY | 7.20% | n/a — idle-only |
+| Total deposits | 40,252,088.60 USDC | n/a |
+
+**Withdrawal on mainnet is roughly seven times slower than deposit**, and that asymmetry
+is deliberate rather than incidental — Zama's guide says the redeem batcher's minimum
+batch age is *"7 days, deliberately longer than deposits, so a lone withdrawal gets
+aggregated rather than settled alone."* It is the §Z4 lone-depositor problem being solved
+by making people wait together.
+
+**Nothing we measured on Sepolia predicts this.** Our median was 1.4 hours with no
+difference between directions, because Sepolia's `minBatchAge` is one second on both
+batchers. Any statement in this README about how the design would behave on mainnet has
+to carry the four-and-a-half-day exit, and a prize round shorter than that means a
+depositor cannot leave between rounds.
+
+**There is a fast exit, and it costs exactly the thing this product is for.** Zama's
+Path B unwraps cShare into *public* vault shares and redeems them like any other holder:
+minutes instead of days, and **the amount becomes public**. We already implement its
+first step — the Wrap screen's *Unwrap to public USDC*, which carries a "publishes the
+amount" warning and is deliberately not a session tool, because a disclosure decision
+must not be made on someone's behalf. So this is not a gap in what we built; it is the
+same trade-off, labelled.
+
 The mainnet vault is Steakhouse × Morpho and we do not touch it. Zama's Sepolia
 deployment is their own replica of it — the ERC-4626 is literally named
 *Steakhouse Confidential Prime USDC* — and that is what we join.
@@ -134,6 +235,73 @@ you    put half my balance in the pool
 
 Connect a wallet, sign once, paste a URL into Claude's connector settings. No
 terminal, no npm, no tab kept open.
+
+### Three principals, and the claim lives in the gaps between them
+
+Almost every account of an "AI agent moving money" collapses this into two parties —
+you and *the agent* — and the collapse is where the honesty goes. There are three,
+and each knows something different:
+
+| | holds |
+|---|---|
+| **the model** | what you typed, and opaque references. Never a figure it was not given. |
+| **the session client** | it *constructs the ciphertext*, so it holds absolute amounts. |
+| **the chain** | neither. An encrypted budget, an encrypted amount, a public recipient. |
+
+The word *agent* is not used below, because using it is what makes the second row
+disappear.
+
+#### Who knows what, per action
+
+| | model | session client | chain |
+|---|---|---|---|
+| `pool_deposit`, a number you typed | sees it | sees it | encrypted |
+| `pool_deposit`, `bal_1:half` | **reference only** | resolves it | encrypted |
+| `pool_position` | **reference only** | sees it | encrypted |
+| [`can_afford`](#-try-to-break-it) | **one bit; repeated calls reach the bucket floor and stop** | the exact budget | encrypted |
+| Session budget | **never** | the exact figure | encrypted, unreadable by anyone on chain |
+| Recipient address | sees it | sees it | public by construction |
+| `unwrap` | sees the ceiling | sees the amount | **published — that is the point** |
+
+> **The leak was never in the cryptography.** `canAfford` always decrypted the budget
+> to answer it — the session client held the exact figure either way, and the
+> ciphertext never gave way. What leaked was the **shape of the answer as it crossed
+> the boundary to the model**: a free, repeatable, caller-parameterised predicate is
+> an oracle regardless of what it is computed over. Forty probes recovered an exact
+> budget, inside the hosted server's sixty-per-minute allowance. That is why a bucket
+> fixed it and a cipher would not have.
+>
+> You can run the attack yourself on the **Try to break it** screen, row 5 — it
+> converges, then stops at the bucket floor with the remainder still hidden.
+
+#### One request, traced
+
+`"put half my balance in the pool"`, through all three:
+
+```mermaid
+graph LR
+    U["👤 You<br/><i>knows: everything</i>"] -->|"'half my balance'"| M["💬 The model<br/><i>knows: the words<br/>and bal_1:half</i>"]
+    M -->|"pool_deposit(bal_1:half)"| S["🖥 The session client<br/><i>knows: 12,290<br/>and therefore 6,145</i>"]
+    S -->|"encrypt(6145000000)"| E["🔒 externalEuint64<br/>+ input proof"]
+    E -->|"deposit(handle, proof)"| C["⛓ The chain<br/><i>knows: a handle,<br/>a sender, a timestamp</i>"]
+    C -->|"euint64 position"| K["🔐 Only you<br/>can decrypt"]
+    classDef you fill:#ffd208,stroke:#1a1a1a,color:#1a1a1a,font-weight:bold;
+    classDef mid fill:#16181f,stroke:#2f333d,color:#eceef2;
+    classDef chain fill:#eef3fd,stroke:#c3d4f2,color:#2b4c8c;
+    class U,K you;
+    class M,S,E mid;
+    class C chain;
+```
+
+**The model never holds `6,145`.** It holds the string `bal_1:half`, and the
+resolution happens one hop later, in a process that already had to know the balance
+to encrypt anything at all. That is the property the reference mechanism buys — and
+it is the only one it buys. It does not hide the figure from the session client, and
+the section below says so rather than letting this diagram imply otherwise.
+
+The diagram after this one shows **who signs what**. This one shows **who knows
+what**. They are the two different questions a reader arrives with, and answering
+only the first is how a custodial product sounds safe.
 
 ### The key we hold cannot do more than the chain lets it
 ```mermaid
@@ -202,6 +370,63 @@ with the public wrap into an exact amount, forever. The measurements are in
 and the full disclosure table is in
 [`docs/session-leakage.md`](docs/session-leakage.md) §6.
 
+### What it looks like
+
+Five captures from a real session. The first is the one worth reading twice.
+
+<!-- SCREENSHOT 1 — docs/shots/refusal.png
+     The model asked for a balance, declining; then asked to narrow it down by
+     trying amounts, declining again, unprompted. -->
+
+> **1 · The refusal**
+>
+> *The model declined to binary-search for the balance without being told to; the
+> system now bounds it as well.*
+>
+> Both halves, in that order. The first is a behaviour **nobody wrote** — there is no
+> instruction anywhere in the tool descriptions telling a model not to search for a
+> balance by trying amounts; it came out of the descriptions saying what the
+> references are for. The second is the reason it does not have to be trusted:
+> `can_afford` now answers against a coarsened budget, so a model that *did* try
+> would converge on a 50-token bucket and stop. A behaviour nobody wrote is a better
+> story with the mechanism named beside it than without.
+
+<!-- SCREENSHOT 2 — docs/shots/reference.png
+     A pool_deposit tool call carrying bal_1:half, with the figure absent from the
+     model's context above it. -->
+
+> **2 · A reference, not a number**
+>
+> *`bal_1:half` in the tool call, and no figure anywhere in the context above it.*
+> The model is spending an amount it has never seen. The session client resolves it
+> one hop later — see the matrix above for what that costs.
+
+<!-- SCREENSHOT 3 — docs/shots/budget-refusal.png
+     A send or deposit exceeding the encrypted budget, refused. -->
+
+> **3 · The budget refusing**
+>
+> *The clamp is on chain and the limit itself is encrypted.* Not a policy layer the
+> server runs and you cannot inspect — an `euint64` nobody can read, including us.
+
+<!-- SCREENSHOT 4 — docs/shots/unwrap-warning.png
+     The unwrap warning: publishes the amount. -->
+
+> **4 · Disclosure chosen, not defaulted**
+>
+> *Unwrapping publishes the amount, so it is not a session tool at all.* A model must
+> not make a disclosure decision on someone's behalf. This one is the holder's own
+> wallet and their own click.
+
+<!-- SCREENSHOT 5 — docs/shots/connector.png
+     Connector setup, and the revoke afterwards. -->
+
+> **5 · Opened, and closed**
+>
+> *Paste a URL to open; revoke from your own wallet to close.* The close needs
+> nothing from the server — which is the claim the whole section rests on, so it is
+> shown rather than asserted.
+
 ### The local install still works, and that is the point
 
 ```
@@ -269,8 +494,20 @@ draw. The draw transaction is one call to `FHE.randEuint64()` and a KMS reveal �
 
 ## 🎚 Prize tiers, derived rather than chosen
 
-Three tiers, PoolTogether's structure: one grand prize, a middle one, and an
-ordinary one every round.
+Three tiers — one grand prize, a middle one, and an ordinary one every round.
+
+**Not PoolTogether's structure, and the reason is the interesting part.** V5 runs between
+4 and 11 tiers, of which the last two are *canaries*: tiers whose claim behaviour tunes
+the tier count itself. If the first canary goes unclaimed the next draw has one fewer
+tier; if the second is claimed, one more. That is how V5 lets gas prices and incoming
+yield decide prize size and prize count without governance.
+
+**A canary reads its signal from public claim behaviour, and that is exactly the signal
+this design removes.** Nobody here claims, winning and losing are the same transaction,
+and no observer can count claims per tier. V5's auto-tuning is not something we skipped —
+it is unavailable to us at any price, and it is unavailable *because* of the property the
+pool exists for. Our three tiers are fixed by `setTiers` under owner control and derived
+in [`docs/tier-derivation.md`](docs/tier-derivation.md) instead.
 
 | tier | prize | k | expected frequency | at a 30-minute cadence |
 |---|---|---|---|---|
@@ -344,6 +581,26 @@ thing a lottery really has to prove.
 ---
 
 ## 🎁 Claiming announces nothing
+
+> **On the brief's wording, and a deliberate divergence.** The topic list asks for
+> *"prize distribution via confidential transfer, with winner-only decryption."* This pool
+> does **not** call `confidentialTransfer` to pay a prize. It credits an encrypted internal
+> balance instead, and that is not a shortcut — it is the only mechanism that satisfies the
+> requirement the topic sits under.
+>
+> `confidentialTransfer(winner, prize)` hides the *amount* and publishes the *recipient*:
+> ERC-7984 requires a `ConfidentialTransfer` event on every transfer, "including zero value
+> transfers", and its `from`/`to` are plain addresses. A prize paid that way puts the
+> winner's address on chain in a transfer whose sender is the pool — which is precisely the
+> "who won" that winner-only decryption is meant to protect. Following the suggested
+> mechanism literally would defeat the requirement it serves.
+>
+> So the prize moves as `FHE.select` into `_pending[user]`, applied to **every**
+> participant whether they won or not, and the credit is a handle only its owner can
+> decrypt. Winner-only decryption is satisfied; the transfer event that would have
+> announced the winner never happens. `claim` exists to fold that credit into a balance and
+> is callable by anyone for anyone, so calling it says nothing either.
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -470,6 +727,57 @@ shares    0x13F7d34A4f0102734F19E3Ff16e068Fe194B28c4   (Confidential steakcUSDC)
 Re-run it yourself with `npx hardhat run scripts/prove-vault-composition.ts
 --network sepolia`.
 
+#### The split is provable, not just stated
+
+"The composition is real, the rate is ours" is checkable on chain, and here is the check.
+Zama's Sepolia ERC-4626 reports `totalAssets() = 1058845820278` against
+`totalSupply() = 1058845820278000000000000` — a share price of **exactly 1.0** once the
+6-to-18 decimal scaling is undone. And every one of the last ten settled batches finalised
+at an `exchangeRate` of exactly `1000000`, which is 1.000000 at six decimals:
+
+```
+batch  285 286 287 288 289 290 291 292 293 294
+rate   1.000000 for all ten
+```
+
+Zero appreciation, measured rather than asserted — their own address reference calls it
+"an idle-only VaultV2 with no yield adapter". The batchers, the shares and both directions
+are real; the yield is ours and is pre-funded from the pot. Both halves of that sentence
+now have a number behind them.
+
+#### What joining that batch published
+
+**Batch 286 had exactly one participant: us.** Its `dispatchBatchCallback` publishes the
+decrypted aggregate in cleartext calldata, and with one participant the aggregate *is* that
+participant's amount — so the chain records that SaveTogether supplied
+**6,000.000000 cUSDC** into Zama's vault.
+
+This is documented behaviour, not a bug in the batcher. Zama's own confidentiality page
+says it plainly: *"A lone depositor is fully revealed — the dispatch gate is age-only, with
+no minimum participant count… the sum of one value is the value."* Our integration walks
+into it. Nine of the last ten deposit batches on that batcher had a single participant.
+
+**What it does and does not cost.** No depositor's balance is affected — individual
+positions never enter the batcher, only the pool's own supply does. What leaks is a
+*pool-level aggregate*, and this project already publishes one (`totalWeight`) on purpose.
+The difference is that this one was not a choice, and it is more precise: an exact cUSDC
+figure rather than a weight.
+
+**Both mitigations were measured, and neither is shipped.** Zama's answer is that the
+anonymity set is the batch's co-participants, so either wait for company or pad the batch:
+
+| mitigation | measured cost |
+|---|---|
+| Join a batch that already has traffic | 1 of 10 batches ever had more than one participant — **expected wait ≈ 28 hours** per `joinVault` |
+| Pad with encrypted-zero joins to an anonymity set of five | 1,271,270 gas and 0.001486 ETH per pad, so **0.00594 ETH and four separately funded wallets** per join — roughly doubling the per-round cost, against a keeper burn of 0.005915 ETH per draw |
+
+Repeated joins from one address accumulate into a single position, so the wallets cannot be
+reused within a batch. Neither is affordable at this deployment's size, so the honest move
+was to disclose it with the numbers rather than ship a mitigation that does not pay for
+itself. It is recorded in [`docs/leakage.md`](docs/leakage.md) and
+[`docs/threat-model.md`](docs/threat-model.md) as well as here — on the same page as the
+batch it is about.
+
 **The pool settles in cUSDC because of that batcher, not for decoration.** Its
 `toToken` is cUSDC — read off the chain — so a pool settling in its own token
 could never join a batch, and the composition would be a diagram.
@@ -492,6 +800,29 @@ operational dependency the docs do not mention.
 
 Everything below is measured on live Sepolia, not inferred. `findings.md` has the
 full accounting, including the measurements that came out wrong and why.
+
+### Two transactions, and they are the whole argument
+
+| draw | outcome | accrual gas | transaction |
+|---|---|---|---|
+| 34 | **lost** | `684,273` | [`0xc22520c2…`](https://sepolia.etherscan.io/tx/0xc22520c2cc537c6277e230b5d9b6d9b029aca48aaabc715a824a9fd30fd92440) |
+| 35 | **won 1 cUSDC** | `684,273` | [`0x1ef0e39d…`](https://sepolia.etherscan.io/tx/0x1ef0e39d5d30790963c57030a050fbc480932a86e0527429b449f41ed6bbedc1) |
+
+**Same address. Consecutive draws. Identical 68-byte calldata. Zero difference.**
+
+One of those accruals paid a prize and the other paid nothing. Using two *different*
+addresses would have left "perhaps it is the address" open; using the same one closes
+it. And the counter-evidence is in the same account: draw 33 cost **681,662** for that
+same address — so accrual gas does move, with the length of that account's observation
+history, and never with the outcome.
+
+Draw 34's loss is verified in the clear by `scripts/d1-why-no-credit.ts`, which decrypts
+the holder's own weight and reproduces the contract's comparison — 63.86% of the window
+against a threshold at 98.9%. Draw 35's win moved `winnings` from 40 to 41.
+
+Anyone can open both links. The systematic version is below.
+
+### The systematic version
 
 | | |
 | --- | --- |
@@ -517,14 +848,39 @@ the effect vanishes. `findings.md` §14.
 | `accrue`, steady state | 2,582,192 HCU — 7 participants per transaction |
 | One observation | 60,000 gas, 5.7% of a deposit |
 | KMS reveal, live | 12.0 seconds |
-| Local tests | 30 passing |
+
+---
+
+## 🕵 Try to break it
+
+The site has a screen that asks to be attacked rather than believed. Five attempts, run
+with your own wallet against the live pool — **every row executes**, and a staged failure
+would be worse than no screen at all.
+
+| attempt | what happens |
+|---|---|
+| Read another participant's balance | pick any depositor from the public `Deposited` log, request their handle, watch Zama's relayer refuse |
+| Work out who won | fetch all six credit handles — same length, same shape, no flag, no ordering |
+| Infer the outcome from gas | draw 34 lost and draw 35 won, same address, both **684,273 gas** |
+| Recover an individual from `totalWeight` | one equation, six unknowns |
+| **Binary-search the session budget** | forty probes against `can_afford`, converging — then stopping at the bucket floor |
+
+The last row is the only one describing an attack that **worked**. `can_afford` was a free,
+uncounted, caller-parameterised predicate over an encrypted budget: 40 calls recovered an
+exact figure, inside the hosted server's 60-per-minute allowance. It is closed now by
+coarsening rather than rate-limiting — rate-limiting would have made it slower, not
+impossible — and the row runs the real search against the real rule so a visitor watches it
+converge and stop short with 37.512345 cUSDC still hidden.
+
+It is on the site rather than patched quietly because **a defence that names the version it
+replaced is worth more than one that does not.** `test/g1-can-afford-oracle.ts`.
 
 ---
 
 ## ✅ Testing
 
 ```bash
-npm test          # 176 passing
+npm test          # 200 passing, 1 pending
 ```
 
 | suite | what it pins |
@@ -537,6 +893,34 @@ npm test          # 176 passing
 | `replica-source.ts` | a paired run where the only difference is the harvest |
 | `equality-invariants.ts`, `accrual.ts`, `draw-ordering.ts` | the draw machine itself |
 | `mcp.ts`, `mcp-protocol.ts`, `SaveTogetherSession.ts` | the conversational layer and the session module |
+| `g1-can-afford-oracle.ts` | that `can_afford` was a budget oracle — 40 calls recovered an exact budget — and that coarsening closes it |
+| `g2-pending-acl.ts` | that a holder can decrypt the handles a getter hands them |
+
+### One assertion this suite was making wrong
+
+Every check on an encrypted getter used to assert the handle is **non-zero**:
+
+```ts
+const held = await source.principal();
+expect(held).to.not.equal(ethers.ZeroHash);     // test/replica-source.ts:83
+```
+
+A non-zero handle proves a value was **written**. It proves nothing about **who may read
+it**, and who may read it is the entire security surface of an ACL. That blind spot let
+`pendingOf` hand every holder a handle their own key cannot open, through 190 passing
+tests, until a live sweep decrypted it.
+
+So the principle now is: **an encrypted getter is tested by decrypting it as its intended
+reader, not by asserting that a handle exists.** `g2-pending-acl.ts` does that, and it also
+pins the coincidence that hid the defect — before any drain, `_pending` and `_winnings`
+have accumulated the identical sequence from zero, so `tryAdd` returns the *same handle*
+for both and the winnings grant covers pending by accident. The test asserts that
+coincidence, then watches it collapse.
+
+**The blind spot is not fully cleared.** `reserveHandle()`, `principal()`, `pending()` and
+`inVault()` are still only checked for non-zero. The live sweep
+(`scripts/f1-acl-sweep.ts`) found all four unreadable by anyone; none has a caller, so none
+is a live defect, but none has a decrypting test either.
 
 Measurement lives separately, in [`spikes/`](spikes/) — 21 standalone
 experiments that each answer a question that could have been assumed. The HCU
@@ -647,9 +1031,16 @@ is a claim rather than a disclosure.
   ordinary tier is won with certainty, so it is **97.3%**, not 3%. Fixed by
   sequencing — the keeper holds the first draw until the source has a full period —
   and not by prize sizing, which cannot touch it.
-- **Withdrawal is all-or-nothing.** ERC-7984's transfer clamps to zero rather than
-  paying out partially, so asking for more than you hold *or* more than the pool
-  has liquid moves **nothing** and the transaction still succeeds. Nothing is
+- **Withdrawal is all-or-nothing.** A confidential token cannot revert on an
+  insufficient balance without leaking the comparison, so OpenZeppelin's `ERC7984._update`
+  clamps instead — `transferred = FHE.select(success, amount, FHE.asEuint64(0))`. Asking
+  for more than you hold *or* more than the pool has liquid moves **nothing** and the
+  transaction still succeeds.
+  The standard does not require this: ERC-7984 says a transfer *"MAY revert if the
+  caller's balance does not have enough tokens to spend"*, eight times, once per transfer
+  variant. Clamping is the implementation's choice inside that latitude — a forced one,
+  given what a revert would disclose. An earlier version of this line credited the
+  behaviour to the ERC, which a reader checking the specification would not find. Nothing is
   lost, and a smaller ask goes through. Both causes are now named in the interface
   before the signature. `test/withdraw-buffer.ts`.
 - **Accrual is O(participants), where PoolTogether is O(winners).** 386,608 gas
@@ -658,9 +1049,25 @@ is a claim rather than a disclosure.
   The lazy-accrual design that fixes it is costed but not built.
 - **We hide amounts, not identities.** Every `Deposited` event names its
   depositor and the participant set is public. FHE is not a mixer.
-- **The prize is a plaintext `uint64`.** PoolTogether's prize *is* the accumulated
-  tier liquidity, so a shortfall cannot arise there; ours can. Closing it needs
-  `FHE.div` and a rewrite of what `setTiers` means. `docs/tier-derivation.md` §4.
+- **The prize is a plaintext `uint64`, and a shortfall is silent rather than
+  impossible.** An earlier version of this line claimed PoolTogether could not
+  under-pay and we could. That is wrong, and their own documentation says so:
+  `TieredLiquidityDistributor` defines `event ReserveConsumed(uint256 amount)` —
+  *"Emitted when the reserve is consumed due to insufficient prize liquidity"* — and V5
+  ships a `tierLiquidityUtilizationRate` whose purpose is to make it rarer. Both systems
+  can under-pay and both hold a reserve against it.
+  **The divergence is observability, and it runs the other way.** They emit an event,
+  which costs them nothing because everything else is public. We cannot: announcing a
+  shortfall would announce that somebody won. A declined `tryDecrease` credits zero, and
+  zero is exactly what losing looks like — necessarily, not lazily.
+  So the limitation is not that we can run short. It is that when we do, nobody can tell
+  from the outside, including the person it happened to. `scripts/d1-why-no-credit.ts`
+  is the check that closes that gap from the inside: it decrypts the holder's own weight
+  and reproduces the contract's comparison in the clear, so a draw that paid nothing can
+  be told apart from a draw that should have paid. Run live on draw 34, it returned
+  *ordinary loss* — weight at 63.86% of the window against a threshold at 98.9%.
+  Closing the plaintext prize itself needs `FHE.div` and a rewrite of what `setTiers`
+  means. `docs/tier-derivation.md` §4.
 - **`totalWeight` is published.** The aggregate leaks; individual balances do not.
   Kept deliberately: encrypting it costs 8.3× and loses public auditability of the
   draw, which is the thing a lottery most needs to prove. `spikes/a2-encrypted-total.ts`.

@@ -51,6 +51,37 @@ export function humanise(e: unknown): string {
   if (/chain|network/i.test(text) && /mismatch|unsupported|switch/i.test(text)) {
     return "Your wallet is on another network. Switch it to Sepolia.";
   }
+  // W6. The cases this product produces that a generic wallet message cannot
+  // explain — each says what happened, why, and what to do about it.
+
+  if (/not allowed to decrypt|is not authorized|not authorised|\bacl\b/i.test(text)) {
+    return (
+      "That value was not granted to you, and the relayer refused to decrypt it — which is the " +
+      "design working rather than failing. Only the holder of a balance can read it."
+    );
+  }
+  if (/relayer|gateway/i.test(text) && /fetch|network|timeout|50[234]/i.test(text)) {
+    return (
+      "Zama's relayer did not answer. Nothing was sent and nothing changed — this is the " +
+      "decryption service rather than your transaction. Try again in a moment."
+    );
+  }
+  if (/failed to fetch|networkerror|econnrefused|timeout/i.test(text)) {
+    return (
+      "The chain call failed before anything was signed. Your wallet was never asked and no " +
+      "transaction exists. Usually the RPC — retry."
+    );
+  }
+  if (/operator/i.test(text)) {
+    return (
+      "The pool is not authorised to move your cUSDC yet. Approve it first — step 1 on the " +
+      "deposit card — because without it a deposit cannot pull the tokens."
+    );
+  }
+  if (/nonce|replacement/i.test(text)) {
+    return "A previous transaction from this wallet is still pending. Wait for it, or speed it up in your wallet.";
+  }
+
   // Wallet errors run to paragraphs; the first line carries the meaning.
   return text.split("\n")[0]!.slice(0, 200);
 }

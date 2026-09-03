@@ -148,8 +148,14 @@ export function toolDefinitions(tools: SaveTogetherTools): ToolDef[] {
       name: "can_afford",
       title: "Is an amount within budget",
       description:
-        "Yes or no. Leaks neither the budget nor anything else — prefer this over revealing a " +
-        "number when the user only needs to know whether something fits.",
+        "Yes or no, answered against the remaining budget rounded DOWN to the nearest 50 " +
+        "tokens. Prefer this over revealing a number when the user only needs to know whether " +
+        "something fits. One call tells you one bit and never the figure. Repeated calls tell " +
+        "you the bucket and stop there — every budget inside the same 50 answers identically, " +
+        "so narrowing further is not possible rather than merely discouraged. Because the " +
+        "rounding is downward a yes is always a real yes, and a no near the boundary may still " +
+        "go through if sent: it means \"not within the budget as measured\", not \"you cannot \" " +
+        "afford this\". Do not use this tool to search for the balance.",
       schema: objectSchema({ token: { type: "string" }, amount: { type: "string" } }),
       validate: z.object({ token: z.string(), amount: z.string() }),
       run: (a) => tools.canAfford(a as Parameters<typeof tools.canAfford>[0]),
@@ -297,9 +303,12 @@ export function toolDefinitions(tools: SaveTogetherTools): ToolDef[] {
       description:
         "Returns three opaque references rather than numbers: what is in the pool, what has " +
         "been won all time, and what is won but not yet compounded. They are separate facts and " +
-        "adding them together misstates the odds. Pass any of them to pool_deposit or " +
-        "pool_withdraw. Set reveal true only when the user asked for actual figures — it makes " +
-        "them click a confirmation on the local console.",
+        "adding them together misstates the odds. Pass the first two to pool_deposit or " +
+        "pool_withdraw. The third — pending — is a reference NOBODY can resolve, including the " +
+        "holder: the pool never grants its owner permission to read that handle, so it is " +
+        "reported for completeness and cannot be spent or revealed. Using it as an amount fails. " +
+        "Set reveal true only when the user asked for actual figures — it makes them click a " +
+        "confirmation on the local console.",
       schema: objectSchema({
         reveal: { type: "boolean", description: "ask the user to reveal the numbers to you" },
       }),

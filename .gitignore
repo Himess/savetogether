@@ -9,3 +9,11 @@ probe/secrets.json
 *.tsbuildinfo
 fhevmTemp/
 packages/*/dist/
+
+# The reference corpus: ~8.8 MB of third-party documentation (Zama, OpenZeppelin,
+# PoolTogether) fetched verbatim as a local reading corpus. Not committed, because
+# publishing verbatim copies of someone else's docs to a public repository is a
+# different act from keeping them on disk to read, and it is not this repo's call
+# to make. `git add -A` swept them in once; this stops that recurring. Remove this
+# line if the decision is to publish them.
+bundle/

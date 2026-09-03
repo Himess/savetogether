@@ -103,3 +103,45 @@ export function safeAddress(raw: string): string {
 export function untrusted(label: string, value: string): string {
   return `${label}=<untrusted>${value}</untrusted>`;
 }
+
+// ---------------------------------------------------------------------------
+// G1 — the budget oracle
+// ---------------------------------------------------------------------------
+
+/**
+ * The bucket `can_afford` rounds a budget down to before answering.
+ *
+ * `can_afford` is a monotone predicate over an encrypted value with no counter,
+ * no cooldown and no cost. Its description used to claim it "leaks neither the
+ * budget nor anything else", which is true of one call and false of a sequence:
+ * `test/g1-can-afford-oracle.ts` recovers an exact 6-decimal budget in 40 calls,
+ * and the hosted server's 60-per-minute limit clears that inside one window.
+ *
+ * Two mitigations were available. Counting probes and refusing past a threshold
+ * turns the attack into a slower attack — the signal is still there and patience
+ * still gets it, and the threshold has to be low enough to bite before 40 calls,
+ * which is low enough to break ordinary use. Coarsening removes the signal:
+ * every budget inside one bucket answers identically to every probe, so no
+ * number of calls separates them. That is the one that was shipped.
+ *
+ * 50 tokens at six decimals. Large enough that the residue is not a useful
+ * figure, small enough that "can I afford 20?" stays a meaningful question for a
+ * session sized in hundreds.
+ */
+export const COARSE_BUCKET = 50_000_000n;
+
+/**
+ * Rounds a budget DOWN to the nearest bucket.
+ *
+ * Down rather than nearest, and that direction is the whole safety argument: a
+ * coarse answer may refuse something the owner could actually afford, but it can
+ * never approve something that would then fail on chain. An over-promising
+ * oracle would be worse than the leak it fixes.
+ *
+ * A budget below one bucket coarsens to zero and the tool answers "no" to
+ * everything, which discloses only that the remainder is under 50 — not a figure.
+ */
+export function coarsenBudget(remaining: bigint): bigint {
+  if (remaining <= 0n) return 0n;
+  return (remaining / COARSE_BUCKET) * COARSE_BUCKET;
+}

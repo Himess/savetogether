@@ -15,7 +15,7 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
       <body
         style={{
           margin: 0,
-          background: "#07080a",
+          background: "var(--panel)",
           color: "#e8eaed",
           font: '15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif',
         }}
@@ -30,7 +30,7 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
             onClick={reset}
             style={{
               background: "#7dd3a0",
-              color: "#07080a",
+              color: "var(--panel)",
               border: 0,
               borderRadius: 7,
               padding: "9px 16px",

@@ -1,6 +1,6 @@
 "use client";
-import { useMemo, useState, type CSSProperties } from "react";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useAccount, useReadContract, useReadContracts, useWriteContract } from "wagmi";
 import { useDecryptValues, useEncrypt, useGrantPermit, useHasPermit } from "@zama-fhe/react-sdk";
 import { css } from "@/lib/css";
 import { fmtUnits6, shortAddr, showConfidential } from "@/lib/format";
@@ -14,6 +14,33 @@ import { TokenIcon } from "@/components/TokenIcon";
 
 const ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
 const STATUS = ["none", "open", "revealed"] as const;
+
+/** h/m/s, so a countdown reads as one. */
+/**
+ * AD. Seconds are not decoration here — they are the whole signal.
+ *
+ * This used to drop the seconds as soon as an hour had passed, so a figure that
+ * recomputed every second only CHANGED once a minute. Watching it, the panel
+ * looked stuck: a number that claims to be live and visibly is not is worse than
+ * a plain timestamp, because it teaches a visitor to distrust the rest.
+ */
+function fmtElapsed(sec: number): string {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  const ss = String(s).padStart(2, "0");
+  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m ${ss}s`;
+  if (m > 0) return `${m}m ${ss}s`;
+  return `${s}s`;
+}
+
+/** Coarser, for an estimate that should not pretend to second precision. */
+function fmtRough(sec: number): string {
+  const h = Math.floor(sec / 3600);
+  const m = Math.round((sec % 3600) / 60);
+  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
+  return `${Math.max(1, m)}m`;
+}
 
 function seg(active: boolean): CSSProperties {
   return {
@@ -110,6 +137,27 @@ export function PoolScreen() {
     | { snapshotAt: bigint; status: number; r: bigint; totalWeight: bigint }
     | undefined;
   const phase = d === undefined ? "none" : (STATUS[Number(d.status)] ?? "none");
+
+  /**
+   * P1. Whether THIS address has been accrued for THIS draw.
+   *
+   * Plaintext, public, already in the ABI, and read by nothing until now — which
+   * made the single worst confusion this product can produce. When `winningsOf`
+   * does not move, a participant cannot tell which happened:
+   *
+   *   - they were accrued and did not win   — correct behaviour
+   *   - the keeper has not reached them yet — an outage
+   *
+   * One is the design working and the other is the service being down, and they
+   * looked identical. Two words fix it.
+   */
+  const { data: isAccrued } = useReadContract({
+    abi: POOL_ABI,
+    address: POOL,
+    functionName: "accrued",
+    args: address !== undefined && round > 0 ? [round, address] : undefined,
+    query: { enabled: !!address && round > 0, refetchInterval: 15_000 },
+  });
 
   const { data: isOperator, refetch: refetchOperator } = useReadContract({
     abi: ERC7984_ABI, address: TOKEN, functionName: "isOperator",
@@ -231,6 +279,220 @@ export function PoolScreen() {
 
   const apy = rateBps === undefined ? "—" : `${(Number(rateBps) / 100).toFixed(0)}%`;
 
+  /**
+   * W4. A second hand, so the clock is visibly a clock.
+   *
+   * The panel said "Next draw, at the earliest — now" and sat there, which reads
+   * as a stuck component rather than a satisfied condition. This re-renders every
+   * second so both figures move; it is the only interval on the screen and it
+   * costs one state write per tick.
+   */
+  const [tick, setTick] = useState(() => Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    const h = setInterval(() => setTick(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(h);
+  }, []);
+
+  // ---------------------------------------------------------------- R4
+  const { data: minPeriod } = useReadContract({
+    abi: POOL_ABI, address: POOL, functionName: "minPeriod",
+  });
+  const { data: obsCount } = useReadContract({
+    abi: POOL_ABI, address: POOL, functionName: "observationCount",
+    args: address ? [address] : undefined, query: { enabled: !!address },
+  });
+  const { data: firstObs } = useReadContract({
+    abi: POOL_ABI, address: POOL, functionName: "observationAt",
+    args: address && (obsCount ?? 0n) > 0n ? [address, 0n] : undefined,
+    query: { enabled: !!address && (obsCount ?? 0n) > 0n },
+  });
+
+  /**
+   * R4. Where this draw is, and when the next one can open.
+   *
+   * `minPeriod` is the floor, not the cadence. The configured 300 s and the ~44
+   * minutes actually observed are different numbers, and the difference is
+   * Zama's batcher settling between rounds rather than our keeper being slow —
+   * so the earliest time is stated as a floor and never as a prediction.
+   */
+  /**
+   * AD. How far apart the draws have ACTUALLY run.
+   *
+   * `minPeriod` is 300s and the observed cadence is nothing like it, so a panel
+   * built on the floor answers "eligible now" for hours and calls that an answer.
+   * The last eight rounds spaced out like this:
+   *
+   *     6m  6m  16m  41m  41m  41m  41m  41m  125m
+   *
+   * which is why this takes the MEDIAN rather than the mean — the 125-minute
+   * round is a keeper outage and the mean would carry it forward into every
+   * future estimate. The median is the cadence a visitor will actually see.
+   */
+  const { data: recentDraws } = useReadContracts({
+    contracts: Array.from({ length: 8 }, (_, i) => ({
+      abi: POOL_ABI, address: POOL, functionName: "drawAt",
+      args: [BigInt(Math.max(1, Number(drawCount ?? 0n) - 7 + i))],
+    })),
+    query: { enabled: (drawCount ?? 0n) > 1n, refetchInterval: 60_000 },
+  });
+
+  const medianGap = useMemo(() => {
+    const rows = (recentDraws ?? []) as ReadonlyArray<{
+      status: string; result?: { snapshotAt: bigint };
+    }>;
+    const snaps = rows
+      .map((r) => (r.status === "success" && r.result ? Number(r.result.snapshotAt) : 0))
+      .filter((n) => n > 0)
+      .sort((a, b) => a - b);
+    const gaps: number[] = [];
+    for (let i = 1; i < snaps.length; i++) if (snaps[i] > snaps[i - 1]) gaps.push(snaps[i] - snaps[i - 1]);
+    if (gaps.length === 0) return null;
+    gaps.sort((a, b) => a - b);
+    return gaps[Math.floor(gaps.length / 2)];
+  }, [recentDraws]);
+
+  const clock = useMemo(() => {
+    if (d === undefined || minPeriod === undefined) return null;
+    const snap = Number(d.snapshotAt);
+    const earliest = snap + Number(minPeriod);
+    // The expected time, from cadence; the floor only ever pushes it later.
+    const expected = medianGap === null ? null : Math.max(earliest, snap + medianGap);
+    const sinceExpected = expected === null ? 0 : tick - expected;
+    return {
+      frozenAt: snap,
+      earliestNext: earliest,
+      readyNow: tick >= earliest,
+      waitSeconds: Math.max(0, earliest - tick),
+      sinceFrozen: Math.max(0, tick - snap),
+      // AD: a number instead of "eligible now" — and when it has passed, a number
+      // that keeps counting. "Overdue by 4h" is information; "eligible now" held
+      // for five hours is the absence of it.
+      medianGap,
+      etaSeconds: expected === null ? null : Math.max(0, expected - tick),
+      overdueSeconds: sinceExpected > 0 ? sinceExpected : 0,
+    };
+  }, [d, minPeriod, tick, medianGap]);
+
+  /**
+   * R4. Is this address in the current draw at all?
+   *
+   * Weight comes from observations at or before `snapshotAt`. An account whose
+   * first observation lands after the snapshot has zero weight for this draw and
+   * cannot win it, whatever its threshold says — and `thresholdFor` will happily
+   * return a number for it, which is exactly the thing worth saying out loud.
+   */
+  const participating = useMemo(() => {
+    if (!address || d === undefined) return null;
+    if ((obsCount ?? 0n) === 0n) return false;
+    const first = firstObs as { timestamp: bigint } | undefined;
+    if (first === undefined) return null;
+    return Number(first.timestamp) <= Number(d.snapshotAt);
+  }, [address, d, obsCount, firstObs]);
+
+  /**
+   * R4. Odds per tier, in the two states this contract actually has.
+   *
+   * The brief for this asked for three — estimated while open, EXACT once
+   * weights freeze, outcome after reveal — with the middle one as the strongest:
+   * "a participant knows their exact odds before the result exists".
+   *
+   * That is not true here, and the contract is the reason. `_applyReveal` sets
+   * `d.r` and `d.totalWeight` in the same statement and emits them in one event,
+   * so the divisor needed for exact odds and the randomness that decides the
+   * outcome become public in the same transaction. There is no window between
+   * them. Weights do freeze early — at `snapshotAt`, when the draw opens — but
+   * `totalWeight` stays encrypted until the reveal, so nothing exact can be
+   * computed before it.
+   *
+   * What survives is still worth showing, and is still something only the holder
+   * can do: the exact odds are computable from public data plus a weight nobody
+   * else can read, and they remain yours to check after the fact.
+   */
+  const odds = useMemo(() => {
+    if (d === undefined || hasPermit !== true) return null;
+    const raw = poolHandle && poolHandle !== ZERO ? clear?.[poolHandle as `0x${string}`] : undefined;
+    if (raw === undefined) return null;
+    const mine = Number(BigInt(raw as string | number | bigint));
+
+    const revealed = Number(d.status) === 2 && d.totalWeight > 0n;
+    if (revealed) {
+      const total = Number(d.totalWeight);
+      const window = Number(d.snapshotAt) - Number((d as unknown as { periodStart: bigint }).periodStart);
+      const avg = window > 0 ? total / window : 0;
+      return {
+        kind: "exact" as const,
+        rows: tiers.map((t) => ({
+          label: t.label,
+          pct: avg > 0 && t.every !== undefined ? (mine / avg / Number(t.every)) * 100 : 0,
+        })),
+      };
+    }
+    return null;
+  }, [d, hasPermit, poolHandle, clear, tiers]);
+
+  /**
+   * R4. "What would N buy me?" — the question this product exists to answer and
+   * could not. Uses the same public aggregate the odds above use, so it is an
+   * estimate for the NEXT draw rather than a claim about this one.
+   */
+  const quoted = useMemo(() => {
+    if (d === undefined || units === 0n) return null;
+    const window = Number(d.snapshotAt) - Number((d as unknown as { periodStart: bigint }).periodStart);
+    const avg = window > 0 ? Number(d.totalWeight) / window : 0;
+    if (avg <= 0) return null;
+    const raw = poolHandle && poolHandle !== ZERO ? clear?.[poolHandle as `0x${string}`] : undefined;
+    const current = raw === undefined ? 0 : Number(BigInt(raw as string | number | bigint));
+    const after = current + Number(units);
+    return tiers.map((t) => ({
+      label: t.label,
+      pct: t.every === undefined ? 0 : (after / (avg + Number(units)) / Number(t.every)) * 100,
+    }));
+  }, [d, units, poolHandle, clear, tiers]);
+
+  /**
+   * M3. Why the primary button is unavailable, in the order a user hits them.
+   *
+   * One expression for both tabs. Deposit carries the extra operator step;
+   * everything else applies to both, and previously only deposit dimmed for it.
+   * `null` means the action is available.
+   */
+  const blockedBy: string | null = useMemo(() => {
+    if (!address) return "Connect a wallet to continue.";
+    if (!onSepolia) return "Switch your wallet to Sepolia first.";
+    if (units === 0n) return "Enter an amount above zero.";
+    if (tab === "deposit" && !isOperator) return "Step 1 is above: approve the pool once, then this becomes available.";
+    // A zero HANDLE is public and unambiguous: no ciphertext was ever written for
+    // this address, so the position is a real zero rather than a hidden number.
+    // Withdrawing against it clamps to zero and SUCCEEDS, moving nothing — a
+    // green transaction that did nothing, which is the worst outcome available
+    // here. Same class as the unwrap gate; withdraw never got it.
+    if (tab === "withdraw" && poolHandle === ZERO) {
+      return "You have nothing in the pool to withdraw. Deposit first.";
+    }
+    return null;
+  }, [address, onSepolia, units, tab, isOperator, poolHandle]);
+
+  /**
+   * M4. When the all-or-nothing warning actually carries signal.
+   *
+   * Shown unconditionally it is wallpaper — present at the moment it matters and
+   * at every moment it does not, which trains a user to skip it. Three states:
+   * `null` (the amount plainly fits, so one quiet line), `"near"` (at or above the
+   * decrypted position), and `"unknown"` (the position is not decrypted, so the
+   * user genuinely cannot tell — which is the case most worth interrupting for).
+   */
+  const withdrawRisk: "near" | "unknown" | null = useMemo(() => {
+    if (tab !== "withdraw" || units === 0n || !address) return null;
+    if (poolHandle === undefined || poolHandle === ZERO) return null;
+    const raw = clear?.[poolHandle as `0x${string}`];
+    if (hasPermit !== true || raw === undefined || raw === null) return "unknown";
+    try {
+      return units >= BigInt(raw as string | number | bigint) ? "near" : null;
+    } catch {
+      return "unknown";
+    }
+  }, [tab, units, address, poolHandle, clear, hasPermit]);
+
   return (
     <div style={css("max-width:1200px;width:100%")}>
       <h1 style={css("margin:0;font:800 40px/1.02 var(--display);letter-spacing:-.03em")}>
@@ -247,7 +509,7 @@ export function PoolScreen() {
           <div style={css("display:flex;align-items:center;gap:14px;flex-wrap:wrap")}>
             <TokenIcon token="cUSDC" size={46} />
             <h2 style={css("margin:0;font:800 26px/1.08 var(--display);letter-spacing:-.02em")}>Confidential Prize Pool</h2>
-            <span style={css(`padding:5px 11px;border-radius:999px;white-space:nowrap;font:700 11px var(--display);${phase === "revealed" ? "background:var(--green-bg);border:1px solid #bfe3cd;color:var(--green)" : "background:var(--accent-soft);border:1px solid #f0d97a;color:#7a5f00"}`)}>
+            <span style={css(`padding:5px 11px;border-radius:999px;white-space:nowrap;font:700 11px var(--display);${phase === "revealed" ? "background:var(--green-bg);border:1px solid #c3ddcf;color:var(--green)" : "background:var(--accent-soft);border:1px solid var(--accent-line);color:var(--amber)"}`)}>
               {phase === "revealed" ? "Round decided" : phase === "open" ? "Round open" : "No draw yet"}
             </span>
           </div>
@@ -273,7 +535,7 @@ export function PoolScreen() {
                 )}
               >
                 <span style={css("display:flex;flex-direction:column;gap:2px")}>
-                  <span style={css("font:700 13px var(--display);color:" + (i === 0 ? "#7a5f00" : "var(--ink)"))}>
+                  <span style={css("font:700 13px var(--display);color:" + (i === 0 ? "var(--accent)" : "var(--ink)"))}>
                     {t.label}
                   </span>
                   <span style={css("font:400 11.5px var(--display);color:var(--ink-3)")}>
@@ -290,6 +552,41 @@ export function PoolScreen() {
                 </span>
               </div>
             ))}
+          </div>
+
+          {/* V2. Where a deposit actually goes, on the screen where it is made.
+              This is the part of the retired Vault tab a USER needed: that page
+              was written for a judge, and its largest control moved the POOL's
+              principal rather than the visitor's. Three stops, one line each, no
+              button — it answers "where does my money sit", which nothing on the
+              site did. The composition evidence went to Verify, whose reader
+              wants it. */}
+          <div style={css("margin-top:26px;background:var(--surface-2);border:1px solid var(--line);border-radius:16px;padding:16px 18px")}>
+            <span style={css("font:650 10.5px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)")}>
+              Where your deposit goes
+            </span>
+            <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:10px")}>
+              {[
+                ["Your cUSDC enters the pool", "It stays yours. The balance is encrypted and only you can read it — withdraw the same amount whenever you like."],
+                ["The pool supplies the yield engine", `A Steakhouse replica accruing at ${apy}. Half of what it holds is also routed through Zama's deployed vault, so the composition is real rather than drawn.`],
+                ["Harvest fills the prize reserve", "Only the yield becomes a prize. Your principal is never part of it, which is what makes a round you do not win cost you nothing but that round's yield."],
+              ].map(([title, body], i) => (
+                <div key={title} style={css("display:flex;gap:11px;align-items:flex-start")}>
+                  <span style={css("flex:none;margin-top:1px;width:20px;height:20px;border-radius:7px;background:var(--ink);color:var(--surface);display:grid;place-items:center;font:800 10.5px var(--display)")}>
+                    {i + 1}
+                  </span>
+                  <div>
+                    <div style={css("font:650 12.5px var(--display);color:var(--ink)")}>{title}</div>
+                    <div style={css("margin-top:2px;font:400 11.5px/1.6 var(--display);color:var(--ink-2)")}>{body}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p style={css("margin:12px 0 0;font:400 11px/1.55 var(--display);color:var(--ink-3)")}>
+              The vault composition is real and the rate is ours — Zama&apos;s Sepolia vault is
+              idle-only, so nothing there appreciates. Both halves are proved on the{" "}
+              <b style={css("font-weight:650;color:var(--ink-2)")}>Verify</b> screen.
+            </p>
           </div>
 
           {/* The argument, stated where it is being scored. */}
@@ -315,8 +612,13 @@ export function PoolScreen() {
             <Row label="Settles in">
               <span style={css("display:inline-flex;align-items:center;gap:7px")}><TokenIcon token="cUSDC" size={18} />cUSDC · Zama&apos;s own</span>
             </Row>
+            {/* M5. This was a bare address on the primary screen with no word
+                for what it is — noise, on the first thing a visitor opens. */}
             <Row label="Principal earns in">
-              <a href={`${EXPLORER}/address/${DEPOSIT_BATCHER}`} target="_blank" rel="noreferrer" style={css("font:600 12.5px var(--mono);color:var(--ink-2)")}>{shortAddr(DEPOSIT_BATCHER)}</a>
+              <span style={css("display:inline-flex;align-items:baseline;gap:7px;flex-wrap:wrap;justify-content:flex-end")}>
+                <span style={css("font:500 11.5px var(--display);color:var(--ink-3)")}>Zama&apos;s deposit batcher</span>
+                <a href={`${EXPLORER}/address/${DEPOSIT_BATCHER}`} target="_blank" rel="noreferrer" style={css("font:600 12.5px var(--mono);color:var(--ink-2)")}>{shortAddr(DEPOSIT_BATCHER)}</a>
+              </span>
             </Row>
             {phase === "revealed" && d !== undefined && (
               <Row label="Randomness">
@@ -327,7 +629,7 @@ export function PoolScreen() {
         </div>
 
         {/* ------------------------------------------------------- right rail --- */}
-        <div style={css("flex:1 1 340px;max-width:400px;position:sticky;top:14px;background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:0 1px 2px rgba(20,18,12,.03),0 12px 34px rgba(20,18,12,.05);padding:16px")}>
+        <div style={css("flex:1 1 400px;max-width:470px;position:sticky;top:14px;background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:0 1px 2px rgba(20,18,12,.03),0 12px 34px rgba(20,18,12,.05);padding:16px")}>
           <div style={css("display:flex;gap:2px;padding:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px")}>
             <button style={seg(tab === "deposit")} onClick={() => setTab("deposit")}>Deposit</button>
             <button style={seg(tab === "withdraw")} onClick={() => setTab("withdraw")}>Withdraw</button>
@@ -359,23 +661,44 @@ export function PoolScreen() {
               rather than after it. The contract cannot tell "more than you hold"
               from "more than the pool has liquid" — both clamp to zero and both
               succeed — but the interface can say that both exist. */}
-          {tab === "withdraw" && (
-            <div style={css("margin-top:12px;border:1px solid #f0d97a;background:var(--accent-soft);border-radius:14px;padding:11px 14px")}>
-              <span style={css("font:650 11.5px var(--display);color:#7a5f00")}>Withdrawals are all-or-nothing</span>
-              <p style={css("margin:5px 0 0;font:400 11.5px/1.55 var(--display);color:#7a5f00")}>
-                Ask for more than you hold — or more than the pool has liquid right now, because
-                some principal sits in Zama&apos;s vault between batches — and the transaction
-                succeeds having moved nothing. <b style={css("font-weight:650")}>Nothing is lost</b>:
-                your position is untouched and a smaller amount goes straight through.
+          {tab === "withdraw" &&
+            (withdrawRisk ? (
+              <div style={css("margin-top:12px;border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:14px;padding:11px 14px")}>
+                <span style={css("font:650 11.5px var(--display);color:var(--amber)")}>
+                  {withdrawRisk === "unknown"
+                    ? "You cannot tell whether this amount fits"
+                    : "This amount may move nothing"}
+                </span>
+                <p style={css("margin:5px 0 0;font:400 11.5px/1.55 var(--display);color:var(--amber)")}>
+                  {withdrawRisk === "unknown" ? (
+                    <>
+                      Your position is still encrypted in this browser, so neither you nor this page
+                      knows whether you hold this much. Decrypt it above to find out before signing.{" "}
+                    </>
+                  ) : (
+                    <>
+                      It is at or above your decrypted position.{" "}
+                    </>
+                  )}
+                  Asking for more than you hold — or more than the pool has liquid right now, because
+                  some principal sits in Zama&apos;s vault between batches — makes the transaction
+                  succeed having moved nothing.{" "}
+                  <b style={css("font-weight:650")}>Nothing is lost</b>: your position is untouched
+                  and a smaller amount goes straight through.
+                </p>
+              </div>
+            ) : (
+              <p style={css("margin:10px 0 0;font:400 11px/1.5 var(--display);color:var(--ink-3)")}>
+                Withdrawals are all-or-nothing — an amount larger than your position, or than the
+                pool&apos;s liquid buffer, moves nothing and still succeeds. Nothing is lost either way.
               </p>
-            </div>
-          )}
+            ))}
 
           {/* AC7 — a stale draw, and the permissionless way out of it */}
           {stale !== null && (
-            <div style={css("margin-top:12px;border:1px solid #f3c2c2;background:#fdecec;border-radius:14px;padding:11px 14px")}>
-              <span style={css("font:650 11.5px var(--display);color:#a11")}>This draw has been open too long</span>
-              <p style={css("margin:5px 0 0;font:400 11.5px/1.55 var(--display);color:#a11")}>
+            <div style={css("margin-top:12px;border:1px solid #e0c4c4;background:var(--red-bg);border-radius:14px;padding:11px 14px")}>
+              <span style={css("font:650 11.5px var(--display);color:var(--red)")}>This draw has been open too long</span>
+              <p style={css("margin:5px 0 0;font:400 11.5px/1.55 var(--display);color:var(--red)")}>
                 Nobody has revealed it and the timeout has passed, so the pool cannot open the next
                 one. <b style={css("font-weight:650")}>Anyone may abandon it</b> — no owner, no keeper,
                 no permission. The window is handed to the next draw, so no weight is lost.
@@ -389,17 +712,32 @@ export function PoolScreen() {
                   )
                 }
                 disabled={busy || !onSepolia}
-                style={css("margin-top:9px;padding:8px 14px;border-radius:10px;border:1px solid #f3c2c2;background:#fff;font:650 11.5px var(--display);color:#a11;cursor:pointer")}
+                style={css("margin-top:9px;padding:8px 14px;border-radius:10px;border:1px solid #e0c4c4;background:#fff;font:650 11.5px var(--display);color:var(--red);cursor:pointer")}
               >
                 Cancel draw #{round}
               </button>
             </div>
           )}
 
-          {/* preconditions, shown rather than discovered */}
+          {/* R2. Deposit-only, and it was not. A withdrawal needs neither test
+              tokens nor an operator grant — the pool transfers TO you, it does
+              not pull FROM you — and both rows were on the Withdraw tab because
+              this card was copied from the Deposit side and never trimmed.
+
+              R3. Numbered, because a disabled button whose reason reads "the
+              button is in the card above" is a control pointing at another
+              control. The steps are now in order and step 1 disappears when it
+              is done. */}
+          {tab === "deposit" && (
           <div style={css("margin-top:12px;border:1px solid var(--line);border-radius:14px;padding:4px 14px")}>
+
             <div style={css("display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)")}>
-              <span style={css("font:500 12.5px var(--display);color:var(--ink-2)")}>Test tokens</span>
+              <span style={css("font:500 12.5px var(--display);color:var(--ink-2)")}>
+                Test tokens
+                <span style={css("display:block;font:400 10.5px var(--display);color:var(--ink-3)")}>
+                  cUSDC is a wrapper with no mint — this mints USDC, approves, then wraps
+                </span>
+              </span>
               <button
                 onClick={() => {
                   if (address === undefined) return;
@@ -427,13 +765,21 @@ export function PoolScreen() {
                 disabled={busy || !onSepolia || !address}
                 style={css("padding:6px 12px;border-radius:9px;border:1px solid var(--line-2);background:var(--surface-2);font:650 11.5px var(--display);color:var(--ink);cursor:pointer")}
               >
-                Get 1,000
+                Get 1,000 · 3 txs
               </button>
             </div>
-            <div style={css("display:flex;align-items:center;justify-content:space-between;padding:10px 0")}>
-              <span style={css("font:500 12.5px var(--display);color:var(--ink-2)")}>Pool may move them</span>
+            {/* M2. This said "Pool may move them / Authorise" and stopped, which
+                tells a visitor neither what they are granting nor whether they
+                already granted it. It is ERC-7984's `setOperator`. */}
+            <div style={css("display:flex;align-items:center;justify-content:space-between;padding:10px 0 4px")}>
+              <span style={css("font:500 12.5px var(--display);color:var(--ink-2)")}>
+                <b style={css("font-weight:700;color:var(--ink)")}>1 ·</b> Approve the pool
+              </span>
               {isOperator ? (
-                <span style={css("font:650 11.5px var(--display);color:var(--green)")}>authorised</span>
+                <span style={css("display:inline-flex;align-items:center;gap:5px;font:650 11.5px var(--display);color:var(--green)")}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  authorised
+                </span>
               ) : (
                 <button
                   onClick={() =>
@@ -447,23 +793,40 @@ export function PoolScreen() {
                   disabled={busy || !onSepolia}
                   style={css("padding:6px 12px;border-radius:9px;border:1px solid var(--line-2);background:var(--surface-2);font:650 11.5px var(--display);color:var(--ink);cursor:pointer")}
                 >
-                  Authorise
+                  Approve
                 </button>
               )}
             </div>
+            <p style={css("margin:0 0 4px;font:400 11px/1.55 var(--display);color:var(--ink-3)")}>
+              {isOperator
+                ? "Granted. This is ERC-7984's setOperator — the confidential-token equivalent of approve — and it is why the pool can pull your cUSDC when you deposit. One signature, already done."
+                : "One signature, once. This is ERC-7984's setOperator: permission for the pool to move cUSDC on your behalf, the confidential-token equivalent of approve. Without it deposit cannot pull the tokens and the transaction reverts."}
+            </p>
           </div>
+          )}
 
+          {/* M3. Both tabs share these preconditions, and they used to disagree
+              about them: deposit rendered dimmed while withdraw rendered in full
+              yellow with the same things missing. The reason is now computed once
+              for both tabs and SHOWN, because an affordance that says "no" without
+              saying why is a puzzle rather than an interface. */}
           <button
             onClick={submit}
-            disabled={busy || encrypting || units === 0n || !onSepolia || (tab === "deposit" && !isOperator)}
-            style={css(`width:100%;margin-top:14px;padding:14px;border-radius:13px;border:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,#ffdf5c,#ffd208);color:#1a1a1a;font:700 14px var(--display);box-shadow:0 5px 15px rgba(255,210,8,.3);cursor:${busy ? "not-allowed" : "pointer"};opacity:${busy || (tab === "deposit" && !isOperator) || !onSepolia ? ".55" : "1"}`)}
+            disabled={blockedBy !== null || busy || encrypting}
+            style={css(`width:100%;margin-top:14px;padding:14px;border-radius:13px;border:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,#24507d,#1b3a5c);color:var(--on-accent);font:700 14px var(--display);box-shadow:0 5px 15px rgba(27,58,92,.28);cursor:${blockedBy !== null || busy ? "not-allowed" : "pointer"};opacity:${blockedBy !== null || busy ? ".55" : "1"}`)}
           >
-            {encrypting ? "Encrypting…" : tab === "deposit" ? "Confirm confidential deposit" : "Withdraw"}
+            {encrypting
+              ? "Encrypting…"
+              : tab === "withdraw"
+                ? "Withdraw"
+                : isOperator
+                  ? "2 · Confirm confidential deposit"
+                  : "2 · Deposit — approve first"}
           </button>
 
-          {!onSepolia && (
+          {blockedBy !== null && !busy && !encrypting && (
             <p style={css("margin:10px 0 0;font:600 11.5px/1.5 var(--display);color:var(--amber)")}>
-              Switch your wallet to Sepolia first.
+              {blockedBy}
             </p>
           )}
 
@@ -476,6 +839,14 @@ export function PoolScreen() {
               <span style={css("font:500 12.5px var(--display);color:var(--ink-2)")}>In the pool</span>
               <span style={css("font:750 18px var(--display);font-variant-numeric:tabular-nums")}>{show(poolHandle)}</span>
             </div>
+            {/* P1 lived here as a "Round 36 · waiting" badge, and AE retires it.
+                It answered "has this round settled for you?" — which the merged
+                position block below now answers in its own third line, with the
+                explanation P1 always needed and this badge had no room for. Two
+                readouts of one fact is the duplication AE exists to remove, and
+                keeping the worse-explained one because it shipped first is not a
+                reason. The state is not lost; it moved to where it reads. */}
+
             <div style={css("display:flex;justify-content:space-between;align-items:baseline;margin-top:6px")}>
               <span style={css("font:500 12.5px var(--display);color:var(--ink-2)")}>Won, all time</span>
               <span style={css("font:650 14px var(--display);font-variant-numeric:tabular-nums;color:var(--ink-2)")}>{show(wonHandle)}</span>
@@ -527,13 +898,221 @@ export function PoolScreen() {
                     }),
                 ).then(refresh);
               }}
-              disabled={busy || !onSepolia || !address}
-              style={css("width:100%;margin-top:12px;padding:10px;border-radius:11px;border:1px solid var(--line-2);background:var(--surface-2);font:650 12px var(--display);color:var(--ink);cursor:pointer")}
+              disabled={busy || !onSepolia || !address || wonHandle === ZERO}
+              style={css(`width:100%;margin-top:12px;padding:10px;border-radius:11px;border:1px solid var(--line-2);background:var(--surface-2);font:650 12px var(--display);color:var(--ink);cursor:${wonHandle === ZERO ? "not-allowed" : "pointer"};opacity:${wonHandle === ZERO ? .55 : 1}`)}
             >
               Claim my winnings
             </button>
+            {/* The disabled control keeps its reason, like every other one here.
+                A zero handle means nothing has ever been credited to this
+                address, so the button would spend gas to move nothing. */}
+            <p style={css("margin:5px 0 0;font:400 10.5px/1.5 var(--display);color:var(--ink-3)")}>
+              {wonHandle === ZERO
+                ? "Nothing to claim — this address has never been credited a prize."
+                : "Optional. Winnings are credited to your balance automatically; this only moves them, reveals nothing, and behaves identically whether or not you won."}
+            </p>
 
-            {hasPermit !== true ? (
+            {/* M1. The order of these two matters and it was wrong.
+                A zero HANDLE means no ciphertext exists — nothing was ever
+                deposited — and that fact is public, so it needs no permit to
+                state. The note explaining it used to be gated behind
+                `hasPermit === true`, so a fresh wallet saw four bare zeros and a
+                button offering to decrypt values that have nothing to decrypt.
+                Correct output, unreadable screen: an empty account looked exactly
+                like a broken one, which is the confusion this whole component
+                exists to prevent.
+                Nothing to decrypt comes first now, and the button only appears
+                when there is actually a ciphertext behind it. */}
+            {/* R4. The clock, whether you are in this draw, and what your odds
+                actually are — every input already in this browser, none of it
+                weakening confidentiality: the holder can already decrypt their own
+                weight and the aggregate is published by design. */}
+            {/* AD. The clock is not per-address and never was: when the next draw
+                runs is a property of the pool, published on chain, and the same
+                for everyone reading it. It used to be gated behind a connected
+                wallet, so the one figure a visitor might stay on the page to
+                watch was the one figure they could not see until they connected.
+                The rows BELOW it are per-address and stay gated. */}
+            {clock !== null && d !== undefined && (
+              <div style={css("margin-top:12px;padding:11px 13px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line-2)")}>
+                <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:10px")}>
+                  <span style={css("font:650 10px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)")}>This draw</span>
+                  <span style={css("font:600 11px var(--display);color:var(--ink-2)")}>
+                    {phase === "revealed" ? "revealed" : phase === "open" ? "open · weights frozen" : "not open"}
+                  </span>
+                </div>
+                {/* AE. The countdown is what a returning visitor opens the page
+                    for, so it is the largest thing in this block rather than one
+                    more 11px row among seven. */}
+                <div style={css("margin-top:9px;display:flex;justify-content:space-between;align-items:baseline;gap:10px")}>
+                  <span style={css("font:400 11.5px var(--display);color:var(--ink-2)")}>
+                    {clock.overdueSeconds > 0 ? "Next draw, overdue by" : "Next draw, in about"}
+                  </span>
+                  <span style={css(`font-family:var(--mono);font-size:19px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:${clock.overdueSeconds > 0 ? "var(--amber)" : "var(--ink)"}`)}>
+                    {clock.etaSeconds === null
+                      ? "—"
+                      : clock.overdueSeconds > 0
+                        ? fmtElapsed(clock.overdueSeconds)
+                        : fmtRough(clock.etaSeconds)}
+                  </span>
+                </div>
+                <div style={css("margin-top:5px;display:flex;justify-content:space-between;gap:10px;font:400 11.5px var(--display);color:var(--ink-2)")}>
+                  <span>Weights froze</span>
+                  <span style={css("font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums")}>
+                    {fmtElapsed(clock.sinceFrozen)} ago
+                  </span>
+                </div>
+                <p style={css("margin:6px 0 0;font:400 10.5px/1.5 var(--display);color:var(--ink-3)")}>
+                  {clock.medianGap === null ? (
+                    <>
+                      An estimate needs a few rounds of history and there are not enough yet. The
+                      floor is <span style={css("font-family:var(--mono)")}>minPeriod</span>,{" "}
+                      {Number(minPeriod ?? 0n)}s.
+                    </>
+                  ) : (
+                    <>
+                      An estimate, not a schedule — the median of the last rounds&apos; actual
+                      spacing ({fmtRough(clock.medianGap)}), not{" "}
+                      <span style={css("font-family:var(--mono)")}>minPeriod</span>, which is only a{" "}
+                      {Number(minPeriod ?? 0n)}s floor. The keeper waits on Zama&apos;s batcher
+                      between rounds, so a round can run late.
+                      {clock.overdueSeconds > 0 && (
+                        <>
+                          {" "}
+                          This one is past its estimate: the keeper may have stopped. Drawing is
+                          permissionless, so it is not stuck — anyone may call it.
+                        </>
+                      )}
+                    </>
+                  )}
+                </p>
+
+                {/* AE. Two notes used to say overlapping things in different
+                    words — one in this block ("you are not in this draw") and one
+                    below it ("round N has not credited you yet") — and read
+                    together a visitor could not tell which round they were in or
+                    what was still pending. They are one block now, three lines,
+                    in the order the questions are actually asked: which draw is
+                    running, whether you are in it, whether it has settled.
+
+                    The third line does not render when the answer to the second
+                    is no. Accrual for a draw you have no weight in is not news. */}
+                {address !== undefined && participating !== null && (
+                  <div style={css("margin-top:9px;padding-top:9px;border-top:1px solid var(--line-2);display:flex;flex-direction:column;gap:4px")}>
+                    <div style={css("display:flex;justify-content:space-between;gap:10px;font:400 11.5px var(--display);color:var(--ink-2)")}>
+                      <span>Round</span>
+                      <span style={css("font:650 11.5px var(--display);color:var(--ink)")}>
+                        #{round} · {phase === "revealed" ? "decided" : phase === "open" ? "running" : "not open"}
+                      </span>
+                    </div>
+                    <div style={css("display:flex;justify-content:space-between;gap:10px;font:400 11.5px var(--display);color:var(--ink-2)")}>
+                      <span>You in it</span>
+                      <span style={css(`font:650 11.5px var(--display);color:${participating ? "var(--green)" : "var(--amber)"}`)}>
+                        {participating
+                          ? "yes"
+                          : (obsCount ?? 0n) === 0n
+                            ? "no — nothing deposited yet"
+                            : "no — you joined after the snapshot"}
+                      </span>
+                    </div>
+                    {participating && isAccrued !== undefined && (
+                      <div style={css("display:flex;justify-content:space-between;gap:10px;font:400 11.5px var(--display);color:var(--ink-2)")}>
+                        <span>Settled for you</span>
+                        <span style={css(`font:650 11.5px var(--display);color:${isAccrued ? "var(--green)" : "var(--ink-2)"}`)}>
+                          {isAccrued ? "yes" : "not yet"}
+                        </span>
+                      </div>
+                    )}
+                    <p style={css("margin:4px 0 0;font:400 10.5px/1.5 var(--display);color:var(--ink-3)")}>
+                      {!participating ? (
+                        (obsCount ?? 0n) === 0n ? (
+                        <>
+                          Weight comes from a balance held before weights froze, and this address
+                          has never held one. Deposit and the next draw after your deposit
+                          includes you.
+                        </>
+                      ) : (
+                        <>
+                          Weight comes from the balance you held before weights froze, so no
+                          threshold can change this one. The next draw includes you.
+                        </>
+                      )
+                      ) : isAccrued ? (
+                        <>
+                          Whatever this round was worth is already in the figures above — winner or
+                          not, the transaction was identical.
+                        </>
+                      ) : (
+                        <>
+                          Your figures above are from earlier rounds, so this is not a result yet.
+                          Accrual reaches every participant whether they won or not, and it is
+                          permissionless: if the keeper has stopped, anyone may call{" "}
+                          <span style={css("font-family:var(--mono);font-size:10.5px")}>accrue(you, {round})</span>{" "}
+                          and no one can do it selectively.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                )}
+
+                {address !== undefined && odds !== null && (
+                  <div style={css("margin-top:9px;padding-top:8px;border-top:1px solid var(--line-2)")}>
+                    <div style={css("font:650 10px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)")}>
+                      Your exact odds for this round
+                    </div>
+                    {odds.rows.map((r) => (
+                      <div key={r.label} style={css("margin-top:5px;display:flex;justify-content:space-between;gap:10px;font:400 11.5px var(--display);color:var(--ink-2)")}>
+                        <span>{r.label}</span>
+                        <span style={css("font-family:var(--mono);font-size:11px;font-weight:700;color:var(--ink)")}>
+                          {r.pct < 0.001 ? "<0.001" : r.pct.toFixed(3)}%
+                        </span>
+                      </div>
+                    ))}
+                    <p style={css("margin:6px 0 0;font:400 10.5px/1.5 var(--display);color:var(--ink-3)")}>
+                      Exact, because <span style={css("font-family:var(--mono)")}>totalWeight</span> is
+                      published — and computable only by you, because the other half is a weight
+                      nobody else can read. It arrives with the result rather than before it: the
+                      contract publishes the randomness and the aggregate in the same transaction.
+                    </p>
+                  </div>
+                )}
+
+                {address !== undefined && quoted !== null && units > 0n && (
+                  <div style={css("margin-top:9px;padding-top:8px;border-top:1px solid var(--line-2)")}>
+                    <div style={css("font:650 10px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)")}>
+                      If you {tab === "deposit" ? "deposit" : "held"} {amount} more
+                    </div>
+                    {quoted.map((r) => (
+                      <div key={r.label} style={css("margin-top:5px;display:flex;justify-content:space-between;gap:10px;font:400 11.5px var(--display);color:var(--ink-2)")}>
+                        <span>{r.label}</span>
+                        <span style={css("font-family:var(--mono);font-size:11px;font-weight:700;color:var(--ink)")}>
+                          ~{r.pct < 0.001 ? "<0.001" : r.pct.toFixed(3)}%
+                        </span>
+                      </div>
+                    ))}
+                    <p style={css("margin:6px 0 0;font:400 10.5px/1.5 var(--display);color:var(--ink-3)")}>
+                      An estimate for the next round, from the last one&apos;s published aggregate.
+                      Odds also depend on how long you hold, not only how much.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+
+            {!address ? (
+              <p style={css("margin:10px 0 0;font:400 11.5px/1.5 var(--display);color:var(--ink-3)")}>
+                Connect a wallet to see your position. Until then these are{" "}
+                <span style={css("font-family:var(--mono)")}>—</span>, not zeros — the page has no
+                address to ask about.
+              </p>
+            ) : handles.length === 0 ? (
+              <p style={css("margin:10px 0 0;font:400 11.5px/1.5 var(--display);color:var(--ink-3)")}>
+                These are <strong>real zeros, not hidden numbers</strong> — this address has
+                never deposited, so no encrypted balance exists to read. A hidden value would
+                show <span style={css("font-family:var(--mono)")}>••••••</span> instead.
+              </p>
+            ) : hasPermit !== true ? (
               <button
                 onClick={() => grantPermit([POOL, TOKEN])}
                 disabled={granting || !onSepolia}
@@ -541,10 +1120,6 @@ export function PoolScreen() {
               >
                 {granting ? "Waiting for signature…" : "Decrypt my balances"}
               </button>
-            ) : handles.length === 0 ? (
-              <p style={css("margin:10px 0 0;font:400 11.5px/1.5 var(--display);color:var(--ink-3)")}>
-                These are real zeros, not hidden numbers — nothing has been deposited yet.
-              </p>
             ) : null}
           </div>
 

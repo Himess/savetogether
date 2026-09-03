@@ -8,6 +8,9 @@ import { PoolScreen } from "@/components/screens/Pool";
 import { WrapScreen } from "@/components/screens/Wrap";
 import { VaultScreen } from "@/components/screens/Vault";
 import { VerifyScreen } from "@/components/screens/Verify";
+import { Break } from "@/components/screens/Break";
+import { Position } from "@/components/screens/Position";
+import { Rubric } from "@/components/screens/Rubric";
 import { ChatScreen } from "@/components/screens/Chat";
 import { BalancesScreen } from "@/components/screens/Balances";
 
@@ -25,6 +28,9 @@ function Screen() {
   if (route === "wrap") return <WrapScreen />;
   if (route === "vault") return <VaultScreen />;
   if (route === "verify") return <VerifyScreen />;
+  if (route === "position") return <Position />;
+  if (route === "break") return <Break />;
+  if (route === "rubric") return <Rubric />;
   if (route === "chat") return <ChatScreen />;
   if (route === "balances") return <BalancesScreen />;
   return <PoolScreen />;

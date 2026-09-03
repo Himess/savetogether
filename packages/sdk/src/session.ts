@@ -206,16 +206,36 @@ class SessionImpl {
     );
   }
 
-  /** Boolean only. Never returns or leaks the amounts it compares. */
+  /**
+   * The remaining budget as a plaintext, for the session client's own use.
+   *
+   * The session client already holds this number — `canAfford` always decrypted
+   * it to answer — so exposing it here reveals nothing to the session client that
+   * it did not have. It exists as a named method because the caller that needs it
+   * is the one that must coarsen it before answering, and a coarsening applied to
+   * a value the caller cannot see is not a coarsening.
+   *
+   * NOT a model-facing surface. Nothing in `packages/mcp-server` returns this
+   * figure; `can_afford` consumes it and emits a bucketed boolean.
+   */
+  async remainingExact(token: string): Promise<bigint> {
+    const handle = await this.module.remainingOf(this.ctx.sessionKeyAddress, token);
+    return userDecrypt(this.ctx.fhevm, this.ctx.sessionKey, handle, this.ctx.moduleAddress);
+  }
+
+  /**
+   * Boolean only, and it never leaked the amounts it compared — per call.
+   *
+   * Across calls it did. `left >= amount` is monotone and free, so a sequence of
+   * probes binary-searches the budget exactly; `test/g1-can-afford-oracle.ts`
+   * does it in 40 calls. The caller in `packages/mcp-server` now answers against
+   * a coarsened budget instead, and this exact form is kept for callers that
+   * already hold the figure and are not an oracle boundary.
+   *
+   * @deprecated for model-facing use — coarsen with `coarsenBudget` first.
+   */
   async canAfford(token: string, amount: bigint): Promise<boolean> {
-    const budget = await this.remaining(token);
-    const left = await userDecrypt(
-      this.ctx.fhevm,
-      this.ctx.sessionKey,
-      budget.handle,
-      this.ctx.moduleAddress,
-    );
-    return left >= amount;
+    return (await this.remainingExact(token)) >= amount;
   }
 
   async readiness(token?: string): Promise<Readiness> {

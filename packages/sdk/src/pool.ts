@@ -124,10 +124,28 @@ export class PoolClient {
         userDecrypt(this.ctx.fhevm, this.ctx.sessionKey, handle, this.ctx.poolAddress),
       );
     };
+    // `pending` is handed out WITHOUT a resolver, deliberately.
+    //
+    // `ConfidentialPrizePool` never grants the holder ACL on `_pending`: `accrue`
+    // grants `nextWinnings` to the user and leaves `nextPending` contract-only
+    // (`:895-896`), and `_drain` re-initialises it with `allowThis` alone
+    // (`:1011-1012`). So `userDecrypt` on this handle fails for its own owner, in
+    // every state, from the first accrual onward — F1 measured it from a key that
+    // had never touched the pool.
+    //
+    // Attaching a resolver anyway made the failure reachable: `pool_position`
+    // hands the reference to the model, the model passes it to `pool_deposit` as
+    // the tool description invites, and `AmountExpr` resolves it at encrypt time
+    // and throws a raw decryption error. Without a resolver the same path raises
+    // `BalanceNotVisibleError`, which is the SDK's own word for "this number is
+    // not yours to see" and is what every other unreadable reference already does.
+    //
+    // The two-line contract fix is recorded in `bundle/F1-ACL-SWEEP.md`; it needs
+    // a redeploy and the sweep found no other reason for one.
     return {
       inPool: await mk(await pool.confidentialBalanceOf!(me), "balance"),
       won: await mk(await pool.winningsOf!(me), "sent"),
-      pending: await mk(await pool.pendingOf!(me), "sent"),
+      pending: new AmountRef(await pool.pendingOf!(me), this.ctx.tokenAddress, "sent"),
     };
   }
 

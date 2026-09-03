@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount, useBalance, useReadContract, useSendTransaction } from "wagmi";
 import { css } from "@/lib/css";
-import { fmtUnits6, shortAddr } from "@/lib/format";
+import { fmtUnits6, shortAddr, showConfidential } from "@/lib/format";
 import { useDecryptValues, useGrantPermit, useHasPermit } from "@zama-fhe/react-sdk";
 import { EXPLORER, HOSTED_URL, MODULE, TOKEN } from "@/lib/addresses";
 import { MODULE_ABI } from "@/lib/abis";
@@ -68,7 +68,13 @@ export function ChatScreen() {
 
   const refresh = useCallback(async (t: string) => {
     try {
-      const res = await fetch(`${HOSTED_URL}/api/session/${t}`);
+      // W1. The token is a credential, so it travels in a header and never in a
+      // path. In the URL it landed in the browser console, the server's access
+      // log, browser history and any Referer — a devtools screenshot published a
+      // live session that can spend the remaining budget.
+      const res = await fetch(`${HOSTED_URL}/api/session`, {
+        headers: { authorization: `Bearer ${t}` },
+      });
       if (!res.ok) return;
       setStatus((await res.json()) as Status);
     } catch {
@@ -102,15 +108,18 @@ export function ChatScreen() {
   const { data: budgetClear, isFetching: readingBudget } = useDecryptValues(budgetInputs, {
     enabled: hasPermit === true && budgetInputs.length > 0,
   });
-  const remaining = useMemo(() => {
-    if (!address) return "—";
-    if (remainingHandle === undefined) return "…";
-    if (remainingHandle === ZERO) return "0";
-    if (hasPermit !== true) return "•••";
-    if (readingBudget) return "…";
-    const v = budgetClear?.[remainingHandle as `0x${string}`];
-    return v === undefined ? "•••" : fmtUnits6(BigInt(v as string | number | bigint));
-  }, [remainingHandle, hasPermit, readingBudget, budgetClear]);
+  // Third copy of the same five states, now the shared one. See lib/format.ts.
+  const remaining = useMemo(
+    () =>
+      showConfidential({
+        connected: !!address,
+        handle: remainingHandle,
+        permitted: hasPermit === true,
+        fetching: readingBudget,
+        clear: remainingHandle ? budgetClear?.[remainingHandle as `0x${string}`] : undefined,
+      }),
+    [address, remainingHandle, hasPermit, readingBudget, budgetClear],
+  );
 
   if (!HOSTED_URL) return null;
 
@@ -190,8 +199,8 @@ export function ChatScreen() {
 
       <div style={css("display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start")}>
         <div style={css("flex:1 1 470px;min-width:0")}>
-          <div style={css("background:var(--panel);border-radius:20px;padding:22px 24px;color:#e9e5da")}>
-            <span style={css("font:650 10px var(--display);letter-spacing:.1em;text-transform:uppercase;color:#8b8578")}>What it sounds like</span>
+          <div style={css("background:var(--panel);border-radius:20px;padding:22px 24px;color:#e6e8ea")}>
+            <span style={css("font:650 10px var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)")}>What it sounds like</span>
             <div style={css("margin-top:14px;display:flex;flex-direction:column;gap:12px")}>
               {[
                 "open a session with a 500 cUSDC budget",
@@ -205,10 +214,64 @@ export function ChatScreen() {
                 </div>
               ))}
             </div>
-            <p style={css("margin:16px 0 0;font:400 12.5px/1.6 var(--display);color:#8b8578")}>
+            <p style={css("margin:16px 0 0;font:400 12.5px/1.6 var(--display);color:var(--ink-3)")}>
               &ldquo;Half my balance&rdquo; is resolved as a reference, not a number. The model is handed
-              <span style={css("font-family:var(--mono);font-size:12px;color:#c9c3b4")}> bal_1:half</span> and never sees the
+              <span style={css("font-family:var(--mono);font-size:12px;color:var(--ink-3)")}> bal_1:half</span> and never sees the
               figure — that is the difference between an agent that can spend for you and one that knows what you have.
+            </p>
+            <p style={css("margin:10px 0 0;font:400 12px/1.6 var(--display);color:var(--ink-3)")}>
+              It does <em>not</em> keep the figure from the session client, which has to know your
+              balance to halve it and to encrypt anything at all. That is a real cost and the table
+              below states it rather than leaving it to be assumed.
+            </p>
+          </div>
+
+          {/* Who knows what. Three principals, because collapsing the middle one is
+              how a custodial product sounds safe. */}
+          <div style={css("margin-top:26px;background:var(--surface-2);border:1px solid var(--line);border-radius:16px;padding:18px 20px")}>
+            <div style={css("font:800 15px var(--display);letter-spacing:-.01em")}>Who knows what</div>
+            <p style={css("margin:6px 0 0;font:400 12px/1.6 var(--display);color:var(--ink-3)")}>
+              Three parties, not two. The <strong>model</strong> holds what you typed and opaque
+              references. The <strong>session client</strong> builds the ciphertext, so it holds
+              absolute amounts. The <strong>chain</strong> holds neither.
+            </p>
+            <div style={css("margin-top:12px;overflow-x:auto")}>
+              <table style={css("width:100%;border-collapse:collapse;font:400 12px var(--display);min-width:520px")}>
+                <thead>
+                  <tr style={css("text-align:left;color:var(--ink-3)")}>
+                    <th style={css("padding:7px 8px;font-weight:600")}></th>
+                    <th style={css("padding:7px 8px;font-weight:600")}>model</th>
+                    <th style={css("padding:7px 8px;font-weight:600")}>session client</th>
+                    <th style={css("padding:7px 8px;font-weight:600")}>chain</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ["pool_deposit, a number you typed", "sees it", "sees it", "encrypted"],
+                    ["pool_deposit, bal_1:half", "reference only", "resolves it", "encrypted"],
+                    ["pool_position", "reference only", "sees it", "encrypted"],
+                    ["can_afford", "one bit; repeated calls reach the bucket floor and stop", "the exact budget", "encrypted"],
+                    ["Session budget", "never", "the exact figure", "encrypted, unreadable by anyone"],
+                    ["Recipient address", "sees it", "sees it", "public by construction"],
+                    ["unwrap", "sees the ceiling", "sees the amount", "published — that is the point"],
+                  ].map((r) => (
+                    <tr key={r[0]} style={css("border-top:1px solid var(--line-2)")}>
+                      <td style={css("padding:8px;font-family:var(--mono);font-size:11px")}>{r[0]}</td>
+                      <td style={css("padding:8px")}>{r[1]}</td>
+                      <td style={css("padding:8px")}>{r[2]}</td>
+                      <td style={css("padding:8px;color:var(--ink-3)")}>{r[3]}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p style={css("margin:12px 0 0;font:400 11.5px/1.65 var(--display);color:var(--ink-3)")}>
+              <strong>The leak was never in the cryptography.</strong> <span style={css("font-family:var(--mono);font-size:11px")}>can_afford</span>{" "}
+              always decrypted the budget to answer it, so the ciphertext never gave way. What
+              leaked was the <em>shape of the answer</em> crossing to the model: a free,
+              repeatable, caller-chosen predicate is an oracle whatever it is computed over.
+              Forty probes recovered an exact budget. It now answers against a 50-token bucket —
+              run the attack yourself on <strong>Try to break it</strong>, row 5.
             </p>
           </div>
 
@@ -230,7 +293,7 @@ export function ChatScreen() {
         {/* ------------------------------------------------------- right rail --- */}
         <div style={css("flex:1 1 340px;max-width:400px;position:sticky;top:14px;background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:0 1px 2px rgba(20,18,12,.03),0 12px 34px rgba(20,18,12,.05);padding:18px")}>
           {status !== null && (
-            <div style={css(`border-radius:14px;padding:13px 15px;margin-bottom:14px;${status.live ? "background:var(--green-bg);border:1px solid #bfe3cd" : "background:var(--surface-2);border:1px solid var(--line)"}`)}>
+            <div style={css(`border-radius:14px;padding:13px 15px;margin-bottom:14px;${status.live ? "background:var(--green-bg);border:1px solid #c3ddcf" : "background:var(--surface-2);border:1px solid var(--line)"}`)}>
               <div style={css("display:flex;align-items:center;justify-content:space-between;gap:10px")}>
                 <div>
                   <div style={css(`font:700 12.5px var(--display);${status.live ? "color:var(--green)" : "color:var(--ink-2)"}`)}>
@@ -306,7 +369,7 @@ export function ChatScreen() {
               <button
                 onClick={open}
                 disabled={busy !== null || !onSepolia || !address}
-                style={css(`width:100%;margin-top:14px;padding:14px;border-radius:13px;border:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,#ffdf5c,#ffd208);color:#1a1a1a;font:700 14px var(--display);box-shadow:0 5px 15px rgba(255,210,8,.3);cursor:pointer;opacity:${busy !== null || !onSepolia || !address ? ".55" : "1"}`)}
+                style={css(`width:100%;margin-top:14px;padding:14px;border-radius:13px;border:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,#24507d,#1b3a5c);color:var(--on-accent);font:700 14px var(--display);box-shadow:0 5px 15px rgba(27,58,92,.28);cursor:pointer;opacity:${busy !== null || !onSepolia || !address ? ".55" : "1"}`)}
               >
                 {busy === "open" ? "Opening…" : "Open a session"}
               </button>
@@ -330,7 +393,7 @@ export function ChatScreen() {
                 />
                 <button
                   onClick={() => { void navigator.clipboard.writeText(mcpUrl); toast("Copied"); }}
-                  style={css("padding:10px 14px;border-radius:11px;border:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,#ffdf5c,#ffd208);font:700 12px var(--display);color:#1a1a1a;cursor:pointer;flex:none")}
+                  style={css("padding:10px 14px;border-radius:11px;border:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,#24507d,#1b3a5c);font:700 12px var(--display);color:var(--on-accent);cursor:pointer;flex:none")}
                 >
                   Copy
                 </button>

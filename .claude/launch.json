@@ -1,0 +1,26 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "savetogether-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "frontend",
+      "port": 3000
+    },
+    {
+      "name": "savetogether-demo-waiting",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["cross-env", "NEXT_PUBLIC_DEMO_ADDRESS=0xF505e2E71df58D7244189072008f25f6b6aaE5ae", "next", "dev", "-p", "3001"],
+      "cwd": "frontend",
+      "port": 3001
+    },
+    {
+      "name": "savetogether-demo-processed",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["cross-env", "NEXT_PUBLIC_DEMO_ADDRESS=0x93e8195537e624B15c3993e0f448B260FddefB62", "next", "dev", "-p", "3002"],
+      "cwd": "frontend",
+      "port": 3002
+    }
+  ]
+}

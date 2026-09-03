@@ -5,7 +5,7 @@
  *
  *   POST /api/session/prepare   the server generates a key and signs the digest
  *   POST /api/session/adopt     the server checks the CHAIN, then issues a URL
- *   GET  /api/session/:token    status, and the calls that revoke it
+ *   GET  /api/session           status — Authorization: Bearer <token>
  *   ALL  /mcp/:token            MCP over streamable HTTP
  *
  * The ordering in `prepare` is forced by the contract rather than chosen.
@@ -129,13 +129,34 @@ export class HostedServer {
 
   // -------------------------------------------------------------------------
 
+  /**
+   * W2. Which origins may call this server.
+   *
+   * An exact allowlist, plus one pattern — and the pattern is the fix for a real
+   * console error rather than a convenience. Vercel mints a NEW hostname for every
+   * deployment (`ghostpool-<hash>-himess-projects.vercel.app`), so only the two
+   * stable aliases were ever allowlisted and every deployment-specific URL failed
+   * preflight with "No 'Access-Control-Allow-Origin' header is present". The
+   * canonical URL worked, which is why it went unnoticed: it is the one nobody
+   * opens while debugging.
+   *
+   * Deliberately not a wildcard. The pattern is anchored, names this project, and
+   * is confined to the vercel.app apex — `*.vercel.app` would let any Vercel user
+   * call a server that holds session keys.
+   */
+  private static readonly PREVIEW =
+    /^https:\/\/ghostpool-[a-z0-9]+-himess-projects\.vercel\.app$/;
+
   private cors(req: IncomingMessage): Record<string, string> {
     const origin = req.headers.origin;
-    if (typeof origin !== "string" || !this.config.allowedOrigins.includes(origin)) return {};
+    const allowed =
+      typeof origin === "string" &&
+      (this.config.allowedOrigins.includes(origin) || HostedServer.PREVIEW.test(origin));
+    if (!allowed) return {};
     return {
       "access-control-allow-origin": origin,
       vary: "Origin",
-      "access-control-allow-headers": "content-type",
+      "access-control-allow-headers": "content-type, authorization",
       "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
     };
   }
@@ -188,7 +209,7 @@ export class HostedServer {
             "GET /api/health": "liveness",
             "POST /api/session/prepare": "generate a session key and return the calls your wallet signs",
             "POST /api/session/adopt": "confirm on chain, then issue the MCP URL",
-            "GET /api/session/:token": "status, and the calls that revoke it",
+            "GET /api/session": "status — send Authorization: Bearer <token>, never in the path",
             "ALL /mcp/:token": "MCP over streamable HTTP — for a chat client, not a browser",
           },
           holds: "session keys, sealed into the bearer token. No wallet keys, no database.",
@@ -211,8 +232,37 @@ export class HostedServer {
       return;
     }
 
+    /**
+     * W1. Status, with the token in an `Authorization: Bearer` header.
+     *
+     * The site used to call `GET /api/session/<token>`, and that token is a
+     * credential — the Talk-to-it screen says so: anyone holding it can spend the
+     * remaining budget to the allowlisted addresses until it expires. In a path it
+     * travels through the browser console, the server's access log, browser
+     * history and any Referer, so a screenshot of devtools published a live
+     * session. In a header it travels in none of them.
+     *
+     * Same class as the `can_afford` oracle: nothing was decrypted, the secret
+     * simply took a shape that leaked wherever it was carried.
+     */
+    if (url.pathname === "/api/session" && req.method === "GET") {
+      const auth = req.headers.authorization;
+      const bearer = typeof auth === "string" && /^Bearer /i.test(auth) ? auth.slice(7).trim() : "";
+      if (!/^[A-Za-z0-9_-]+$/.test(bearer)) {
+        this.json(res, 401, { error: "missing or malformed Authorization: Bearer <token>" }, cors);
+        return;
+      }
+      await this.status(bearer, res, cors);
+      return;
+    }
+
+    // The path form is kept only so an older tab does not break mid-session, and
+    // it is the shape being retired — see above. Nothing in this repository calls
+    // it any more.
     const sessionMatch = /^\/api\/session\/([A-Za-z0-9_-]+)$/.exec(url.pathname);
     if (sessionMatch !== null && req.method === "GET") {
+      res.setHeader("deprecation", "true");
+      res.setHeader("warning", '299 - "token in path is deprecated; use Authorization: Bearer"');
       await this.status(sessionMatch[1]!, res, cors);
       return;
     }

@@ -4,7 +4,7 @@ import { useAccount, usePublicClient, useReadContract, useWriteContract } from "
 import { useDecryptValues, useGrantPermit, useHasPermit } from "@zama-fhe/react-sdk";
 import { css } from "@/lib/css";
 import { shortAddr } from "@/lib/format";
-import { EXPLORER, POOL } from "@/lib/addresses";
+import { DEPOSIT_BATCHER, EXPLORER, POOL, REDEEM_BATCHER, VAULT_4626, VAULT_SHARE } from "@/lib/addresses";
 import { POOL_ABI } from "@/lib/abis";
 import { useOnSepolia } from "@/lib/chain";
 import { oddsPct, rejectionFloor, thresholdFor } from "@/lib/draw";
@@ -27,8 +27,8 @@ function Pill({ ok, children }: { ok: boolean; children: React.ReactNode }) {
       style={css(
         "padding:4px 10px;border-radius:999px;white-space:nowrap;font:700 11px var(--display);" +
           (ok
-            ? "background:var(--green-bg);border:1px solid #bfe3cd;color:var(--green)"
-            : "background:#fdecec;border:1px solid #f3c2c2;color:#a11"),
+            ? "background:var(--green-bg);border:1px solid #c3ddcf;color:var(--green)"
+            : "background:var(--red-bg);border:1px solid #e0c4c4;color:var(--red)"),
       )}
     >
       {children}
@@ -45,7 +45,7 @@ function HistoryRow({ id, onPick }: { id: number; onPick: () => void }) {
     <tr>
       <td style={css("padding:8px 10px;border-bottom:1px solid var(--line);font-weight:700")}>#{id}</td>
       <td style={css("padding:8px 10px;border-bottom:1px solid var(--line)")}>
-        <span style={css("font:650 10.5px var(--display);text-transform:uppercase;letter-spacing:.06em;color:" + (label === "revealed" ? "var(--green)" : label === "cancelled" ? "#a11" : "var(--ink-3)"))}>{label}</span>
+        <span style={css("font:650 10.5px var(--display);text-transform:uppercase;letter-spacing:.06em;color:" + (label === "revealed" ? "var(--green)" : label === "cancelled" ? "var(--red)" : "var(--ink-3)"))}>{label}</span>
       </td>
       <td style={css("padding:8px 10px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:11px;color:var(--ink-2)")}>
         {d === undefined || Number(d.status) !== 2 ? "—" : String(d.r).slice(0, 12) + "…"}
@@ -230,6 +230,60 @@ export function VerifyScreen() {
         recompute all of them and check the contract followed its own rule — without learning
         a single participant&apos;s result, including from the ones it just verified.
       </p>
+      {/* P3. This screen already computed both halves and never said what
+          they were. The thresholds below are a `view` returning uint128 —
+          anyone can compute them, for any address, in any draw. The weight
+          is a handle only its owner can decrypt. So an observer holds one
+          half of the comparison and can never obtain the other, which is
+          the sharpest statement of the boundary available and every number
+          in it was already on this screen. */}
+      <div style={css("padding:11px 13px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line)")}>
+        <div style={css("display:flex;gap:10px;align-items:flex-start")}>
+          <span style={css("flex:none;margin-top:2px;padding:2px 7px;border-radius:999px;background:var(--amber-bg);border:1px solid #d9cfbc;font:700 9.5px var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--amber)")}>public</span>
+          <p style={css("margin:0;font:400 11.5px/1.6 var(--display);color:var(--ink-2)")}>
+            <b style={css("font-weight:650;color:var(--ink)")}>Your thresholds.</b> Recomputed
+            below in your browser from <span style={css("font-family:var(--mono);font-size:11px")}>r</span>,
+            the draw id and your address — and{" "}
+            <b style={css("font-weight:650;color:var(--ink)")}>anyone can compute them</b>, for
+            any address, in any draw. They are a plain{" "}
+            <span style={css("font-family:var(--mono);font-size:11px")}>view</span> on the
+            contract. Nothing about them is secret.
+          </p>
+        </div>
+        <div style={css("margin-top:9px;display:flex;gap:10px;align-items:flex-start")}>
+          <span style={css("flex:none;margin-top:2px;padding:2px 7px;border-radius:999px;background:var(--green-bg);border:1px solid #c3ddcf;font:700 9.5px var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--green)")}>yours</span>
+          <p style={css("margin:0;font:400 11.5px/1.6 var(--display);color:var(--ink-2)")}>
+            <b style={css("font-weight:650;color:var(--ink)")}>Your weight.</b> An encrypted
+            handle the contract granted to you and to nobody else. The relayer will not
+            return it to another address, however many times it is asked.
+          </p>
+        </div>
+        <p style={css("margin:10px 0 0;padding-top:9px;border-top:1px solid var(--line-2);font:500 11.5px/1.6 var(--display);color:var(--ink)")}>
+          So the comparison happens on your side, and only on your side. An observer holds
+          one half of it and can never obtain the other —{" "}
+          <b style={css("font-weight:650")}>and you cannot make it for anyone else either</b>.
+        </p>
+      </div>
+
+    {hasPermit !== true ? (
+      <button
+        onClick={() => grantPermit([POOL])}
+        disabled={granting || !onSepolia}
+        style={css("margin-top:14px;padding:11px 18px;border-radius:12px;border:none;background:var(--accent);font:700 13px var(--display);color:var(--on-accent);cursor:pointer")}
+      >
+        {granting ? "Waiting for signature…" : "Sign once to read my own values"}
+      </button>
+    ) : myWeightHandle === null ? (
+      <button
+        onClick={() => void revealMyWeight()}
+        disabled={!onSepolia}
+        style={css("margin-top:14px;padding:11px 18px;border-radius:12px;border:none;background:var(--accent);font:700 13px var(--display);color:var(--on-accent);cursor:pointer")}
+      >
+        Compute my weight for draw #{target}
+      </button>
+    ) : (
+      <div style={css("margin-top:16px;display:flex;flex-direction:column;gap:10px")}>
+
       <div style={css("height:1px;background:var(--line);margin:22px 0 26px")} />
 
       {/* the draw under audit */}
@@ -278,7 +332,7 @@ export function VerifyScreen() {
         <button
           onClick={() => void verify()}
           disabled={running || !revealed || !tiersReady}
-          style={css(`width:100%;margin-top:20px;padding:14px;border-radius:13px;border:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,#ffdf5c,#ffd208);color:#1a1a1a;font:700 14px var(--display);box-shadow:0 5px 15px rgba(255,210,8,.3);cursor:${running || !revealed ? "not-allowed" : "pointer"};opacity:${running || !revealed ? ".55" : "1"}`)}
+          style={css(`width:100%;margin-top:20px;padding:14px;border-radius:13px;border:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,#24507d,#1b3a5c);color:var(--on-accent);font:700 14px var(--display);box-shadow:0 5px 15px rgba(27,58,92,.28);cursor:${running || !revealed ? "not-allowed" : "pointer"};opacity:${running || !revealed ? ".55" : "1"}`)}
         >
           {running ? "Recomputing every threshold…" : "Verify this draw in my browser"}
         </button>
@@ -288,7 +342,7 @@ export function VerifyScreen() {
           </p>
         )}
         {error !== null && (
-          <p style={css("margin:10px 0 0;font:600 11.5px/1.5 var(--display);color:#a11")}>{error}</p>
+          <p style={css("margin:10px 0 0;font:600 11.5px/1.5 var(--display);color:var(--red)")}>{error}</p>
         )}
       </div>
 
@@ -331,7 +385,7 @@ export function VerifyScreen() {
                               ✓ {((Number(m) / (Number(d!.totalWeight) * Number(ks[i]!))) * 100).toFixed(2)}%
                             </span>
                           ) : (
-                            <span style={css("color:#a11;font-weight:700")}>mismatch</span>
+                            <span style={css("color:var(--red);font-weight:700")}>mismatch</span>
                           )}
                         </td>
                       ))}
@@ -356,33 +410,15 @@ export function VerifyScreen() {
 
       {/* the private half */}
       {rows !== null && address !== undefined && (
-        <div style={css("margin-top:22px;background:var(--panel);border-radius:20px;padding:20px 22px;color:#e9e5da")}>
-          <span style={css("font:650 10px var(--display);letter-spacing:.1em;text-transform:uppercase;color:#8b8578")}>Your own result</span>
-          <p style={css("margin:10px 0 0;font:400 13px/1.7 var(--display);color:#c9c4b8")}>
+        <div style={css("margin-top:22px;background:var(--panel);border-radius:20px;padding:20px 22px;color:#e6e8ea")}>
+          <span style={css("font:650 10px var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)")}>Your own result</span>
+          <p style={css("margin:10px 0 0;font:400 13px/1.7 var(--display);color:var(--ink-2)")}>
             The half nobody else can do. Your weight is encrypted and the permit that reads it lives
             in this browser.
           </p>
 
-          {hasPermit !== true ? (
-            <button
-              onClick={() => grantPermit([POOL])}
-              disabled={granting || !onSepolia}
-              style={css("margin-top:14px;padding:11px 18px;border-radius:12px;border:none;background:#ffd208;font:700 13px var(--display);color:#1a1a1a;cursor:pointer")}
-            >
-              {granting ? "Waiting for signature…" : "Sign once to read my own values"}
-            </button>
-          ) : myWeightHandle === null ? (
-            <button
-              onClick={() => void revealMyWeight()}
-              disabled={!onSepolia}
-              style={css("margin-top:14px;padding:11px 18px;border-radius:12px;border:none;background:#ffd208;font:700 13px var(--display);color:#1a1a1a;cursor:pointer")}
-            >
-              Compute my weight for draw #{target}
-            </button>
-          ) : (
-            <div style={css("margin-top:16px;display:flex;flex-direction:column;gap:10px")}>
               <div style={css("display:flex;justify-content:space-between;gap:14px;font:600 13px var(--display)")}>
-                <span style={css("color:#8b8578")}>my weight</span>
+                <span style={css("color:var(--ink-3)")}>my weight</span>
                 <span style={css("font-family:var(--mono);font-size:12.5px")}>
                   {isFetching ? "…" : myWeight === undefined ? "•••" : String(myWeight)}
                 </span>
@@ -392,22 +428,22 @@ export function VerifyScreen() {
                 const cleared = myWeight !== undefined ? myWeight > th : null;
                 return (
                   <div key={t} style={css("display:flex;justify-content:space-between;gap:14px;align-items:baseline;font:500 12.5px var(--display);border-top:1px solid rgba(255,255,255,.08);padding-top:9px")}>
-                    <span style={css("color:#c9c4b8")}>
+                    <span style={css("color:var(--ink-2)")}>
                       {label}
-                      <span style={css("color:#8b8578")}>
+                      <span style={css("color:var(--ink-3)")}>
                         {" · odds "}
                         {myWeight === undefined
                           ? "•••"
                           : oddsPct(myWeight, BigInt(d!.totalWeight), ks[t]!).toFixed(3) + "%"}
                       </span>
                     </span>
-                    <span style={css(`font-weight:700;color:${cleared === null ? "#8b8578" : cleared ? "#7ee2a8" : "#8b8578"}`)}>
+                    <span style={css(`font-weight:700;color:${cleared === null ? "var(--ink-3)" : cleared ? "var(--green)" : "var(--ink-3)"}`)}>
                       {cleared === null ? "•••" : cleared ? `WON ${Number(prizes[t] ?? 0n) / 1e6} cUSDC` : "not cleared"}
                     </span>
                   </div>
                 );
               })}
-              <p style={css("margin:8px 0 0;font:400 11.5px/1.6 var(--display);color:#8b8578")}>
+              <p style={css("margin:8px 0 0;font:400 11.5px/1.6 var(--display);color:var(--ink-3)")}>
                 The best tier you cleared is the one credited, never several. This is computed in your
                 browser from your own decrypted weight — the chain never published it, and the credit
                 reached you whether or not you ever opened this page.
@@ -454,6 +490,62 @@ export function VerifyScreen() {
         · the same audit runs headless as{" "}
         <span style={css("font-family:var(--mono);font-size:11px")}>scripts/verify-draw.ts</span>.
       </p>
+
+      {/* V2. The composition proof, moved here from the retired Vault tab.
+          It belongs on the evidence page: its reader wants it, and on the Pool
+          screen it sat next to a button that moved the POOL's principal while
+          looking like a way to join. */}
+      <div style={css("margin-top:26px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:20px 22px")}>
+        <span style={css("font:650 10px var(--display);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)")}>
+          The composition, and which half is ours
+        </span>
+        <p style={css("margin:10px 0 0;font:400 13px/1.7 var(--display);color:var(--ink-2)")}>
+          The pool&apos;s principal goes through <b style={css("font-weight:650;color:var(--ink)")}>Zama&apos;s
+          deployed deposit batcher</b> and real shares come back — batch 286, on chain, both
+          directions. That part is real and checkable.
+        </p>
+        <div style={css("margin-top:13px;display:flex;flex-direction:column;gap:9px")}>
+          {[
+            ["Deposit batcher", DEPOSIT_BATCHER, "cUSDC → shares · our principal is in batch 286"],
+            ["Redeem batcher", REDEEM_BATCHER, "shares → cUSDC, the way back out"],
+            ["Vault share", VAULT_SHARE, "Confidential steakcUSDC — what the batcher actually returns"],
+            ["ERC-4626", VAULT_4626, "Steakhouse Confidential Prime USDC"],
+          ].map(([label, addr, note]) => (
+            <div key={label as string} style={css("display:flex;justify-content:space-between;gap:14px;align-items:baseline;flex-wrap:wrap;border-top:1px solid var(--line-2);padding-top:9px")}>
+              <span style={css("font:600 12.5px var(--display)")}>
+                {label}
+                <span style={css("display:block;font:400 11px var(--display);color:var(--ink-3)")}>{note}</span>
+              </span>
+              <a href={`${EXPLORER}/address/${addr}`} target="_blank" rel="noreferrer" style={css("font:600 12px var(--mono);color:var(--accent-ink);text-decoration:underline")}>
+                {shortAddr(addr as string)}
+              </a>
+            </div>
+          ))}
+        </div>
+        <div style={css("margin-top:14px;padding:12px 14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line-2)")}>
+          <p style={css("margin:0;font:400 12px/1.65 var(--display);color:var(--ink-2)")}>
+            <b style={css("font-weight:700;color:var(--ink)")}>And the rate is ours.</b> Zama&apos;s
+            Sepolia vault is idle-only with no yield adapter, and the chain says so:{" "}
+            <span style={css("font-family:var(--mono);font-size:11px")}>totalAssets</span> equals{" "}
+            <span style={css("font-family:var(--mono);font-size:11px")}>totalSupply</span> after
+            decimal scaling — a share price of exactly <b style={css("font-weight:700")}>1.0</b> — and
+            all ten settled batches finalised at an exchange rate of exactly{" "}
+            <span style={css("font-family:var(--mono);font-size:11px")}>1.000000</span>. Nothing there
+            appreciates, so the prize is funded from a pre-funded pot at a rate we set. The
+            composition is real; the yield is not Zama&apos;s.
+          </p>
+        </div>
+        <p style={css("margin:12px 0 0;font:400 11px/1.6 var(--display);color:var(--ink-3)")}>
+          <b style={css("font-weight:650;color:var(--ink-2)")}>Operator action, not yours.</b>{" "}
+          <span style={css("font-family:var(--mono);font-size:10.5px")}>joinVault()</span> moves half
+          of the <i>pool&apos;s</i> remaining principal into the next batch. It is permissionless, so
+          anyone may call it, and it does <b style={css("font-weight:650")}>nothing to your own
+          position</b> — it is run by the keeper and lives in{" "}
+          <span style={css("font-family:var(--mono);font-size:10.5px")}>scripts/keeper.ts</span> rather
+          than behind a button here, because a control that moves someone else&apos;s money should not
+          sit where a visitor is looking for their own.
+        </p>
+      </div>
     </div>
   );
 }

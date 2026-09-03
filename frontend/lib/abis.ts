@@ -15,6 +15,9 @@ export const POOL_ABI = [
   { type: "function", name: "cancelDraw", stateMutability: "nonpayable", inputs: [{ type: "uint32" }], outputs: [] },
   { type: "function", name: "keeperFee", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "owner", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+  { type: "function", name: "observationCount", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "observationAt", stateMutability: "view", inputs: [{ name: "account", type: "address" }, { name: "i", type: "uint256" }], outputs: [{ type: "tuple", components: [{ name: "timestamp", type: "uint40" }, { name: "balance", type: "bytes32" }, { name: "cumulative", type: "bytes32" }] }] },
+  { type: "function", name: "minPeriod", stateMutability: "view", inputs: [], outputs: [{ type: "uint40" }] },
   { type: "function", name: "accrued", stateMutability: "view", inputs: [{ type: "uint32" }, { type: "address" }], outputs: [{ type: "bool" }] },
   // Permissionless and unconditional: anyone may call it for anyone, and it does
   // the same thing whether that address won or not. A claim only a winner would

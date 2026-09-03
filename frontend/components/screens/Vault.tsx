@@ -108,7 +108,7 @@ export function VaultScreen() {
           <div style={css("display:flex;align-items:center;gap:14px;flex-wrap:wrap")}>
             <TokenIcon token="cUSDC" size={46} />
             <h2 style={css("margin:0;font:800 26px/1.08 var(--display);letter-spacing:-.02em")}>SaveTogether Yield Engine</h2>
-            <span style={css("padding:5px 11px;border-radius:999px;background:var(--accent-soft);border:1px solid #f0d97a;font:700 11px var(--display);color:#7a5f00;white-space:nowrap")}>Demo rate</span>
+            <span style={css("padding:5px 11px;border-radius:999px;background:var(--accent-soft);border:1px solid var(--accent-line);font:700 11px var(--display);color:var(--amber);white-space:nowrap")}>Demo rate</span>
           </div>
 
           <p style={css("margin:13px 0 0;font:400 14.5px/1.55 var(--display);color:var(--ink-2);max-width:62ch")}>
@@ -217,7 +217,7 @@ export function VaultScreen() {
         <div style={css("flex:1 1 340px;max-width:400px;position:sticky;top:14px;background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:0 1px 2px rgba(20,18,12,.03),0 12px 34px rgba(20,18,12,.05);padding:18px")}>
           <span style={css("font:650 10px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)")}>Batch lifecycle</span>
           <div style={css("display:flex;align-items:center;gap:6px;margin-top:10px")}>
-            <span style={css("flex:1;text-align:center;padding:7px 4px;border-radius:9px;background:var(--accent-soft);border:1px solid #f0d97a;font:700 11px var(--display);color:#7a5f00")}>Join</span>
+            <span style={css("flex:1;text-align:center;padding:7px 4px;border-radius:9px;background:var(--accent-soft);border:1px solid var(--accent-line);font:700 11px var(--display);color:var(--amber)")}>Join</span>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={css("flex:none")}><path d="M9 6l6 6-6 6"/></svg>
             <span style={css("flex:1;text-align:center;padding:7px 4px;border-radius:9px;background:var(--surface-2);border:1px solid var(--line);font:600 11px var(--display);color:var(--ink-3)")}>Dispatched</span>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={css("flex:none")}><path d="M9 6l6 6-6 6"/></svg>
@@ -241,7 +241,7 @@ export function VaultScreen() {
               ).then(() => refetchBatches())
             }
             disabled={busy || !onSepolia || !address}
-            style={css(`width:100%;margin-top:16px;padding:14px;border-radius:13px;border:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,#ffdf5c,#ffd208);color:#1a1a1a;font:700 14px var(--display);cursor:${busy || !onSepolia ? "not-allowed" : "pointer"};opacity:${busy || !onSepolia ? ".55" : "1"};box-shadow:0 5px 15px rgba(255,210,8,.3)`)}
+            style={css(`width:100%;margin-top:16px;padding:14px;border-radius:13px;border:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,#24507d,#1b3a5c);color:var(--on-accent);font:700 14px var(--display);cursor:${busy || !onSepolia ? "not-allowed" : "pointer"};opacity:${busy || !onSepolia ? ".55" : "1"};box-shadow:0 5px 15px rgba(27,58,92,.28)`)}
           >
             Join the next batch
           </button>
