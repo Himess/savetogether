@@ -43,6 +43,17 @@ export interface SaveTogetherConfig {
    * the pool works without it, and the composition is a separate claim.
    */
   readonly vault?: { readonly adapter: string; readonly batcher?: string };
+
+  /**
+   * The most this session will unwrap in one call, in whole units.
+   *
+   * Unlike every other limit in this product this one is NOT on chain, and it
+   * is here rather than in the module because it cannot be there: the deployed
+   * wrapper's only unwrap takes an externally encrypted input, whose proof is
+   * bound to the pair that made it, so no contract can stand in the middle and
+   * enforce anything. The tool says so every time it runs.
+   */
+  readonly maxUnwrap?: string;
 }
 
 export const DEFAULT_CONFIG_PATH = path.join(os.homedir(), ".savetogether", "config.json");

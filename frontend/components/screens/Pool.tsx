@@ -3,7 +3,8 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { useDecryptValues, useEncrypt, useGrantPermit, useHasPermit } from "@zama-fhe/react-sdk";
 import { css } from "@/lib/css";
-import { fmtUnits6, shortAddr } from "@/lib/format";
+import { fmtUnits6, shortAddr, showConfidential } from "@/lib/format";
+import { oddsPct, thresholdFor } from "@/lib/draw";
 import { DEPOSIT_BATCHER, EXPLORER, POOL, TOKEN, USDC, YIELD_SOURCE } from "@/lib/addresses";
 import { ERC20_ABI, ERC7984_ABI, POOL_ABI, YIELD_ABI } from "@/lib/abis";
 import { useOnSepolia } from "@/lib/chain";
@@ -145,13 +146,60 @@ export function PoolScreen() {
     enabled: enabled && hasPermit === true && handles.length > 0,
   });
 
-  const show = (h: unknown): string => {
-    if (!h || h === ZERO) return "0";
-    if (hasPermit !== true) return "•••";
-    if (isFetching) return "…";
-    const v = clear?.[h as `0x${string}`];
-    return v === undefined ? "•••" : fmtUnits6(BigInt(v as string | number | bigint));
-  };
+  // Five states, one of which is a number. See `lib/format.ts` — every screen
+  // used to carry its own version of this and every one rendered an undecrypted
+  // ciphertext as `0`, which asserts a number the page cannot know.
+  const show = (h: unknown): string =>
+    showConfidential({
+      connected: !!address,
+      handle: h,
+      permitted: hasPermit === true,
+      fetching: isFetching,
+      clear: h ? clear?.[h as `0x${string}`] : undefined,
+    });
+
+  /**
+   * AC3. Odds per tier, from values this browser already has.
+   *
+   * `totalWeight` is balance x seconds over the window, so dividing it by the
+   * window length gives the pool's aggregate balance — public, and the reason A2
+   * was rejected. The user's own position is decrypted here. Share divided by
+   * `k[t]` is the tier's probability, because expected winners of tier t is
+   * exactly `1/k[t]` however the balances are distributed.
+   *
+   * An approximation only in that it uses the CURRENT position rather than the
+   * time-weighted one; the exact per-draw figure is on the Verify screen, from
+   * the encrypted weight itself.
+   */
+  const myOdds = useMemo(() => {
+    if (d === undefined || hasPermit !== true) return null;
+    const window = Number(d.snapshotAt) - Number((d as unknown as { periodStart: bigint }).periodStart);
+    const total = window > 0 ? Number(d.totalWeight) / window : 0;
+    const raw = poolHandle && poolHandle !== ZERO ? clear?.[poolHandle as `0x${string}`] : undefined;
+    if (total <= 0 || raw === undefined) return null;
+    const share = Number(BigInt(raw as string | number | bigint)) / total;
+    return tiers.map((t) => ({
+      label: t.label,
+      pct: t.every === undefined ? 0 : (share / Number(t.every)) * 100,
+    }));
+  }, [d, hasPermit, poolHandle, clear, tiers]);
+
+  /**
+   * AC7. A draw nobody revealed, past the point anyone may abandon it.
+   *
+   * `cancelDraw` is permissionless and nobody would ever think to call it, so a
+   * keeper that dies leaves a visitor looking at a frozen pool with no way
+   * forward. Surfacing it turns B5 from a documented mitigation into a
+   * demonstrated recovery — which is the more useful thing to have.
+   */
+  const { data: cancelAfter } = useReadContract({
+    abi: POOL_ABI, address: POOL, functionName: "CANCEL_AFTER",
+  });
+  const stale = useMemo(() => {
+    if (d === undefined || Number(d.status) !== 1 || cancelAfter === undefined) return null;
+    const at = Number(d.snapshotAt) + Number(cancelAfter);
+    return Date.now() / 1000 >= at ? { at } : null;
+  }, [d, cancelAfter]);
 
   const refresh = async () => {
     await refetchOperator();
@@ -249,9 +297,9 @@ export function PoolScreen() {
             <span style={css("font:650 10.5px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)")}>How it works</span>
             <ol style={css("margin:12px 0 0;padding-left:18px;font:400 13.5px/1.75 var(--display);color:var(--ink-2)")}>
               <li><b style={css("color:var(--ink);font-weight:650")}>Prizes come from harvested yield.</b> The reserve starts empty and fills from <span style={css("font-family:var(--mono);font-size:12.5px")}>harvest()</span> alone — a paired test proves a prize is paid after a harvest and nothing is paid without one.</li>
-              <li><b style={css("color:var(--ink);font-weight:650")}>The winner is picked on chain.</b> FHE randomness, weighted by an encrypted time-weighted balance — how much you held and for how long, not how much you hold now. On the previous deployment that repeatedly handed the round to the earliest and smallest depositor, which is the time weighting doing its job rather than a bug.</li>
+              <li><b style={css("color:var(--ink);font-weight:650")}>The winner is picked on chain.</b> FHE randomness, weighted by an encrypted time-weighted balance — how much you held and for how long, not how much you hold now. Holding for longer beats holding more, which is the time weighting doing its job rather than a bug — the earliest depositor can beat the largest.</li>
               <li><b style={css("color:var(--ink);font-weight:650")}>Claiming announces nothing.</b> <span style={css("font-family:var(--mono);font-size:12.5px")}>claim(user)</span> exists and anyone may call it for anyone — it does the identical thing whether that address won or not. That is the whole design: a claim only the winner would bother to send would name the winner, so this one is unconditional and your winnings also arrive without it.</li>
-              <li><b style={css("color:var(--ink);font-weight:650")}>Winner and loser look identical on chain.</b> 306 live accruals: one operation sequence, one HCU figure, and gas that tracks the address rather than the outcome.</li>
+              <li><b style={css("color:var(--ink);font-weight:650")}>Winner and loser look identical on chain.</b> Re-measured on the tiered contract: <b style={css("font-weight:650")}>312 accruals, 81 winners and 231 losers across 26 draws, zero within-draw separation</b> — the set of execution costs seen for winners is the set seen for losers. Three encrypted comparisons instead of one, so it is stronger evidence than the flat contract&apos;s.</li>
               {/* The first thing a judge alone will notice, said before they
                   notice it. Winning every round looks rigged until you are told
                   it is arithmetic — and the alternative, making a lone holder
@@ -320,6 +368,31 @@ export function PoolScreen() {
                 succeeds having moved nothing. <b style={css("font-weight:650")}>Nothing is lost</b>:
                 your position is untouched and a smaller amount goes straight through.
               </p>
+            </div>
+          )}
+
+          {/* AC7 — a stale draw, and the permissionless way out of it */}
+          {stale !== null && (
+            <div style={css("margin-top:12px;border:1px solid #f3c2c2;background:#fdecec;border-radius:14px;padding:11px 14px")}>
+              <span style={css("font:650 11.5px var(--display);color:#a11")}>This draw has been open too long</span>
+              <p style={css("margin:5px 0 0;font:400 11.5px/1.55 var(--display);color:#a11")}>
+                Nobody has revealed it and the timeout has passed, so the pool cannot open the next
+                one. <b style={css("font-weight:650")}>Anyone may abandon it</b> — no owner, no keeper,
+                no permission. The window is handed to the next draw, so no weight is lost.
+              </p>
+              <button
+                onClick={() =>
+                  void run("Abandoning the draw", "The pool can open a new draw now, and the window it was given carries over.", async () =>
+                    writeContractAsync({
+                      abi: POOL_ABI, address: POOL, functionName: "cancelDraw", args: [round],
+                    }),
+                  )
+                }
+                disabled={busy || !onSepolia}
+                style={css("margin-top:9px;padding:8px 14px;border-radius:10px;border:1px solid #f3c2c2;background:#fff;font:650 11.5px var(--display);color:#a11;cursor:pointer")}
+              >
+                Cancel draw #{round}
+              </button>
             </div>
           )}
 
@@ -407,6 +480,35 @@ export function PoolScreen() {
               <span style={css("font:500 12.5px var(--display);color:var(--ink-2)")}>Won, all time</span>
               <span style={css("font:650 14px var(--display);font-variant-numeric:tabular-nums;color:var(--ink-2)")}>{show(wonHandle)}</span>
             </div>
+
+            {/* AC3 — your own odds, which is the number a prize-savings user
+                most wants and which nothing on the site used to show.
+                Every input is here already: the position is decrypted in this
+                browser, and the pool's total is public because `totalWeight`
+                divided by the window length IS the aggregate balance. So this
+                needs no extra transaction and no extra permission — the exact
+                per-draw figure, from the encrypted weight rather than this
+                approximation, is on the Verify screen. */}
+            {myOdds !== null && (
+              <div style={css("margin-top:12px;padding:11px 13px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)")}>
+                <span style={css("font:650 10px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)")}>
+                  Your odds per draw
+                </span>
+                <div style={css("display:flex;flex-direction:column;gap:5px;margin-top:8px")}>
+                  {myOdds.map((o) => (
+                    <div key={o.label} style={css("display:flex;justify-content:space-between;align-items:baseline;font:500 12px var(--display);color:var(--ink-2)")}>
+                      <span>{o.label}</span>
+                      <span style={css("font:700 12.5px var(--display);font-variant-numeric:tabular-nums;color:var(--ink)")}>
+                        {o.pct < 0.01 ? "<0.01%" : o.pct.toFixed(2) + "%"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p style={css("margin:8px 0 0;font:400 10.5px/1.5 var(--display);color:var(--ink-3)")}>
+                  Your share of the pool, per tier. Nobody else can compute this for you.
+                </p>
+              </div>
+            )}
 
             {/* Present because the rubric asks for a claim, and harmless because
                 of what this one is: it takes an address, anyone may send it for

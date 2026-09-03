@@ -125,7 +125,11 @@ The brief's "F waits for E" was too coarse; E changes tool descriptions and noth
 
 **Stubbed, explicitly and with the reason visible:**
 
-- **`README.md` → "The tool surface"** carries a note saying the descriptions have not yet met their user and will be revised against observed behaviour. It points at `packages/mcp-server/README.md` for the current ten and states the one thing that will not change: there is no `unwrap`.
+- **`README.md` → "The tool surface"** carries a note saying the descriptions have not yet met
+  their user and will be revised against observed behaviour. It points at
+  [`packages/mcp-server/README.md`](packages/mcp-server/README.md) for the current eleven. This
+  bullet used to end "the one thing that will not change: there is no `unwrap`" — it changed, and
+  the honest version is that unwrap exists and carries the only server-enforced limit in the set.
 - **The quickstart transcript** — the README has the two setup commands, but no worked conversation, because what the conversation looks like is E's output.
 - **`docs/step5-notes.md`** does not exist yet. It is where E's before/after belongs.
 

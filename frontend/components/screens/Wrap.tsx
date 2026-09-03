@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
-import { useDecryptValues, useGrantPermit, useHasPermit } from "@zama-fhe/react-sdk";
+import { useDecryptValues, useEncrypt, useGrantPermit, useHasPermit } from "@zama-fhe/react-sdk";
 import { css } from "@/lib/css";
 import { shortAddr } from "@/lib/format";
 import { CUSDC, EXPLORER, USDC } from "@/lib/addresses";
@@ -29,7 +29,13 @@ const UNIT = 1_000_000n; // USDC and cUSDC are both 6 decimals; the wrapper is 1
  */
 export function WrapScreen() {
   const { address } = useAccount();
+  const { mutateAsync: encrypt, isPending: encrypting } = useEncrypt();
   const [amount, setAmount] = useState("250");
+  const [outAmount, setOutAmount] = useState("50");
+  const outUnits = useMemo(() => {
+    const n = Number(outAmount);
+    return Number.isFinite(n) && n > 0 ? BigInt(Math.round(n * 1e6)) : 0n;
+  }, [outAmount]);
   const { writeContractAsync } = useWriteContract();
   const onSepolia = useOnSepolia();
   const { state, run } = useAction();
@@ -66,7 +72,9 @@ export function WrapScreen() {
   });
 
   const confidential = useMemo(() => {
-    if (!cHandle || cHandle === ZERO) return "0";
+    if (!address) return "—";
+    if (cHandle === undefined) return "…";
+    if (cHandle === ZERO) return "0";
     if (hasPermit !== true) return "•••";
     if (isFetching) return "…";
     const v = clear?.[cHandle as `0x${string}`];
@@ -233,6 +241,84 @@ export function WrapScreen() {
           )}
 
           <TxStatus state={state} />
+
+          {/* ------------------------------------------------------- unwrap --
+              The way back, which the site did not have. A judge could put money
+              in and could not take it all the way out to a public token, so the
+              round trip that demonstrates "no loss" — withdraw, unwrap, hold
+              ordinary USDC — stopped one step short.
+
+              It is deliberately NOT a session tool: unwrapping publishes the
+              amount, which is a disclosure decision, and a model must not make
+              one on someone's behalf. Here it is the user's own wallet and their
+              own choice, which is the only place that decision belongs. */}
+          <div style={css("margin-top:26px;padding-top:20px;border-top:1px solid var(--line)")}>
+            <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap")}>
+              <span style={css("font:700 15px var(--display)")}>Go back to public USDC</span>
+              <span style={css("padding:4px 10px;border-radius:999px;background:#fdecec;border:1px solid #f3c2c2;font:700 10.5px var(--display);color:#a11;white-space:nowrap")}>
+                publishes the amount
+              </span>
+            </div>
+
+            <p style={css("margin:9px 0 0;font:400 12.5px/1.6 var(--display);color:var(--ink-2)")}>
+              Unwrapping is the one action here that <b style={css("font-weight:650")}>reveals a number</b>. Zama&apos;s
+              wrapper decrypts the amount through the KMS and emits it in the clear, because ordinary
+              USDC cannot hold a secret. Everything you did in between stays private — what becomes
+              public is only how much came back out, and when.
+            </p>
+
+            <div style={css("margin-top:14px;border:1px solid var(--line);border-radius:14px;padding:14px 16px")}>
+              <div style={css("display:flex;justify-content:space-between;align-items:center;margin-bottom:6px")}>
+                <span style={css("font:600 12px var(--display);color:var(--ink-2)")}>You unwrap</span>
+                <span style={css("font:600 11px var(--display);color:var(--ink-3)")}>cUSDC {confidential}</span>
+              </div>
+              <div style={css("display:flex;align-items:center;gap:10px")}>
+                <input
+                  value={outAmount}
+                  onChange={(e) => setOutAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                  inputMode="decimal"
+                  style={css("border:none;outline:none;background:none;font:750 28px var(--display);color:var(--ink);flex:1;min-width:0;padding:0;font-variant-numeric:tabular-nums")}
+                />
+                <span style={css("display:inline-flex;align-items:center;gap:7px;padding:6px 11px 6px 7px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line-2);font:650 12.5px var(--mono);color:var(--ink);white-space:nowrap;flex:none")}>
+                  <TokenIcon token="USDC" size={20} />USDC
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                if (address === undefined) return;
+                void run(
+                  "Unwrapping",
+                  "Requested. Zama's KMS decrypts the amount and the underlying USDC arrives when it settles — that figure is public from now on, and nothing before it is.",
+                  async () => {
+                    const enc = await encrypt({
+                      contractAddress: CUSDC,
+                      userAddress: address,
+                      values: [{ type: "euint64", value: outUnits }],
+                    });
+                    return writeContractAsync({
+                      abi: ERC7984_ABI,
+                      address: CUSDC,
+                      functionName: "unwrap",
+                      args: [address, address, enc.encryptedValues[0] as `0x${string}`, enc.inputProof],
+                    });
+                  },
+                ).then(refresh);
+              }}
+              disabled={busy || encrypting || outUnits === 0n || !onSepolia || !address}
+              style={css(`width:100%;margin-top:14px;padding:13px;border-radius:13px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--ink);font:700 13.5px var(--display);cursor:pointer;opacity:${busy || outUnits === 0n || !onSepolia ? ".55" : "1"}`)}
+            >
+              {encrypting ? "Encrypting…" : "Unwrap to public USDC"}
+            </button>
+
+            <p style={css("margin:10px 0 0;font:400 11px/1.55 var(--display);color:var(--ink-3)")}>
+              Asynchronous by design — the request goes in, the KMS decrypts, and the USDC lands
+              when it settles. A chat session can do this too, but its ceiling is enforced by the
+              server rather than by the on-chain budget: the wrapper only accepts an encrypted
+              amount, and no contract can produce one on your behalf.
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { Contract, type Signer } from "ethers";
 import { AmountRef, attachResolver } from "./amounts";
-import { type FhevmInstance, userDecrypt } from "./fhe";
+import { type FhevmInstance, userDecrypt, warmInput } from "./fhe";
 
 /**
  * Turning public money into confidential money, for whoever the session acts as.
@@ -23,6 +23,7 @@ import { type FhevmInstance, userDecrypt } from "./fhe";
 const WRAPPER_ABI = [
   "function wrap(address to, uint256 amount) returns (bytes32)",
   "function confidentialBalanceOf(address) view returns (bytes32)",
+  "function unwrap(address from, address to, bytes32 amount, bytes inputProof)",
   "function underlying() view returns (address)",
   "function rate() view returns (uint256)",
 ];
@@ -127,5 +128,52 @@ export class WrapClient {
     steps.push("wrapped");
 
     return { hashes, steps, underlyingAddress };
+  }
+
+  /**
+   * Confidential money back into public money.
+   *
+   * THE CEILING ON THIS IS SERVER-SIDE AND CANNOT BE ANYTHING ELSE, which is a
+   * property of the deployed wrapper rather than a choice made here. Read at the
+   * implementation behind the proxy (0xAe37b998…, 22183 bytes), the only unwrap
+   * it carries is
+   *
+   *     unwrap(address,address,bytes32,bytes)      0x5bf4ef06   present
+   *     unwrap(address,address,uint64)             0xf5c3c5f0   absent
+   *
+   * so every unwrap takes an externally encrypted input with a proof, and a
+   * proof is bound to the (contract, user) pair that produced it. A contract
+   * cannot forge one. That rules out the arrangement used everywhere else in
+   * this product — a budget module standing between the session and the token,
+   * enforcing a limit the session cannot exceed — because the module would have
+   * to originate the input and it cannot.
+   *
+   * So the limit lives with whoever encrypts, and that is this process. It is a
+   * weaker guarantee than the on-chain budget and it is named as such wherever
+   * it is surfaced, rather than being presented as the same kind of promise.
+   *
+   * UNWRAPPING IS PUBLIC, in the exact sense wrapping is: the amount leaves the
+   * encrypted domain and is readable in the transaction. It is a disclosure, and
+   * the caller is told so before it happens.
+   */
+  async unwrap(amount: bigint): Promise<{ hash: string; underlyingAddress: string }> {
+    const underlyingAddress: string = await this.underlying();
+    const { handle, inputProof } = await warmInput(
+      this.ctx.fhevm,
+      this.ctx.wrapperAddress,
+      this.ctx.signerAddress,
+      amount,
+    ).ready;
+
+    // from and to are both this account: the confidential balance debited is
+    // its own, and the public balance credited is its own.
+    const tx = await this.wrapper.unwrap!(
+      this.ctx.signerAddress,
+      this.ctx.signerAddress,
+      handle,
+      inputProof,
+    );
+    await tx.wait();
+    return { hash: tx.hash, underlyingAddress };
   }
 }

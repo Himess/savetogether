@@ -178,12 +178,26 @@ export function toolDefinitions(tools: SaveTogetherTools): ToolDef[] {
       title: "Wrap a public balance",
       description:
         "Converts a public ERC-20 balance into its confidential form. This moves a public " +
-        "balance, so it needs the vault key and a confirmation at the console. There is " +
-        "deliberately no unwrap tool: going back requires publicly decrypting the amount, " +
-        "which is a disclosure decision a session must not make on the user's behalf.",
+        "balance, so it needs the vault key and a confirmation at the console. The amount " +
+        "is readable in this transaction; nothing done with it afterwards is.",
       schema: objectSchema({ token: { type: "string" }, amount: { type: "string" } }),
       validate: z.object({ token: z.string(), amount: z.string() }),
       run: (a) => tools.wrap(a as Parameters<typeof tools.wrap>[0]),
+    },
+    {
+      name: "unwrap",
+      title: "Unwrap back to a public balance",
+      description:
+        "Converts a confidential balance back into its public ERC-20 form. THIS PUBLISHES " +
+        "THE AMOUNT — it becomes readable in the transaction and in the public balance — so " +
+        "it is a disclosure and it asks before it happens. Its ceiling is enforced by this " +
+        "server rather than by the on-chain budget, because the deployed wrapper only " +
+        "accepts an externally encrypted amount and no contract can produce one on a " +
+        "user's behalf. The answer says so, rather than letting the weaker limit pass for " +
+        "the stronger one.",
+      schema: objectSchema({ token: { type: "string" }, amount: { type: "string" } }),
+      validate: z.object({ token: z.string(), amount: z.string() }),
+      run: (a) => tools.unwrap(a as Parameters<typeof tools.unwrap>[0]),
     },
     {
       name: "add_recipient",

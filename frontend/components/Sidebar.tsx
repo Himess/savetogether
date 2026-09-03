@@ -24,6 +24,7 @@ const ICON: Record<Route, ReactNode> = {
   wrap: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="9" width="16" height="11" rx="2.5"/><path d="M8 9V6.5a4 4 0 0 1 8 0V9"/><circle cx="12" cy="14.5" r="1.3" fill="currentColor" stroke="none"/></svg>),
   vault: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="6.4" rx="7.3" ry="3.1"/><path d="M4.7 6.4v5.4c0 1.7 3.3 3.1 7.3 3.1s7.3-1.4 7.3-3.1V6.4"/><path d="M4.7 11.8v5.4c0 1.7 3.3 3.1 7.3 3.1s7.3-1.4 7.3-3.1v-5.4"/></svg>),
   chat: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M20.5 12c0 4.3-3.8 7.7-8.5 7.7-1.1 0-2.2-.2-3.2-.5L3.5 21l1.4-4.1A7.3 7.3 0 0 1 3.5 12c0-4.3 3.8-7.7 8.5-7.7s8.5 3.4 8.5 7.7Z"/><path d="M8.5 11.5h7M8.5 14.5h4"/></svg>),
+  verify: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3.2l7.2 2.7v5.4c0 4.4-3 8.3-7.2 9.5-4.2-1.2-7.2-5.1-7.2-9.5V5.9Z"/><path d="M9 12.2l2.1 2.1L15.4 10"/></svg>),
   balances: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="2.5" y="6" width="19" height="13" rx="3"/><path d="M2.5 10h19"/><path d="M16 14.5h2.5"/></svg>),
 };
 
@@ -31,6 +32,7 @@ const ITEMS: { r: Route; label: ReactNode }[] = [
   { r: "pool", label: (<span>Pool <span style={css("opacity:.5;font-weight:500")}>· Win</span></span>) },
   { r: "wrap", label: "Wrap" },
   { r: "vault", label: (<span>Vault <span style={css("opacity:.5;font-weight:500")}>· Earn</span></span>) },
+  { r: "verify", label: (<span>Verify <span style={css("opacity:.5;font-weight:500")}>· the draw</span></span>) },
   { r: "chat", label: (<span>Talk to it <span style={css("opacity:.5;font-weight:500")}>· MCP</span></span>) },
   { r: "balances", label: "Balances" },
 ];

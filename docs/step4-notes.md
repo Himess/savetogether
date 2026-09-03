@@ -35,7 +35,9 @@ Neither can be driven by the model. A tool call cannot click a button, and the t
 
 ## 3. The tool surface
 
-Ten tools, matching §5.3. **No `unwrap`**: going back to ERC-20 needs public decryption of the amount, which is a disclosure decision a session must not make for the user. `wrap`'s description explains why, so the model can answer rather than shrug.
+Eleven tools. **`unwrap`** returns to a public balance: it publishes the amount, so it asks first,
+and its ceiling is the server's rather than the module's because the deployed wrapper accepts only
+an externally encrypted input. Both descriptions say so, so the model can answer rather than shrug.
 
 ### What the model may see
 

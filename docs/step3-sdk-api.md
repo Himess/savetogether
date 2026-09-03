@@ -252,7 +252,11 @@ The owner's key is never handled: `openSession` takes an `Account`, and step 4 s
 
 ## 9. What is deliberately absent
 
-- **No unwrap.** ERC-7984 → ERC-20 requires public decryption of the amount; that is a disclosure decision a session client must not make alone. Not in the contract, not in the SDK.
+- **Unwrap, with a server-side ceiling.** Present in the SDK (`WrapClient.unwrap`) and in the tool
+  surface. It publishes the amount, which is why it confirms first. It is the one limit in this
+  system that is not enforced on chain: the deployed wrapper takes only an externally encrypted
+  input, whose proof no contract can produce, so the module cannot bound it. Named as such
+  wherever it appears rather than described in the same words as the on-chain budget.
 - **No cross-token budget.** It would need a price oracle over encrypted amounts.
 - **No owner-key custody.** Step 4.
 - **No gas sponsorship.** The session key sends its own transactions; the EOA nonce is the replay protection.

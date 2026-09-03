@@ -41,11 +41,12 @@ A passphrase typed into a conversation enters the model's context and the transc
 | `can_afford`     | yes or no, leaking neither side                                   |
 | `send`           | a decimal, a reference, or `"sealed"`                             |
 | `wrap`           | public ERC-20 into its confidential form; needs the vault         |
+| `unwrap`         | confidential back into public ERC-20; publishes the amount        |
 | `add_recipient`  | widen the allowlist; needs the vault                              |
 | `session_status` | expiry, transfers, allowlist, readiness — all plaintext           |
 | `revoke_all`     | the panic button; the session key can do it alone                 |
 
-**There is no `unwrap`.** Going back to ERC-20 requires publicly decrypting the amount, which is a disclosure decision a session must not make on the user's behalf. If a user asks, the model explains why and points at the console.
+**`unwrap` is the one tool whose limit is not on chain.** Going back to ERC-20 publishes the amount — that is what unwrapping is — so it confirms first. Its ceiling is enforced by this server, not by the budget module, and the difference is real: the deployed wrapper carries only `unwrap(address,address,bytes32,bytes)`, never the plaintext `unwrap(address,address,uint64)`, so every unwrap needs an externally encrypted input whose proof is bound to the pair that made it. No contract can forge one, so no contract can stand in front of this and refuse. The tool's own answer says which kind of limit applied, because a weaker guarantee described in the same words as a stronger one is how a product ends up lying without anyone writing a false sentence.
 
 ## What the model may see
 

@@ -107,7 +107,11 @@ What sealed mode does **not** hide, said plainly: that a transfer happened, the 
 
 > **Pending.** The tool descriptions are the product's real interface and they have not yet met their user — no model has read them and chosen among them. They will be revised against observed behaviour before this section is written. See [`docs/step5-notes.md`](docs/step5-notes.md) when it lands.
 >
-> The current surface is ten tools, documented in [`packages/mcp-server/README.md`](packages/mcp-server/README.md). There is deliberately **no `unwrap`**: returning to a public balance requires publicly decrypting the amount, which is a disclosure decision a session must not make on your behalf.
+> The current surface is eleven tools, documented in [`packages/mcp-server/README.md`](packages/mcp-server/README.md).
+> It now includes **`unwrap`**, which returns to a public balance and therefore publishes the amount.
+> Its ceiling is enforced by the server rather than by the on-chain budget — the deployed wrapper
+> accepts only an externally encrypted amount, so no contract can mediate it — and the tool's own
+> answer names which kind of limit stopped or allowed a call.
 
 ---
 

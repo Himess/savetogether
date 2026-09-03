@@ -145,7 +145,15 @@ By default the model never sees an amount. `balance` and `remaining` return an o
 
 **Sealed mode** puts the amount input on the console: the user types it, the session client encrypts it, and the model receives `{status, ok_ref, sent_ref}` — no number, and none afterwards either.
 
-**No `unwrap` tool.** Going back to ERC-20 requires public decryption of the amount, which is a disclosure decision a session must not make for the user.
+**`unwrap`, and the one limit here that is not on chain.** Going back to ERC-20 publishes the
+amount, so it asks before it acts. What is worth stating precisely is the shape of its limit:
+the deployed wrapper carries only `unwrap(address,address,bytes32,bytes)` and not the plaintext
+`unwrap(address,address,uint64)`, so every unwrap takes an externally encrypted input whose proof
+is bound to the pair that produced it. A contract cannot forge one, which means the budget module
+that bounds `send` cannot stand in front of this. The ceiling is enforced by the server process
+instead, and the tool says so in its own answer rather than letting a weaker guarantee be read as
+the stronger one. This section previously said there was no unwrap tool at all; there is one now,
+and describing its limit accurately is the price of having it.
 
 ---
 

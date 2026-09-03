@@ -35,16 +35,25 @@ export const USDC = "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF" as const;
 export const EXPLORER = "https://sepolia.etherscan.io";
 
 /**
- * Zama's confidential vault, which the pool's yield source is wired into.
+ * Zama's confidential vault, which the pool's yield source is wired into — in
+ * BOTH directions, the way the mainnet product works.
  *
- * `joinVault()` sends half the pool's principal into the batcher below and real
- * shares come back when Zama's keeper dispatches the batch. Half, because a batch
- * is a round trip on somebody else's clock and the source does not unwind shares
- * on demand — the other half is the withdrawal buffer.
+ * `joinVault()` sends half of what remains into the deposit batcher and real
+ * shares come back when Zama's keeper dispatches. `requestUnwind()` sends every
+ * share back through the redeem batcher, so principal is not stranded when the
+ * buffer cannot cover a withdrawal.
+ *
+ * `VAULT_ADAPTER` used to live here and pointed at `0xc5120E26…`, the standalone
+ * adapter from before the merge. The Vault screen read it while showing the
+ * current source on the same card — one card, two generations — which is exactly
+ * the class of error a redeploy keeps producing. It is deleted rather than
+ * updated: there is no adapter any more, only the source.
  */
-export const VAULT_ADAPTER = "0xc5120E26aafdD76D324E62cF19c391C367Cf99Ba" as const;
 export const VAULT_SHARE = "0x13F7d34A4f0102734F19E3Ff16e068Fe194B28c4" as const;
 export const DEPOSIT_BATCHER = "0x48758559c14d4d92b4C74A99660B6a8dbe85F53b" as const;
+export const REDEEM_BATCHER = "0xe94E9afdDd43a19C2914739e9279cb6Fe287BEb0" as const;
+/** The ERC-4626 both batchers settle against, named "Steakhouse Confidential Prime USDC". */
+export const VAULT_4626 = "0x6AB54988261AEC573a2CA13cF802d3B1114f864C" as const;
 
 /**
  * The engine that funds prizes: a testnet replica of Steakhouse Confidential

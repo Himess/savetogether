@@ -128,11 +128,22 @@ class SessionImpl {
    * account being wrapped for is the session key, which is the account a hosted
    * session acts as and holds its position under.
    */
-  wrapClient(wrapperAddress: string): WrapClient {
+  /**
+   * A client for a wrapper.
+   *
+   * `actor` exists for unwrapping locally, where the confidential balance being
+   * unwrapped belongs to the OWNER rather than to the session key. The fhevm
+   * instance is the session's either way — an encrypted input is bound to the
+   * account it names, not to whoever holds the relayer connection.
+   */
+  wrapClient(
+    wrapperAddress: string,
+    actor?: { signer: Signer; address: string },
+  ): WrapClient {
     return new WrapClient({
       fhevm: this.ctx.fhevm,
-      signer: this.ctx.sessionKey,
-      signerAddress: this.ctx.sessionKeyAddress,
+      signer: actor?.signer ?? this.ctx.sessionKey,
+      signerAddress: actor?.address ?? this.ctx.sessionKeyAddress,
       wrapperAddress,
     });
   }

@@ -610,6 +610,90 @@ export class SaveTogetherTools {
     };
   }
 
+  /**
+   * Confidential money back into public money.
+   *
+   * THE LIMIT ON THIS ONE IS NOT ON CHAIN, and that is a property of the
+   * deployed token rather than a decision taken here. Read at the implementation
+   * behind the proxy, the wrapper carries
+   *
+   *     unwrap(address,address,bytes32,bytes)   0x5bf4ef06   present
+   *     unwrap(address,address,uint64)          0xf5c3c5f0   absent
+   *
+   * An externally encrypted input carries a proof bound to the contract and the
+   * account that produced it, and a contract cannot forge one. So the budget
+   * module that bounds `send` — the thing that makes every other limit here a
+   * promise rather than a preference — cannot bound this. The ceiling lives in
+   * this process instead, and every answer says which kind of limit it was,
+   * because a weaker guarantee described in the same words as a stronger one is
+   * how a product ends up lying without anybody writing a false sentence.
+   *
+   * It is also a DISCLOSURE: wrapping publishes an amount going in, unwrapping
+   * publishes one coming out. That is said before anything else.
+   */
+  async unwrap(args: { token: string; amount: string }): Promise<ToolResult> {
+    const t = this.token(args.token);
+    if (t.underlying === undefined) {
+      return {
+        ok: false,
+        text: `${t.symbol} is not a wrapper — there is no public token to unwrap into.`,
+      };
+    }
+
+    const ceiling = parseAmount(this.ctx.config.maxUnwrap ?? "1000", t.decimals);
+    const amount = parseAmount(args.amount, t.decimals);
+    if (amount > ceiling) {
+      return {
+        ok: false,
+        text:
+          `That is over this server's unwrap ceiling of ${formatAmount(ceiling, t.decimals)} ` +
+          `${t.symbol} per call. Worth being precise about what just stopped you: this limit ` +
+          `is enforced HERE, by this process, not on chain the way the session budget is. ` +
+          `The deployed wrapper only accepts an externally encrypted amount, so no contract ` +
+          `can stand in front of it and refuse. Anyone holding the key directly is not bound ` +
+          `by it.`,
+      };
+    }
+
+    // An encrypted input needs the relayer, which a session is what supplies.
+    const live = this.requireLive();
+
+    // Hosted: the session key holds the position, so it unwraps its own.
+    if (this.ctx.vault === undefined) {
+      const { hash } = await live.session.wrapClient(t.address).unwrap(amount);
+      return {
+        ok: true,
+        text:
+          `Unwrapped ${args.amount} ${t.symbol}. THAT AMOUNT IS PUBLIC NOW — readable in the ` +
+          `transaction and in the account's public balance, which is what unwrapping means. ` +
+          `Everything still inside ${t.symbol} is not. The ceiling that allowed it was this ` +
+          `server's, not the on-chain budget.`,
+        data: { tx: hash, ceiling: formatAmount(ceiling, t.decimals), enforcedBy: "server" },
+      };
+    }
+
+    // Local: the balance is the owner's, so the owner signs and the session only
+    // lends its relayer connection.
+    const owner = await this.requireVault().unlock(
+      `Unwrap ${args.amount} ${t.symbol}. This PUBLISHES the amount, so it needs the vault.`,
+    );
+    const client = live.session.wrapClient(t.address, {
+      signer: owner,
+      address: await owner.getAddress(),
+    });
+    const { hash } = await client.unwrap(amount);
+    this.requireVault().lock();
+    this.recordUnlock("wrap");
+    await this.pushStatus();
+    return {
+      ok: true,
+      text:
+        `Unwrapped ${args.amount} ${t.symbol}. That amount is public now — readable in the ` +
+        `transaction and in your public balance. Everything still inside ${t.symbol} is not.`,
+      data: { tx: hash, ceiling: formatAmount(ceiling, t.decimals), enforcedBy: "server" },
+    };
+  }
+
   // -------------------------------------------------------------------------
   // the vault
   //

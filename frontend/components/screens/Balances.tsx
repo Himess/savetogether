@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { useAccount, useBalance, useReadContract } from "wagmi";
 import { useDecryptValues, useGrantPermit, useHasPermit } from "@zama-fhe/react-sdk";
 import { css } from "@/lib/css";
-import { shortAddr } from "@/lib/format";
+import { shortAddr, showConfidential, showPublic } from "@/lib/format";
 import { CUSDC, EXPLORER, POOL, USDC, VAULT_SHARE } from "@/lib/addresses";
 import { ERC20_ABI, ERC7984_ABI, POOL_ABI } from "@/lib/abis";
 import { useOnSepolia } from "@/lib/chain";
@@ -60,14 +60,20 @@ export function BalancesScreen() {
     enabled: enabled && hasPermit === true && inputs.length > 0,
   });
 
-  const show = (h: unknown, decimals: number): string => {
-    if (!h || h === ZERO) return "0";
-    if (hasPermit !== true) return "••••••";
-    if (isFetching) return "…";
-    const v = clear?.[h as `0x${string}`];
-    if (v === undefined) return "••••••";
-    return decimals === 0 ? String(v) : (Number(v) / 10 ** decimals).toLocaleString();
-  };
+  // This screen is the clearest statement of what the product changes, so it was
+  // also the worst place to get this wrong: with no wallet connected the PUBLIC
+  // rows correctly read `—` while the CONFIDENTIAL ones read `0`, which is
+  // exactly backwards and reads as either "the encryption is not real" or "this
+  // account is empty". Neither is true; the answer is that it is unknown.
+  const show = (h: unknown, decimals: number): string =>
+    showConfidential({
+      connected: !!address,
+      handle: h,
+      permitted: hasPermit === true,
+      fetching: isFetching,
+      clear: h ? clear?.[h as `0x${string}`] : undefined,
+      decimals,
+    });
 
   return (
     <div style={css("max-width:900px;width:100%")}>
@@ -86,7 +92,7 @@ export function BalancesScreen() {
             <TokenIcon token="ETH" size={26} />Sepolia ETH <span style={css("font:400 12px var(--display);color:var(--ink-3)")}>· gas</span>
           </span>
           <span style={css("font:700 15px var(--display);font-variant-numeric:tabular-nums")}>
-            {eth === undefined ? "—" : Number(eth.formatted).toFixed(4)}
+            {!address ? "—" : eth === undefined ? "…" : Number(eth.formatted).toFixed(4)}
           </span>
         </div>
         <div style={css("display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-top:1px solid var(--line)")}>
@@ -94,7 +100,7 @@ export function BalancesScreen() {
             <TokenIcon token="USDC" size={26} />USDC <span style={css("font:400 12px var(--display);color:var(--ink-3)")}>· before wrapping</span>
           </span>
           <span style={css("font:700 15px var(--display);font-variant-numeric:tabular-nums")}>
-            {usdc === undefined ? "—" : (Number(usdc) / 1e6).toLocaleString()}
+            {showPublic(!!address, usdc)}
           </span>
         </div>
 

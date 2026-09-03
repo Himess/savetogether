@@ -136,7 +136,7 @@ describe("MCP layer", () => {
     const stub = {} as Parameters<typeof toolDefinitions>[0];
     const defs = toolDefinitions(stub);
 
-    it("exposes exactly the agreed tools, and no unwrap", () => {
+    it("exposes exactly the agreed tools", () => {
       const names = defs.map((d) => d.name).sort();
       expect(names).to.deep.equal(
         [
@@ -156,9 +156,10 @@ describe("MCP layer", () => {
           "vault_join",
           "vault_status",
           "wrap",
+          "unwrap",
         ].sort(),
       );
-      expect(names).to.not.include("unwrap");
+      expect(names).to.include("unwrap");
     });
 
     it("keeps every JSON Schema in step with the validator that actually runs", () => {
@@ -195,10 +196,14 @@ describe("MCP layer", () => {
       expect(send?.description).to.include("Recipients are public");
     });
 
-    it("explains in `wrap` why there is no unwrap", () => {
-      const wrap = defs.find((d) => d.name === "wrap");
-      expect(wrap?.description).to.include("no unwrap tool");
-      expect(wrap?.description).to.include("publicly decrypting");
+    it("says in `unwrap` that it publishes, and that its ceiling is not on chain", () => {
+      // This replaced an assertion that `wrap` explained why NO unwrap existed.
+      // The tool exists now, so the honesty it was protecting has to be carried
+      // by the tool itself: that unwrapping is a disclosure, and that the limit
+      // on it is a weaker kind of limit than the one bounding `send`.
+      const unwrap = defs.find((d) => d.name === "unwrap");
+      expect(unwrap?.description).to.match(/publishes/i);
+      expect(unwrap?.description).to.match(/enforced by this server|not.*on-chain|rather than by the on-chain/i);
     });
   });
 

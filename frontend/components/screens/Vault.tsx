@@ -1,9 +1,10 @@
 "use client";
 import { useReadContract, useWriteContract, useAccount } from "wagmi";
 import { css } from "@/lib/css";
+import { useNav } from "@/lib/nav";
 import { fmtUnits6 } from "@/lib/format";
 import { shortAddr } from "@/lib/format";
-import { CUSDC, EXPLORER, POOL, VAULT_ADAPTER, VAULT_SHARE, YIELD_SOURCE } from "@/lib/addresses";
+import { CUSDC, DEPOSIT_BATCHER, EXPLORER, POOL, REDEEM_BATCHER, VAULT_SHARE, YIELD_SOURCE } from "@/lib/addresses";
 import { POOL_ABI, VAULT_SOURCE_ABI, YIELD_ABI } from "@/lib/abis";
 import { TokenIcon } from "@/components/TokenIcon";
 import { useOnSepolia } from "@/lib/chain";
@@ -83,6 +84,13 @@ export function VaultScreen() {
   const apy = rateBps === undefined ? "—" : (Number(rateBps) / 100).toFixed(0);
   const batches = (openBatches as readonly bigint[] | undefined) ?? [];
 
+  // The other direction, which the source gained when the withdraw path landed.
+  const { data: openRedeems } = useReadContract({
+    abi: VAULT_SOURCE_ABI, address: YIELD_SOURCE, functionName: "openRedeems",
+    query: { refetchInterval: 20_000 },
+  });
+  const redeems = (openRedeems as readonly bigint[] | undefined) ?? [];
+
   return (
     <div style={css("max-width:1200px;width:100%")}>
       <h1 style={css("margin:0;font:800 40px/1.02 var(--display);letter-spacing:-.03em")}>
@@ -158,11 +166,43 @@ export function VaultScreen() {
           <div style={css("display:flex;flex-wrap:wrap;gap:22px 44px;margin-top:28px")}>
             <Metric label="Yield here" value="0%" />
             <Metric label="Open batches" value={String(batches.length)} />
-            <Metric label="Shares" value="held" />
+            <Metric label="Redeem batches" value={String(redeems.length)} />
+          </div>
+
+          {/* AC2 — "where is my money", answered.
+              `Shares held` used to sit here with no number, correctly: the shares
+              belong to the source and the ACL is not the viewer's, so nobody but
+              that contract can read them. But the question underneath is
+              answerable from public facts, and an empty label answers nothing. */}
+          <div style={css("margin-top:24px;border:1px solid var(--line);border-radius:16px;padding:16px 18px;background:var(--surface-2)")}>
+            <span style={css("font:650 10.5px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)")}>
+              Where the pool&apos;s principal is
+            </span>
+            <div style={css("display:flex;flex-direction:column;gap:9px;margin-top:11px")}>
+              <div style={css("display:flex;justify-content:space-between;gap:14px;font:500 12.5px var(--display);color:var(--ink-2)")}>
+                <span>In Zama&apos;s vault, as shares</span>
+                <span style={css("font:700 12.5px var(--display);color:var(--ink)")}>
+                  {batches.length === 0 ? "nothing joined yet" : `~half, in ${batches.length === 1 ? "batch" : "batches"} ${batches.join(", ")}`}
+                </span>
+              </div>
+              <div style={css("display:flex;justify-content:space-between;gap:14px;font:500 12.5px var(--display);color:var(--ink-2);border-top:1px solid var(--line);padding-top:9px")}>
+                <span>Here, as the withdrawal buffer</span>
+                <span style={css("font:700 12.5px var(--display);color:var(--ink)")}>the rest, plus the prize pot</span>
+              </div>
+            </div>
+            <p style={css("margin:11px 0 0;font:400 11.5px/1.6 var(--display);color:var(--ink-3)")}>
+              <b style={css("font-weight:650;color:var(--ink-2)")}>The share balance itself is not shown because nobody can read it</b> —
+              it belongs to the source contract and the ACL grants it to nobody else. What is public is
+              how the split works: <span style={css("font-family:var(--mono);font-size:11px")}>joinVault</span> sends half of
+              what remains and keeps the rest liquid, so a withdrawal does not wait on Zama&apos;s keeper.
+              Your own position is on the Pool screen, and only you can read that.
+            </p>
           </div>
 
           <div style={css("margin-top:28px;border-top:1px solid var(--line)")}>
-            <DetailRow label="Adapter"><Addr a={VAULT_ADAPTER} /></DetailRow>
+            <DetailRow label="Yield source"><Addr a={YIELD_SOURCE} /></DetailRow>
+            <DetailRow label="Deposit batcher"><Addr a={DEPOSIT_BATCHER} /></DetailRow>
+            <DetailRow label="Redeem batcher"><Addr a={REDEEM_BATCHER} /></DetailRow>
             <DetailRow label="Share token"><Addr a={VAULT_SHARE} /></DetailRow>
             <DetailRow label="Underlying"><Addr a={CUSDC} /></DetailRow>
             <DetailRow label="Chain">

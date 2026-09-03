@@ -24,6 +24,8 @@
  */
 import { ethers, fhevm } from "hardhat";
 import type { Contract, EventLog } from "ethers";
+import * as fs from "fs";
+import * as path from "path";
 
 const POOL = process.env.POOL ?? "";
 const ONESHOT = process.env.ONESHOT === "1";
@@ -33,13 +35,58 @@ const TICK_MS = Number(process.env.TICK_MS ?? 30_000);
 
 const log = (s: string) => console.log(`[keeper] ${s}`);
 
-/** Every address that has ever deposited. Public by construction. */
+/**
+ * Every address that has ever deposited. Public by construction.
+ *
+ * Scanned in windows rather than in one call. `queryFilter(..., 0, "latest")` is
+ * what this did, and it worked until the provider started refusing it:
+ * `exceed maximum block range: 50000`. The keeper then failed on its FIRST tick
+ * and every one after, which is the outage this contract can least afford —
+ * accrual is what stands in for claiming, so a stopped keeper turns "who
+ * transacted" back into a signal about who won.
+ *
+ * It starts at the deployment block because nothing before it can be ours, and
+ * that alone takes the span from eleven million blocks to a few thousand.
+ */
+/**
+ * Where to start scanning. Read from `out/deployment.json` rather than typed in,
+ * because a block number written into a script is exactly the kind of constant
+ * that survives a redeploy and then quietly describes the wrong generation —
+ * `scripts/check-addresses.ts` exists because that had already happened four
+ * times. It only applies when the file describes the pool actually being watched.
+ */
+function deployBlock(): number {
+  const override = process.env.FROM_BLOCK;
+  if (override !== undefined) return Number(override);
+  try {
+    const d = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "out", "deployment.json"), "utf8"));
+    if (String(d.pool).toLowerCase() === POOL.toLowerCase()) return Number(d.block);
+  } catch {
+    // no deployment file, or unreadable
+  }
+  log(
+    "out/deployment.json does not describe this pool, so the scan starts at block 0. " +
+      "That is over the provider's 50,000-block range limit and every tick will fail. " +
+      "Set FROM_BLOCK to the block this pool was deployed in.",
+  );
+  return 0;
+}
+const WINDOW = 45_000; // under the provider's 50k, with room for an off-by-one
+
 async function participants(pool: Contract): Promise<string[]> {
-  const events = await pool.queryFilter(pool.filters.Deposited(), 0, "latest");
+  // One block behind the head on purpose: `getBlockNumber` and `getLogs` can be
+  // served by different nodes, and the second is sometimes a block short, which
+  // it reports as "block range extends beyond current head block". Anything in
+  // the newest block is picked up on the next tick.
+  const latest = (await ethers.provider.getBlockNumber()) - 1;
   const seen = new Set<string>();
-  for (const e of events) {
-    const user = (e as EventLog).args?.[0] as string | undefined;
-    if (user !== undefined) seen.add(ethers.getAddress(user));
+  for (let from = deployBlock(); from <= latest; from += WINDOW) {
+    const to = Math.min(from + WINDOW - 1, latest);
+    const events = await pool.queryFilter(pool.filters.Deposited(), from, to);
+    for (const e of events) {
+      const user = (e as EventLog).args?.[0] as string | undefined;
+      if (user !== undefined) seen.add(ethers.getAddress(user));
+    }
   }
   return [...seen];
 }
@@ -266,6 +313,7 @@ async function main(): Promise<void> {
       await tick(pool as unknown as Contract);
     } catch (e) {
       log(`tick failed, continuing: ${(e as Error).message.slice(0, 160)}`);
+      if (process.env.TRACE === "1") console.error((e as Error).stack);
     }
     if (ONESHOT) return;
     await new Promise((r) => setTimeout(r, TICK_MS));

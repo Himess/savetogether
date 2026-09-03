@@ -103,7 +103,9 @@ export function ChatScreen() {
     enabled: hasPermit === true && budgetInputs.length > 0,
   });
   const remaining = useMemo(() => {
-    if (!remainingHandle || remainingHandle === ZERO) return "0";
+    if (!address) return "—";
+    if (remainingHandle === undefined) return "…";
+    if (remainingHandle === ZERO) return "0";
     if (hasPermit !== true) return "•••";
     if (readingBudget) return "…";
     const v = budgetClear?.[remainingHandle as `0x${string}`];

@@ -20,6 +20,15 @@ export const POOL_ABI = [
   // the same thing whether that address won or not. A claim only a winner would
   // send would be the leak the rest of this contract is built to avoid.
   { type: "function", name: "claim", stateMutability: "nonpayable", inputs: [{ name: "user", type: "address" }], outputs: [] },
+  // The audit recomputes these in the browser and compares. The three-argument
+  // form is the tiered one; ethers cannot resolve the overload by arity alone,
+  // so only this one is declared.
+  { type: "function", name: "thresholdFor", stateMutability: "view", inputs: [{ type: "uint32" }, { type: "address" }, { type: "uint8" }], outputs: [{ type: "uint128" }] },
+  // Not a view: the grant is a state change. It returns the handle, and since
+  // AA1 the grant goes to the SUBJECT rather than the caller.
+  { type: "function", name: "weightFor", stateMutability: "nonpayable", inputs: [{ type: "uint32" }, { type: "address" }], outputs: [{ type: "bytes32" }] },
+  { type: "function", name: "cancelDraw", stateMutability: "nonpayable", inputs: [{ type: "uint32" }], outputs: [] },
+  { type: "function", name: "CANCEL_AFTER", stateMutability: "view", inputs: [], outputs: [{ type: "uint40" }] },
   {
     type: "function", name: "drawAt", stateMutability: "view", inputs: [{ type: "uint32" }],
     outputs: [{
@@ -38,6 +47,10 @@ export const ERC7984_ABI = [
   { type: "function", name: "isOperator", stateMutability: "view", inputs: [{ type: "address" }, { type: "address" }], outputs: [{ type: "bool" }] },
   { type: "function", name: "setOperator", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "uint48" }], outputs: [] },
   { type: "function", name: "wrap", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [{ type: "bytes32" }] },
+  // The way back. Only the externally-encrypted form exists on the deployed
+  // wrapper — checked against the bytecode — so no contract can mediate an
+  // unwrap, which is why the session tools do not offer one.
+  { type: "function", name: "unwrap", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "address" }, { type: "bytes32" }, { type: "bytes" }], outputs: [{ type: "bytes32" }] },
   { type: "function", name: "decimals", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
 ] as const;
 
@@ -78,6 +91,9 @@ export const YIELD_ABI = [
 export const VAULT_SOURCE_ABI = [
   { type: "function", name: "openBatches", stateMutability: "view", inputs: [], outputs: [{ type: "uint256[]" }] },
   { type: "function", name: "joinVault", stateMutability: "nonpayable", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "openRedeems", stateMutability: "view", inputs: [], outputs: [{ type: "uint256[]" }] },
+  { type: "function", name: "requestUnwind", stateMutability: "nonpayable", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "claimUnwound", stateMutability: "nonpayable", inputs: [{ type: "uint256" }], outputs: [] },
   { type: "function", name: "claimShares", stateMutability: "nonpayable", inputs: [{ type: "uint256" }], outputs: [] },
 ] as const;
 

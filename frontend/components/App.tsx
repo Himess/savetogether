@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { PoolScreen } from "@/components/screens/Pool";
 import { WrapScreen } from "@/components/screens/Wrap";
 import { VaultScreen } from "@/components/screens/Vault";
+import { VerifyScreen } from "@/components/screens/Verify";
 import { ChatScreen } from "@/components/screens/Chat";
 import { BalancesScreen } from "@/components/screens/Balances";
 
@@ -23,6 +24,7 @@ function Screen() {
   const { route } = useNav();
   if (route === "wrap") return <WrapScreen />;
   if (route === "vault") return <VaultScreen />;
+  if (route === "verify") return <VerifyScreen />;
   if (route === "chat") return <ChatScreen />;
   if (route === "balances") return <BalancesScreen />;
   return <PoolScreen />;

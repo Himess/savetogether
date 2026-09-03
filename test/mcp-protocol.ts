@@ -38,6 +38,7 @@ const EXPECTED_TOOLS = [
   "revoke_all",
   "send",
   "session_status",
+  "unwrap",
   "vault_join",
   "vault_status",
   "wrap",
@@ -79,11 +80,11 @@ describe("MCP protocol", function () {
     await fs.rm(vaultDir, { recursive: true, force: true });
   });
 
-  it("answers tools/list with every tool, and no unwrap", async () => {
+  it("answers tools/list with every tool", async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
     expect(names).to.deep.equal(EXPECTED_TOOLS);
-    expect(names).to.not.include("unwrap");
+    expect(names).to.include("unwrap");
   });
 
   it("ships a usable JSON Schema with each tool", async () => {
@@ -103,8 +104,10 @@ describe("MCP protocol", function () {
     expect(byName.get("list_assets")).to.match(/untrusted/i);
     // Recipients are public; only amounts are confidential.
     expect(byName.get("send")).to.match(/Recipients are public/i);
-    // Going back to a public balance is a disclosure decision, not a tool call.
-    expect(byName.get("wrap")).to.match(/no unwrap tool/i);
+    // Going back to a public balance is a disclosure, and its ceiling is weaker
+    // than the on-chain one — both have to be said where the model will read them.
+    expect(byName.get("unwrap")).to.match(/publishes/i);
+    expect(byName.get("unwrap")).to.match(/server/i);
   });
 
   it("calls a tool that needs no chain and no vault", async () => {
@@ -136,8 +139,11 @@ describe("MCP protocol", function () {
     expect(result.isError).to.equal(true);
   });
 
+  // Was "unwrap" until unwrap became a real tool, at which point this test was
+  // asserting that a shipped tool was missing. The name has to be one that is
+  // not going to become real.
   it("rejects an unknown tool by name", async () => {
-    const result = await client.callTool({ name: "unwrap", arguments: {} });
+    const result = await client.callTool({ name: "teleport", arguments: {} });
     expect(result.isError).to.equal(true);
     const content = result.content as Array<{ type: string; text: string }>;
     expect(content[0]?.text).to.match(/no such tool/i);

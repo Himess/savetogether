@@ -19,7 +19,7 @@ What a compromised session key **cannot** do:
 | widen the allowlist        | `addRecipient` is owner-only and needs a vault unlock                                                                |
 | call an arbitrary contract | `send` refuses a token with no budget, so it cannot use the module to grant ACL access to an address of its choosing |
 | read the holder's balance  | unless the owner opted into delegation at open                                                                       |
-| unwrap to a public balance | there is no unwrap path anywhere in the system                                                                       |
+| unwrap without the user seeing it | `unwrap` confirms first and publishes the amount by nature; its ceiling is server-enforced, NOT on chain — the deployed wrapper takes only an externally encrypted input, so no contract can bound it |
 | touch the vault key        | it is encrypted at rest and unlocks only on a local human action                                                     |
 
 What it **can** do, deliberately: close the session, and remove recipients. A client that detects something wrong must be able to narrow itself without waiting for a human.
