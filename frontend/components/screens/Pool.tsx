@@ -907,9 +907,21 @@ export function PoolScreen() {
                 A zero handle means nothing has ever been credited to this
                 address, so the button would spend gas to move nothing. */}
             <p style={css("margin:5px 0 0;font:400 10.5px/1.5 var(--display);color:var(--ink-3)")}>
-              {wonHandle === ZERO
-                ? "Nothing to claim — this address has never been credited a prize."
-                : "Optional. Winnings are credited to your balance automatically; this only moves them, reveals nothing, and behaves identically whether or not you won."}
+              {wonHandle === ZERO ? (
+                "Nothing to claim — this address has never been credited a prize."
+              ) : (
+                <>
+                  <b style={css("font-weight:650;color:var(--ink-2)")}>Not what claim means elsewhere.</b>{" "}
+                  Your winnings are credited by{" "}
+                  <span style={css("font-family:var(--mono);font-size:10px")}>accrue</span> whether or
+                  not you do anything.{" "}
+                  <span style={css("font-family:var(--mono);font-size:10px")}>claim</span> only moves
+                  them into your spendable balance, and a deposit or a withdrawal does the same thing
+                  on the way past. It is optional, it is permissionless — anyone may call it for
+                  anyone — and it behaves identically whether or not you won, which is why it is safe
+                  to have at all.
+                </>
+              )}
             </p>
 
             {/* M1. The order of these two matters and it was wrong.

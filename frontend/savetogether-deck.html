@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SaveTogether — Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E9E7E1; --card:#FFFFFF; --card2:#F7F6F3; --line:#DCD9D2; --line2:#EDEBE6;
+  --ink:#0F1D2A; --navy:#1B3A5C; --navy-d:#0C1F33; --navy-l:#EAF0F6; --navy-b:#D7E3EF;
+  --mute:#5E656B; --dim:#9A9EA2;
+  --hot:#8C3A3A; --hot-bg:#FBEDEB; --hot-b:#F6D9D4;
+  --ok:#2F6B4F; --ok-bg:#EAF3EE;
+  --zama:#FFD208; --claude:#D97757;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:'Archivo',system-ui,sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+  padding:clamp(26px,3.9vw,74px);padding-bottom:clamp(56px,5.8vw,94px)}
+.slide.on{display:flex}
+.slide.on>*{animation:r .45s cubic-bezier(.2,.8,.2,1) both}
+.slide.on>*:nth-child(2){animation-delay:.05s}
+.slide.on>*:nth-child(3){animation-delay:.1s}
+.slide.on>*:nth-child(4){animation-delay:.15s}
+@keyframes r{from{opacity:0;transform:translateY(11px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.slide.on>*{animation:none}}
+.slide.dark{background:var(--ink);color:#F4F6F8}
+.slide.dark .k{color:#7FA0C4}
+.slide.dark .sub,.slide.dark .fine{color:#A9B7C4}
+.slide.dark .card{background:#152838;border-color:#28425A}
+.slide.dark .rw{border-color:#22374B}
+.slide.dark .hd{color:#7FA0C4}
+
+.k{font:600 clamp(9.5px,.92vw,12.5px)/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:#5C7A9B;margin-bottom:clamp(10px,1.3vw,18px)}
+.k.hot{color:var(--hot)}
+h1{font:700 clamp(27px,4.5vw,60px)/1.05 'Archivo';letter-spacing:-.032em;max-width:21ch}
+h2{font:600 clamp(20px,2.95vw,41px)/1.14 'Archivo';letter-spacing:-.026em;max-width:25ch}
+.sub{font:400 clamp(12px,1.25vw,18px)/1.5 'Archivo';color:var(--mute);max-width:62ch;margin-top:clamp(8px,1vw,15px)}
+.fine{font:400 clamp(10px,.94vw,13.5px)/1.55 'Archivo';color:var(--mute);max-width:92ch;margin-top:clamp(11px,1.4vw,20px)}
+.m{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+b{font-weight:600}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ch{display:flex;justify-content:space-between;align-items:center;gap:9px;
+  padding:clamp(8px,1vw,13px) clamp(11px,1.3vw,18px);border-bottom:1px solid var(--line2);
+  font:600 clamp(10px,1vw,13px)/1 'Archivo'}
+.tag{font:600 clamp(8px,.78vw,10.5px)/1 'JetBrains Mono',monospace;letter-spacing:.06em;
+  padding:5px 9px;border-radius:99px;white-space:nowrap}
+.t-hot{background:var(--hot-b);color:var(--hot)}
+.t-navy{background:var(--navy-b);color:var(--navy)}
+.t-ok{background:#DCEBE3;color:var(--ok)}
+.rw{display:grid;align-items:center;gap:clamp(6px,.9vw,13px);
+  padding:clamp(7px,.92vw,13px) clamp(11px,1.3vw,18px);border-bottom:1px solid var(--line2);
+  font:400 clamp(10px,1.05vw,15px)/1.3 'Archivo'}
+.rw:last-child{border-bottom:0}
+.hd{font:500 clamp(8.5px,.82vw,11px)/1 'JetBrains Mono',monospace;letter-spacing:.06em;color:var(--dim)}
+.num{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-weight:500}
+.addr{font-family:'JetBrains Mono',monospace;font-size:.9em}
+.foot-note{padding:clamp(9px,1.1vw,15px) clamp(11px,1.3vw,18px);font:400 clamp(9.5px,.92vw,13px)/1.45 'Archivo'}
+.bar{display:block;height:clamp(9px,1.05vw,14px);border-radius:3px;background:var(--navy)}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:clamp(9px,1.2vw,17px)}
+.led{grid-template-columns:1.15fr 1fr .72fr}
+
+/* AG — one source, two destinations */
+.split{display:flex;align-items:stretch;gap:0;margin-top:clamp(13px,1.7vw,24px)}
+.src{flex:0 0 34%;min-width:0;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:clamp(11px,1.35vw,19px) clamp(13px,1.6vw,23px);
+  display:flex;flex-direction:column;justify-content:center}
+.srcf{font:500 clamp(8px,.78vw,10.5px)/1.3 'JetBrains Mono',monospace;letter-spacing:.1em;
+  color:var(--navy);margin-top:10px;text-transform:uppercase}
+.brc{flex:0 0 clamp(38px,5vw,74px);align-self:stretch}
+.outs{flex:1;min-width:0;display:flex;flex-direction:column;gap:clamp(7px,.9vw,13px)}
+.out{flex:1;background:var(--card2);border:1px solid var(--line);border-radius:12px;
+  padding:clamp(10px,1.25vw,18px) clamp(13px,1.6vw,23px);display:flex;flex-direction:column;justify-content:center}
+.out.acc{background:var(--navy);border-color:var(--navy);color:#fff}
+.otag{display:inline-flex;align-items:center;gap:6px;font:600 clamp(8px,.78vw,10.5px)/1 'JetBrains Mono',monospace;
+  letter-spacing:.13em;color:#7E837F;background:var(--bg);border:1px solid var(--line);
+  padding:4px 8px;border-radius:99px}
+.otag.on{color:#B9CFE4;background:var(--navy-d);border-color:#24507d}
+.ot{font:600 clamp(12px,1.3vw,19px)/1.2 'Archivo';margin-top:8px}
+.od{font:400 clamp(9px,.9vw,12.5px)/1.5 'Archivo';color:var(--mute);margin-top:5px}
+.out.acc .od{color:#B9CBDD}
+.same{display:flex;align-items:center;gap:11px;margin-top:clamp(9px,1.15vw,16px);
+  background:var(--ok-bg);border:1px solid #C3DDCF;border-radius:11px;
+  padding:clamp(8px,1vw,13px) clamp(12px,1.4vw,19px)}
+.sk{flex:0 0 auto;font:600 clamp(8px,.78vw,10.5px)/1 'JetBrains Mono',monospace;
+  letter-spacing:.13em;color:var(--ok)}
+.same span:last-child{font:400 clamp(9px,.9vw,12.5px)/1.5 'Archivo';color:#2C4A3B}
+
+.stack{display:flex;gap:clamp(9px,1.2vw,17px);align-items:stretch}
+.blk{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:clamp(11px,1.35vw,19px) clamp(13px,1.6vw,23px)}
+.blk.acc{background:var(--navy);border-color:var(--navy);color:#fff}
+.bt{font:600 clamp(11px,1.15vw,16px)/1.2 'Archivo';display:flex;align-items:center;gap:10px}
+.bd{font:400 clamp(9.5px,.95vw,13px)/1.5 'Archivo';color:var(--mute);margin-top:6px}
+.blk.acc .bd{color:#B9CBDD}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.chip{background:var(--navy-d);color:#B9CFE4;padding:5px 10px;border-radius:99px;font:500 clamp(9.5px,.92vw,12px)/1 'Archivo'}
+.dash{display:flex;align-items:center;gap:11px;padding:clamp(7px,.9vw,12px) 3px}
+.dash i{flex:1;height:1px;border-top:1px dashed #C3C0B8;font-style:normal}
+.dash span{font:400 clamp(9px,.88vw,12px)/1 'Archivo';color:#7E837F;white-space:nowrap}
+.rail{flex:0 0 clamp(18px,2vw,26px);display:flex;flex-direction:column;gap:8px}
+.rl{display:flex;align-items:center;justify-content:center;border-left:2px solid var(--navy)}
+.rl.g{border-color:#B9B6AE}
+.rl div{writing-mode:vertical-rl;text-align:center;font:600 clamp(8px,.78vw,10px)/1.5 'JetBrains Mono',monospace;letter-spacing:.14em;color:var(--navy)}
+.rl.g div{color:#8A8F8B}
+
+.trk{position:relative;height:clamp(22px,2.4vw,35px);background:#DEDBD4;border-radius:6px}
+.fil{position:absolute;left:0;top:0;bottom:0;background:var(--navy);border-radius:6px}
+.mk{position:absolute;top:-7px;bottom:-7px;width:3px;background:var(--ink);border-radius:2px}
+.tier{display:grid;grid-template-columns:clamp(74px,9vw,136px) 1fr clamp(56px,7vw,104px);
+  gap:clamp(9px,1.3vw,20px);align-items:center;margin-top:clamp(9px,1.15vw,17px)}
+.tn{font:500 clamp(10.5px,1.05vw,15px)/1.3 'Archivo'}
+.tn em{font-style:normal;color:var(--dim);display:block;font-size:.79em;margin-top:2px}
+.tv{font:600 clamp(10.5px,1.05vw,15px)/1 'JetBrains Mono',monospace;text-align:right}
+
+.flow{display:flex;align-items:stretch;gap:clamp(5px,.8vw,12px)}
+.fb{flex:1;min-width:0;background:var(--card);border:1px solid var(--line);border-radius:11px;
+  padding:clamp(9px,1.15vw,16px) clamp(8px,1vw,15px)}
+.fb.acc{background:var(--navy);border-color:var(--navy);color:#fff}
+.fb.bad{background:var(--hot-bg);border-color:#EDCFC9}
+.ft{font:600 clamp(9.5px,.96vw,13.5px)/1.25 'Archivo'}
+.fd{font:400 clamp(8.5px,.84vw,11.5px)/1.45 'Archivo';color:var(--mute);margin-top:5px}
+.fb.acc .fd{color:#B9CBDD}
+.fb.bad .ft,.fb.bad .fd{color:var(--hot)}
+.fx{font:500 clamp(8px,.78vw,10.5px)/1 'JetBrains Mono',monospace;color:var(--dim);margin-top:8px;letter-spacing:.04em}
+.fb.acc .fx{color:#8FAAC5}
+.arw{align-self:center;color:#C3C0B8;font-size:clamp(11px,1.2vw,17px);flex:0 0 auto}
+
+.chat{background:var(--ink);border-radius:12px;overflow:hidden}
+.chh{display:flex;align-items:center;gap:9px;padding:clamp(8px,1vw,13px) clamp(12px,1.5vw,20px);border-bottom:1px solid #22374B;
+  font:500 clamp(9.5px,.92vw,12px)/1 'JetBrains Mono',monospace;color:#7E97B4;letter-spacing:.04em}
+.chb{padding:clamp(12px,1.5vw,20px) clamp(13px,1.6vw,22px);font:500 clamp(10.5px,1.1vw,15px)/2.1 'JetBrains Mono',monospace;color:#DCE5ED}
+.chb .u{color:#6D8AA8;margin-right:11px}
+.chb .a{color:#8FB4D8}
+.chb code{background:#1E3A54;padding:2px 6px;border-radius:4px;font-family:inherit}
+
+.party{display:flex;gap:10px;align-items:center;padding:clamp(9px,1.15vw,15px) clamp(11px,1.3vw,18px);border-bottom:1px solid var(--line2)}
+.party:last-child{border-bottom:0}
+.pt{font:600 clamp(10px,1vw,13.5px)/1.2 'Archivo'}
+.pd{font:400 clamp(9px,.9vw,12px)/1.4 'Archivo';color:var(--mute);margin-top:3px}
+
+.stats{display:flex;flex-wrap:wrap;gap:clamp(16px,3.2vw,54px);margin-top:clamp(13px,1.7vw,26px)}
+.st .n{font:700 clamp(18px,2.7vw,38px)/1 'JetBrains Mono',monospace;letter-spacing:-.03em}
+.st .l{font:400 clamp(9px,.9vw,12.5px)/1.4 'Archivo';color:var(--mute);margin-top:6px}
+.slide.dark .st .l{color:#A9B7C4}
+.hero{font:700 clamp(44px,9.8vw,140px)/.86 'JetBrains Mono',monospace;letter-spacing:-.045em}
+
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:clamp(11px,1.7vw,30px)}
+.col h3{font:600 clamp(11.5px,1.2vw,17px)/1.2 'Archivo';margin-bottom:clamp(7px,.9vw,13px);
+  padding-bottom:clamp(6px,.75vw,10px);border-bottom:2px solid #C3C0B8}
+.col.a h3{border-color:var(--navy)}
+.col.b h3{color:var(--mute)}
+.col li{list-style:none;font:400 clamp(10px,1.02vw,14.5px)/1.4 'Archivo';
+  padding:clamp(5px,.65vw,9px) 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px}
+.col li:last-child{border:0}
+.col li .v{color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:.85em;flex:0 0 auto}
+
+.pills{display:flex;gap:7px;flex-wrap:wrap;margin-top:clamp(11px,1.5vw,21px)}
+.pill{padding:6px 12px;border:1px solid #C3C0B8;border-radius:99px;
+  font:500 clamp(8.5px,.85vw,11.5px)/1 'JetBrains Mono',monospace;color:var(--mute);letter-spacing:.04em}
+.pill.live::before{content:'●';color:var(--ok);margin-right:6px}
+.slide.dark .pill{border-color:#33506B;color:#A9B7C4}
+
+.brand{display:flex;align-items:center;gap:clamp(9px,1.1vw,16px);margin-bottom:clamp(14px,2vw,30px)}
+.wm{font:700 clamp(16px,1.9vw,28px)/1 'Archivo';letter-spacing:-.012em}
+.lg{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.lg-z{width:1.35em;height:1.35em;border-radius:5px;background:var(--zama);color:#1a1a1a;font:700 .8em/1 'Archivo'}
+.lg-c{color:var(--claude)}
+.lg-dot{width:1.3em;height:1.3em;border-radius:50%;background:#0F6E56}
+.lg-sq{width:1.3em;height:1.3em;border-radius:5px;background:#2C63D8}
+.lg-srv{width:1.25em;height:1.25em;border-radius:5px;background:var(--mute);position:relative}
+.lg-srv::after{content:'';position:absolute;inset:30%;border:1.6px solid #fff;border-radius:2px}
+
+.foot{position:absolute;left:clamp(26px,3.9vw,74px);right:clamp(26px,3.9vw,74px);bottom:clamp(18px,2.2vw,34px);
+  display:flex;justify-content:space-between;font:500 clamp(8.5px,.84vw,11px)/1 'JetBrains Mono',monospace;
+  color:var(--dim);letter-spacing:.05em}
+.notes{position:fixed;inset:auto 0 0 0;max-height:42vh;overflow-y:auto;background:#0B1620;color:#D3DEE8;
+  padding:19px 26px 23px;font:400 13.5px/1.6 'Archivo';display:none;border-top:2px solid #2E5077;z-index:9}
+.notes.on{display:block}
+.notes h4{font:600 9.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:#7FA0C4;margin-bottom:9px}
+.notes p{max-width:88ch;margin-bottom:8px}
+.cue{color:#8FB4D8;font-family:'JetBrains Mono',monospace;font-size:11.5px}
+.help{position:fixed;right:12px;top:12px;z-index:9;font:500 9.5px/1 'JetBrains Mono',monospace;color:var(--dim);letter-spacing:.05em}
+@media(max-width:820px){.two,.cols{grid-template-columns:1fr}.flow{flex-wrap:wrap}.arw{display:none}.fb{flex:1 1 45%}.rail{display:none}}
+</style>
+</head>
+<body>
+<div class="help">← → · N</div>
+
+<section class="slide">
+  <div class="brand">
+    <span class="lg" style="font-size:clamp(26px,3vw,44px)" data-logo="savetogether">
+      <svg width="1.6em" height="1em" viewBox="0 0 152 92" aria-hidden="true"><path d="M22 4h108a12 12 0 0 0 12 12v14a16 16 0 0 0 0 32v14a12 12 0 0 0-12 12H22a12 12 0 0 0-12-12V62a16 16 0 0 0 0-32V16A12 12 0 0 0 22 4z" fill="#1B3A5C"/><circle cx="38" cy="38" r="7.5" fill="#FAFAF8"/><circle cx="59" cy="38" r="7.5" fill="#FAFAF8"/><path d="M36 58q11.5 10 23 0" stroke="#FAFAF8" stroke-width="5.5" fill="none" stroke-linecap="round"/><rect x="82" y="28" width="48" height="9" rx="4.5" fill="#98AEC5"/><rect x="82" y="42" width="32" height="9" rx="4.5" fill="#647F9B"/><rect x="82" y="56" width="41" height="9" rx="4.5" fill="#7F97B0"/></svg>
+    </span>
+    <div class="wm">SaveTogether</div>
+  </div>
+  <h1>Save into a prize pool where nobody sees your balance, your odds, or whether you won.</h1>
+  <div class="sub">A confidential PoolTogether on Zama's FHEVM, composed with the same vault Zama already ships.</div>
+  <div class="pills"><span class="pill live">Live on Sepolia</span><span class="pill">Real cUSDC</span><span class="pill">3 contracts verified</span><span class="pill">207 tests</span></div>
+</section>
+
+<section class="slide">
+  <div class="k hot">THE PROBLEM</div>
+  <h2>Someone is reading your savings right now.</h2>
+  <div class="sub">Not hacking. Just looking. Both tables below are the same call, on the same chain, one block apart.</div>
+  <div class="two" style="margin-top:clamp(13px,1.7vw,24px)">
+    <div class="card">
+      <div class="ch" style="background:var(--hot-bg);color:var(--hot)"><span>A public prize pool</span><span class="tag t-hot">ALL READABLE</span></div>
+      <div class="rw led hd"><div>address</div><div>balance</div><div>odds</div></div>
+      <div class="rw led"><div class="addr">0xF505…E5Ae</div><div class="num">12,540.00</div><div class="num">68.5%</div></div>
+      <div class="rw led"><div class="addr">0x12Ee…9BF1</div><div class="num">3,200.00</div><div class="num">17.5%</div></div>
+      <div class="rw led"><div class="addr">0xc5F4…9568</div><div class="num">1,860.00</div><div class="num">10.2%</div></div>
+      <div class="rw led"><div class="addr">0x9926…fbB9</div><div class="num">697.00</div><div class="num">3.8%</div></div>
+      <div class="foot-note" style="background:var(--hot-bg);color:var(--hot)">One wallet holds <b>two thirds</b> of the pool. Their size, to the cent. Enough to target them.</div>
+    </div>
+    <div class="card">
+      <div class="ch" style="background:var(--navy-l);color:var(--navy)"><span>SaveTogether</span><span class="tag t-navy">SAME CALL</span></div>
+      <div class="rw led hd"><div>address</div><div>balance</div><div>odds</div></div>
+      <div class="rw led"><div class="addr">0xF505…E5Ae</div><div><span class="bar" style="width:78%"></span></div><div><span class="bar" style="width:82%;opacity:.45"></span></div></div>
+      <div class="rw led"><div class="addr">0x12Ee…9BF1</div><div><span class="bar" style="width:78%"></span></div><div><span class="bar" style="width:82%;opacity:.45"></span></div></div>
+      <div class="rw led"><div class="addr">0xc5F4…9568</div><div><span class="bar" style="width:78%"></span></div><div><span class="bar" style="width:82%;opacity:.45"></span></div></div>
+      <div class="rw led"><div class="addr">0x9926…fbB9</div><div><span class="bar" style="width:78%"></span></div><div><span class="bar" style="width:82%;opacity:.45"></span></div></div>
+      <div class="foot-note" style="background:var(--navy-l);color:var(--navy)">Every cell the same shape. <b>Not blurred for the slide</b> — that is what the chain returns.</div>
+    </div>
+  </div>
+  <div class="fine">The addresses stay on both sides. FHE is not a mixer, and pretending otherwise would be the easiest claim on this slide to get wrong — what changes is every column to the right of them.</div>
+</section>
+
+<section class="slide">
+  <div class="k">OUR THESIS</div>
+  <h2>Same money, same vault. One difference at the end.</h2>
+  <div class="split">
+
+    <div class="src">
+      <div class="bt">
+        <span class="lg lg-z" style="font-size:clamp(12px,1.25vw,17px)" data-logo="zama">Z</span>
+        Your cUSDC, in Zama's vault
+      </div>
+      <div class="bd">Steakhouse &times; Morpho, live on mainnet &mdash; 7.20% APY, $40.2M. Deposit, shares and yield are already encrypted here, and nothing in this project improves on that.</div>
+      <div class="srcf">the yield it earns &rarr;</div>
+    </div>
+
+    <svg class="brc" viewBox="0 0 100 220" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 110 H30 C58 110 44 40 76 40 H94" fill="none" stroke="#B9B6AE" stroke-width="1.8" vector-effect="non-scaling-stroke"/>
+      <path d="M0 110 H30 C58 110 44 180 76 180 H94" fill="none" stroke="#1B3A5C" stroke-width="1.8" vector-effect="non-scaling-stroke"/>
+      <path d="M92 34 L100 40 L92 46 Z" fill="#B9B6AE"/>
+      <path d="M92 174 L100 180 L92 186 Z" fill="#1B3A5C"/>
+      <circle cx="30" cy="110" r="3.4" fill="#1B3A5C"/>
+    </svg>
+
+    <div class="outs">
+      <div class="out">
+        <span class="otag">ZAMA TODAY &middot; SHIPPED &amp; WORKING</span>
+        <div class="ot">Everyone, in proportion</div>
+        <div class="od">Small, steady, encrypted. Every depositor earns their share, so there is no &ldquo;who&rdquo; to hide &mdash; and nothing here needed hiding.</div>
+      </div>
+      <div class="out acc">
+        <span class="otag on">SAVETOGETHER &middot; THIS PROJECT</span>
+        <div class="ot">One or a few, by draw</div>
+        <div class="od">The whole round's yield to a winner picked on chain by FHE randomness &mdash; which creates two secrets that did not exist above: who won, and what each person's odds were.</div>
+      </div>
+    </div>
+
+  </div>
+  <div class="same">
+    <span class="sk">PRINCIPAL</span>
+    <span><b>Identical on both paths.</b> You withdraw the same amount whenever you like, on either one. Only the interest is routed differently &mdash; which is the whole of the no-loss claim, and it is visible here rather than asserted.</span>
+  </div>
+  <div class="fine">We did not build a second vault, and we are not a separate venue. Same protocol, same token, same vault &mdash; we changed what happens to the interest. Everything the top path already hides, the bottom path still hides; the bottom path also has to hide the winner and the odds, and that is the part this project is.</div>
+</section>
+
+<section class="slide">
+  <div class="k">WHAT A PRIZE ADDS</div>
+  <h2>Yield has no winner. A prize does.</h2>
+  <div class="cols" style="margin-top:clamp(13px,1.7vw,24px)">
+    <div class="col b"><h3>Earning pro rata</h3>
+      <li>How much you hold<span class="v">encrypted</span></li>
+      <li>What you earned<span class="v">encrypted</span></li>
+      <li>Who won<span class="v">no such question</span></li>
+      <li>What your odds were<span class="v">no such question</span></li></div>
+    <div class="col a"><h3>Paying it as a prize</h3>
+      <li>How much you hold<span class="v">encrypted</span></li>
+      <li>What you earned<span class="v">encrypted</span></li>
+      <li>Who won<span class="v" style="color:var(--hot)">a new secret</span></li>
+      <li>What your odds were<span class="v" style="color:var(--hot)">a new secret</span></li></div>
+  </div>
+  <div class="fine">Two secrets appear the moment yield becomes a prize. Neither exists in a normal vault, and neither survives a transparent chain. That gap is the whole project.</div>
+</section>
+
+<section class="slide">
+  <div class="k">THE MECHANISM</div>
+  <h2>Your weight is encrypted. Your threshold is public. Only you can compare them.</h2>
+  <div style="margin-top:clamp(10px,1.3vw,20px)">
+    <div class="tier"><div class="tn">Grand<em>one winner per 100 draws</em></div>
+      <div class="trk"><div class="fil" style="width:31%"></div><div class="mk" style="left:88%"></div></div>
+      <div class="tv" style="color:var(--dim)">below</div></div>
+    <div class="tier"><div class="tn">Middle<em>one winner per 10 draws</em></div>
+      <div class="trk"><div class="fil" style="width:31%"></div><div class="mk" style="left:54%"></div></div>
+      <div class="tv" style="color:var(--dim)">below</div></div>
+    <div class="tier"><div class="tn">Every draw<em>one winner per draw</em></div>
+      <div class="trk"><div class="fil" style="width:31%"></div><div class="mk" style="left:19%"></div></div>
+      <div class="tv" style="color:var(--navy)">cleared</div></div>
+  </div>
+  <div class="fine">The filled bar is your time-weighted balance — encrypted, readable by you alone. The line is <span class="m">uniform(keccak(R, drawId, you, tier), totalWeight × k)</span>, computable by anyone, for any address, in any draw. An observer holds one half of that comparison and can never obtain the other. This is PoolTogether V5's own construction, and it is the only shape of the problem that survives encryption.</div>
+</section>
+
+<section class="slide">
+  <div class="k">THE INSIGHT</div>
+  <h2>There is no claim step, and that is a security property.</h2>
+  <div class="flow" style="margin-top:clamp(13px,1.7vw,24px)">
+    <div class="fb"><div class="ft">Anyone computes their own result</div><div class="fd">The threshold is public and you know your own deposits. No transaction needed.</div></div>
+    <div class="arw">→</div>
+    <div class="fb"><div class="ft">So a loser never claims</div><div class="fd">Why pay gas for zero? Only winners would bother.</div></div>
+    <div class="arw">→</div>
+    <div class="fb bad"><div class="ft">“Who claimed” becomes “who won”</div><div class="fd">The leak returns on the cheapest observation available.</div></div>
+  </div>
+  <div class="flow" style="margin-top:clamp(8px,1vw,14px)">
+    <div class="fb acc"><div class="ft">So accrual is unconditional</div><div class="fd">A keeper runs <span class="m">accrue(user, draw)</span> for every participant, winner or loser &mdash; identical transactions differing only in an encrypted comparison. Nobody has to act to be paid, so acting reveals nothing.</div><div class="fx">PoolTogether removed the user's burden. We removed the signal.</div></div>
+  </div>
+  <div class="same" style="background:var(--navy-l);border-color:var(--navy-b)">
+    <span class="sk" style="color:var(--navy)">BUT CLAIM EXISTS</span>
+    <span style="color:#22364A">There <b>is</b> a <span class="m">claim(address)</span> and it has moved real cUSDC on Sepolia &mdash; it just does not mean what the word means everywhere else. Your winnings are credited by <span class="m">accrue</span> whether or not you do anything; <span class="m">claim</span> only moves them into your spendable balance, and a deposit or a withdrawal does the same thing on the way past. It is optional, it is permissionless &mdash; anyone may call it for anyone &mdash; and it behaves identically whether or not you won, which is exactly why it is safe to have at all.</span>
+  </div>
+</section>
+
+<section class="slide dark">
+  <div class="k">THE PROOF</div>
+  <div class="hero">684,273</div>
+  <div class="card" style="max-width:900px;margin-top:clamp(13px,1.7vw,24px)">
+    <div class="rw hd" style="grid-template-columns:.55fr 1.4fr 1fr 1.2fr"><div>draw</div><div>outcome</div><div>gas</div><div>transaction</div></div>
+    <div class="rw" style="grid-template-columns:.55fr 1.4fr 1fr 1.2fr"><div class="m">34</div><div>lost</div><div class="num">684,273</div><div class="addr" style="color:#7FA0C4">0xc22520c2…</div></div>
+    <div class="rw" style="grid-template-columns:.55fr 1.4fr 1fr 1.2fr"><div class="m">35</div><div style="color:#8FB4D8;font-weight:600">won 1 cUSDC</div><div class="num">684,273</div><div class="addr" style="color:#7FA0C4">0x1ef0e39d…</div></div>
+  </div>
+  <div class="fine">Same address, consecutive draws, identical calldata. One paid a prize and the other paid nothing, and they cost the same to the gas unit. Across 312 live accruals — 81 winners, 231 losers, 26 draws — there is zero within-draw separation.</div>
+</section>
+
+<section class="slide">
+  <div class="k">WHERE THE PRIZE COMES FROM</div>
+  <h2>Yield, and nothing else.</h2>
+  <div class="flow" style="margin-top:clamp(13px,1.7vw,24px)">
+    <div class="fb"><div class="ft">USDC</div><div class="fd">public, ordinary</div><div class="fx">wrap</div></div>
+    <div class="arw">→</div>
+    <div class="fb"><div class="ft">cUSDC</div><div class="fd">Zama's own wrapper</div><div class="fx">encrypted from here</div></div>
+    <div class="arw">→</div>
+    <div class="fb acc"><div class="ft">The pool</div><div class="fd">your position, encrypted, withdrawable whenever you like</div><div class="fx">principal never at risk</div></div>
+    <div class="arw">→</div>
+    <div class="fb"><div class="ft">Yield engine</div><div class="fd">half also routes through Zama's deployed vault</div><div class="fx">batch 286, on chain</div></div>
+    <div class="arw">→</div>
+    <div class="fb"><div class="ft">The reserve</div><div class="fd">starts empty, fills from harvest() alone</div><div class="fx">one prize per draw</div></div>
+  </div>
+  <div class="fine">A paired test proves it: two runs where the only difference is whether <span class="m">harvest()</span> was called. With it a prize is paid; without it nothing is. The composition through Zama's vault is real and on chain — the rate is ours, because their Sepolia vault is idle-only, and every screen that shows a rate says so.</div>
+</section>
+
+<section class="slide">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px">
+    <div>
+      <div class="k">THE SECOND FRONT DOOR</div>
+      <h2>Everyone has an agent now. Nobody wants six screens.</h2>
+    </div>
+    <div style="display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:8px 15px 8px 11px;flex:0 0 auto">
+      <span class="lg" style="font-size:clamp(13px,1.35vw,19px)" data-logo="savetogether">
+        <svg width="1.6em" height="1em" viewBox="0 0 152 92" aria-hidden="true"><path d="M22 4h108a12 12 0 0 0 12 12v14a16 16 0 0 0 0 32v14a12 12 0 0 0-12 12H22a12 12 0 0 0-12-12V62a16 16 0 0 0 0-32V16A12 12 0 0 0 22 4z" fill="#1B3A5C"/><circle cx="38" cy="38" r="7.5" fill="#FAFAF8"/><circle cx="59" cy="38" r="7.5" fill="#FAFAF8"/><path d="M36 58q11.5 10 23 0" stroke="#FAFAF8" stroke-width="5.5" fill="none" stroke-linecap="round"/><rect x="82" y="28" width="48" height="9" rx="4.5" fill="#98AEC5"/><rect x="82" y="42" width="32" height="9" rx="4.5" fill="#647F9B"/><rect x="82" y="56" width="41" height="9" rx="4.5" fill="#7F97B0"/></svg>
+      </span>
+      <span style="font:600 clamp(10px,1vw,13px)/1 'Archivo'">SaveTogether</span>
+      <span style="color:#C3C0B8">·</span>
+      <span class="m" style="font-size:clamp(9.5px,.95vw,12.5px);color:var(--mute)">MCP</span>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1.12fr 1fr;gap:clamp(9px,1.2vw,17px);align-items:start;margin-top:clamp(13px,1.7vw,24px)">
+    <div class="chat">
+      <div class="chh">
+        <span class="lg lg-c" style="font-size:clamp(11px,1.1vw,15px)" data-logo="claude">
+          <svg width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l1.9 5.6 5.6 1.9-5.6 1.9L12 17.6l-1.9-5.6L4.5 10.1l5.6-1.9z" fill="currentColor"/><path d="M19.4 16.2l.8 2.3 2.3.8-2.3.8-.8 2.3-.8-2.3-2.3-.8 2.3-.8z" fill="currentColor"/></svg>
+        </span>
+        Claude · ghostpool connector
+      </div>
+      <div class="chb">
+        <div><span class="u">you</span>open a session with a 500 cUSDC budget</div>
+        <div><span class="a">↳ one signature · expires in 24h</span></div>
+        <div style="margin-top:7px"><span class="u">you</span>put half my balance in the pool</div>
+        <div><span class="a">↳ deposited · <code>bal_1:half</code> · 3 txs · 71s</span></div>
+        <div style="margin-top:7px"><span class="u">you</span>how much do I have in there?</div>
+        <div><span class="a">↳ I can't see that number, and neither can the pool.</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div style="padding:clamp(9px,1.1vw,14px) clamp(11px,1.3vw,18px) clamp(8px,1vw,12px);border-bottom:1px solid var(--line2)">
+          <div style="font:600 clamp(10px,1vw,13px)/1 'Archivo'">Who learns what</div>
+          <div style="font:400 clamp(8.5px,.85vw,11px)/1.4 'Archivo';color:var(--dim);margin-top:5px">Three parties, not two. Collapsing them is how the claim gets overstated.</div>
+        </div>
+        <div class="party">
+          <span class="lg lg-c" style="font-size:clamp(13px,1.3vw,18px)" data-logo="claude">
+            <svg width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l1.9 5.6 5.6 1.9-5.6 1.9L12 17.6l-1.9-5.6L4.5 10.1l5.6-1.9z" fill="currentColor"/></svg>
+          </span>
+          <div style="flex:1;min-width:0"><div class="pt">The model</div><div class="pd">What you typed, and <span class="m" style="background:var(--card2);padding:1px 5px;border-radius:3px;font-size:.92em">bal_1:half</span></div></div>
+          <span class="tag t-ok">NO FIGURE</span>
+        </div>
+        <div class="party">
+          <span class="lg lg-srv" style="font-size:clamp(13px,1.3vw,18px)" data-logo="server"></span>
+          <div style="flex:1;min-width:0"><div class="pt">The session client</div><div class="pd">Builds the ciphertext, so it resolves the figure</div></div>
+          <span class="tag t-hot">SEES IT</span>
+        </div>
+        <div class="party">
+          <span class="lg lg-z" style="font-size:clamp(13px,1.3vw,18px)" data-logo="zama">Z</span>
+          <div style="flex:1;min-width:0"><div class="pt">The chain</div><div class="pd">A ciphertext, and a budget nobody can read</div></div>
+          <span class="tag t-navy">ENCRYPTED</span>
+        </div>
+      </div>
+      <div style="background:var(--navy);border-radius:12px;padding:clamp(10px,1.2vw,16px) clamp(12px,1.4vw,19px);margin-top:9px">
+        <div style="font:600 clamp(8px,.78vw,10.5px)/1 'JetBrains Mono',monospace;letter-spacing:.13em;color:#8FAAC5">IF THE URL LEAKS, THREE THINGS BOUND THE DAMAGE</div>
+        <div style="font:400 clamp(9.5px,.94vw,13px)/1.55 'Archivo';color:#B9CBDD;margin-top:8px">the <b style="color:#fff">budget</b> it can never exceed &middot; the <b style="color:#fff">addresses</b> it can never leave &middot; the <b style="color:#fff">time</b> after which it stops existing, whether or not you noticed</div>
+        <div style="font:400 clamp(8.5px,.84vw,11.5px)/1.45 'Archivo';color:#7E97B2;margin-top:8px">The budget is clamped on chain and encrypted &mdash; 40 probes once recovered it, and that attack is measured, closed, and on the site. The session expires at 24 hours regardless.</div>
+      </div>
+    </div>
+  </div>
+  <div class="fine">Wrap, approve, deposit, sign, wait, decrypt — confidential DeFi loses people at the interface, not at the cryptography. One signature, one pasted URL, and after that you just say what you want.</div>
+</section>
+
+<section class="slide">
+  <div class="k">TRY TO BREAK IT</div>
+  <h2>Every other page asks you to believe something. This one asks you to attack it.</h2>
+  <div class="card" style="margin-top:clamp(13px,1.7vw,24px)">
+    <div class="rw hd" style="grid-template-columns:2.1fr 1.5fr auto"><div>attempt, with your own wallet, against the live pool</div><div>what happens</div><div></div></div>
+    <div class="rw" style="grid-template-columns:2.1fr 1.5fr auto"><div>Read another participant's balance</div><div style="color:var(--dim)">the relayer refuses</div><div><span class="tag t-ok">failed</span></div></div>
+    <div class="rw" style="grid-template-columns:2.1fr 1.5fr auto"><div>Work out who won this draw</div><div style="color:var(--dim)">every credit is the same shape</div><div><span class="tag t-ok">failed</span></div></div>
+    <div class="rw" style="grid-template-columns:2.1fr 1.5fr auto"><div>Infer the outcome from gas</div><div style="color:var(--dim)">identical, twice</div><div><span class="tag t-ok">failed</span></div></div>
+    <div class="rw" style="grid-template-columns:2.1fr 1.5fr auto"><div>Solve totalWeight for one depositor</div><div style="color:var(--hot)">works in a single-event window</div><div><span class="tag t-hot">disclosed</span></div></div>
+    <div class="rw" style="grid-template-columns:2.1fr 1.5fr auto"><div>Binary-search the session budget</div><div style="color:var(--hot)">recovered it in 40 calls</div><div><span class="tag t-navy">closed</span></div></div>
+  </div>
+  <div class="fine">Three fail because of the design. Two worked — we found them, measured them, and put them on the page rather than quietly patching. The budget search is closed by coarsening to a 50-token bucket; the aggregate one is disclosed with both mitigations costed and neither affordable at this size. A defence that names the version it replaced is worth more than one that does not.</div>
+</section>
+
+<section class="slide">
+  <div class="k">THE HONEST BOUNDARY</div>
+  <h2>We state it instead of hiding it.</h2>
+  <div class="cols" style="margin-top:clamp(13px,1.7vw,24px)">
+    <div class="col a"><h3>Encrypted</h3>
+      <li>Your balance and position</li>
+      <li>Your time-weighted odds</li>
+      <li>Whether you won, and which tier</li>
+      <li>Everything ever credited to you</li>
+      <li>The session budget — from everyone</li></div>
+    <div class="col b"><h3>Public, deliberately</h3>
+      <li>Who deposited, and when<span class="v">not a mixer</span></li>
+      <li>Every threshold, every address<span class="v">so the draw is auditable</span></li>
+      <li>totalWeight, once per draw<span class="v">encrypting costs 8.3×</span></li>
+      <li>The prize and the tier shape<span class="v">on screen</span></li></div>
+  </div>
+  <div class="fine">Privacy that hides its own boundary is a claim rather than a property. Every limitation in this project names the test that pins it — including the two attacks that worked.</div>
+</section>
+
+<section class="slide dark">
+  <div class="k">WHY IT MATTERS</div>
+  <h2>Zama shipped the rails. PoolTogether has the mechanic. What was missing was a reason to show up.</h2>
+  <div class="fine" style="font-size:clamp(12px,1.25vw,18px);max-width:66ch">Confidential DeFi loses people at the interface, not at the cryptography. An agent that can spend but cannot read collapses six screens into one sentence — and every deposit it makes lands in Zama's vault, and in a prize pool that pays out of real yield.</div>
+  <div class="stats">
+    <div class="st"><div class="n">1 signature</div><div class="l">to open a session</div></div>
+    <div class="st"><div class="n">0 clicks</div><div class="l">to deposit after that</div></div>
+    <div class="st"><div class="n">36 draws</div><div class="l">run live on Sepolia, by 6 real wallets</div></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="brand">
+    <span class="lg" style="font-size:clamp(20px,2.3vw,34px)" data-logo="savetogether">
+      <svg width="1.6em" height="1em" viewBox="0 0 152 92" aria-hidden="true"><path d="M22 4h108a12 12 0 0 0 12 12v14a16 16 0 0 0 0 32v14a12 12 0 0 0-12 12H22a12 12 0 0 0-12-12V62a16 16 0 0 0 0-32V16A12 12 0 0 0 22 4z" fill="#1B3A5C"/><circle cx="38" cy="38" r="7.5" fill="#FAFAF8"/><circle cx="59" cy="38" r="7.5" fill="#FAFAF8"/><path d="M36 58q11.5 10 23 0" stroke="#FAFAF8" stroke-width="5.5" fill="none" stroke-linecap="round"/><rect x="82" y="28" width="48" height="9" rx="4.5" fill="#98AEC5"/><rect x="82" y="42" width="32" height="9" rx="4.5" fill="#647F9B"/><rect x="82" y="56" width="41" height="9" rx="4.5" fill="#7F97B0"/></svg>
+    </span>
+    <div class="wm">SaveTogether</div>
+  </div>
+  <h2>Live on Sepolia. Go break it.</h2>
+  <div class="card" style="max-width:780px;margin-top:clamp(13px,1.7vw,24px)">
+    <div class="rw" style="grid-template-columns:.42fr 1.58fr"><div style="color:var(--dim)">app</div><div class="m">ghostpool-himess.vercel.app</div></div>
+    <div class="rw" style="grid-template-columns:.42fr 1.58fr"><div style="color:var(--dim)">code</div><div class="m">github.com/Himess/savetogether</div></div>
+    <div class="rw" style="grid-template-columns:.42fr 1.58fr"><div style="color:var(--dim)">pool</div><div class="m">0xa9B69Dc9F9f4C4512c926ba9eA432eBcF0026631</div></div>
+  </div>
+  <div class="pills"><span class="pill">207 tests</span><span class="pill">3 contracts verified</span><span class="pill">21 measurement spikes</span><span class="pill">every limit named with its test</span></div>
+</section>
+
+<div class="foot"><span id="fl"></span><span id="fr"></span></div>
+<div class="notes" id="notes"><h4>speaker notes</h4><div id="nb"></div></div>
+
+<script>
+const N=[
+["Open flat. Don't sell it.","SaveTogether is no-loss prize savings. You deposit, you can always withdraw, and only the yield becomes a prize. What's different is that nobody can see your balance, your odds, or whether you won."],
+["Point at the left table. Let them read it for a beat, then point right.","Both of these are the same call on the same chain. On the left, a prize pool on a public chain — nothing has been hacked, this is just reading. On the right, ours. The addresses are still there, because FHE is not a mixer and I'm not going to pretend otherwise. But every column to the right of them is a ciphertext of identical shape. None of it is blurred for the slide."],
+["Left box, then trace both arrows.","Same money, same vault — one difference at the end. On the left, your cUSDC sitting in Zama's confidential vault: Steakhouse and Morpho, live on mainnet, 7.2%, forty million dollars, and everything about your savings already encrypted there. Nothing I built improves on that. The yield it earns can go two ways. Up: everyone in proportion, which is Zama's product today and it works. Down: the whole round to one winner, which is ours. Principal is identical on both — that green bar is the no-loss claim, and you can see it rather than take my word. We did not build a second vault. We changed what happens to the interest."],
+["This is the pivot. Slow down.","Because yield has no winner. Everyone earns in proportion, so there is no 'who' to hide. Turn that same yield into a prize and two new secrets appear — who won, and what each person's odds were. Neither exists on the left. Neither survives a public chain."],
+["Point at the bars, then the lines.","The filled bar is your weight — encrypted, and only you can read it. The line is your threshold, and anyone can compute it, for any address, in any draw. Three tiers, three lines, same weight. An observer holds one half of that comparison and can never get the other. This is PoolTogether V5's own construction, and it's the only shape that survives FHE."],
+["The idea nobody else has. Take your time.","And there's no claim step, deliberately — note the box at the bottom, because people ask: claim exists, it's deployed, it has moved real cUSDC. It just doesn't mean what the word means everywhere else. Winnings are credited by accrue whether you act or not; claim only folds them into your spendable balance, and a deposit does the same thing on the way past. The threshold is public, so you can work out your own result with no transaction. Which means a loser never claims — why pay gas for zero? Only winners would, and 'who claimed' becomes 'who won'. So accrual runs for everyone, winner or loser. PoolTogether removed the user's burden; we removed the signal."],
+["Let the number land. Then read the two rows.","And it's measurable. Same address, two consecutive draws. One lost, one won a prize. Both cost exactly 684,273 gas. Across 312 live accruals — 81 winners and 231 losers — there is no execution cost that separates them."],
+["Trace it left to right.","The prize comes from yield and nothing else. Public USDC becomes confidential cUSDC, that enters the pool encrypted, half the principal also routes through Zama's deployed vault — real batch, real shares — and harvest fills the reserve. A paired test proves it: with harvest a prize is paid, without it nothing is."],
+["Change energy. This is the product argument.","Now the part I actually care about. Wrap, approve, deposit, sign, wait, decrypt — confidential DeFi loses people at that step, not at the cryptography. One signature opens a session, you paste a URL into Claude, and then you say what you want. Look at the panel on the right: three parties, not two. The model sees a reference and never the figure. The session client does see it, because it builds the ciphertext — that's a real cost and the slide says so. The chain sees a ciphertext and a budget nobody can read."],
+["Confident, not defensive. This is the strongest slide.","There's a page on the site that asks you to attack it, with your own wallet, against the live pool. Three fail because of the design. Two worked — I found them, measured them, and left them on the page instead of quietly patching. Forty calls binary-searched an encrypted budget. It's closed now, and the row still says it worked."],
+["Straight and unhurried.","Privacy that hides its own boundary is a claim, not a property. Here's exactly what's encrypted and exactly what isn't — including the aggregate, which stays public deliberately, because it's what makes the draw auditable and encrypting it costs 8.3 times."],
+["The closing argument. Slow.","Zama shipped the rails. PoolTogether has the mechanic. What was missing was a reason to show up — and confidential DeFi loses people at the interface. An agent that can spend but cannot read collapses that into a sentence, and every deposit it makes lands in Zama's vault and in a pool that pays out of real yield."],
+["End on the invitation, not a thank-you.","It's live on Sepolia — deposit, draw, claim, withdraw, all of it works today. 207 tests, three verified contracts, and every limitation named with the test that pins it. Go break it."]];
+const S=[...document.querySelectorAll('.slide')];let i=0;
+const nb=document.getElementById('nb'),nt=document.getElementById('notes'),
+ fr=document.getElementById('fr'),fl=document.getElementById('fl'),ft=document.querySelector('.foot');
+const p=n=>String(n).padStart(2,'0');
+function go(n){i=Math.max(0,Math.min(S.length-1,n));
+ S.forEach((s,k)=>s.classList.toggle('on',k===i));
+ fr.textContent=p(i+1)+' / '+p(S.length);fl.textContent=i?'SaveTogether':'';
+ ft.style.color=S[i].classList.contains('dark')?'#6E8298':'#9A9EA2';
+ const x=N[i]||['','']; nb.innerHTML='<p class="cue">'+x[0]+'</p><p>'+x[1]+'</p>';}
+addEventListener('keydown',e=>{const k=e.key;
+ if(k==='ArrowRight'||k===' '||k==='PageDown'){e.preventDefault();go(i+1)}
+ else if(k==='ArrowLeft'||k==='PageUp'){e.preventDefault();go(i-1)}
+ else if(k==='Home')go(0); else if(k==='End')go(S.length-1);
+ else if(k.toLowerCase()==='n')nt.classList.toggle('on');});
+let x0=null;
+addEventListener('touchstart',e=>x0=e.touches[0].clientX,{passive:true});
+addEventListener('touchend',e=>{if(x0===null)return;const d=e.changedTouches[0].clientX-x0;
+ if(Math.abs(d)>52)go(i+(d<0?1:-1));x0=null;},{passive:true});
+addEventListener('click',e=>{if(!e.target.closest('.notes'))go(i+1)});
+go(0);
+</script>
+</body>
+</html>

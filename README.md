@@ -582,6 +582,18 @@ thing a lottery really has to prove.
 
 ## 🎁 Claiming announces nothing
 
+> **What `claim` is, because the name misleads.** There *is* a `claim(address)`, it is
+> deployed, and it has moved real cUSDC on Sepolia — [`0x42743cf9…e3e0`](https://sepolia.etherscan.io/tx/0x42743cf9421110ad11a8a81c783d1926bc2a2fbc62907d409510ba776eb7e3e0). Nothing is missing.
+> But "claim" in every other lottery means *collect your prize*, and here it means
+> *fold an already-credited balance in*:
+>
+> Your winnings are credited by `accrue`, whether or not you do anything. `claim` only
+> moves them into your spendable balance, and a deposit or withdrawal does the same thing
+> on the way past. It is optional, it is permissionless — anyone may call it for anyone —
+> and it behaves identically whether or not you won, which is why it is safe to have at
+> all. A reader who does not find a claim button is looking for a step this design
+> deliberately does not have, not for a feature it lacks.
+
 > **On the brief's wording, and a deliberate divergence.** The topic list asks for
 > *"prize distribution via confidential transfer, with winner-only decryption."* This pool
 > does **not** call `confidentialTransfer` to pay a prize. It credits an encrypted internal

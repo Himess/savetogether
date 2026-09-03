@@ -100,6 +100,33 @@ curl -o /dev/null -w "%{http_code}
 
 Existing MCP URLs survive it, as long as `.env` is left alone.
 
+### The rule is not remote, and it is not about `ssh`
+
+The same check applies to `npm run dev` and `next start` on this laptop, and skipping
+it there cost a long debugging session: a countdown "would not render", and the cause
+was `EADDRINUSE`. `pkill` had not killed the first server, every later `next start`
+died on the port, and the browser kept being served a build from twenty minutes
+earlier. Everything looked fine — the build said `✓ Compiled successfully`, the start
+command printed nothing, the page returned 200 — and every one of those was true
+about the *wrong bytes*.
+
+**The check is not "did the command report success". It is "did the bytes change".**
+
+Report-success and bytes-changed come apart in every direction: a build can succeed
+and not be served, a restart can fail silently and leave the old process answering,
+an alias can stay pinned to a previous deployment. So verify against the artefact a
+user actually receives:
+
+```bash
+# does the SERVED bundle contain the thing you just wrote?
+curl -s http://localhost:3111/_next/static/chunks/<chunk>.js | grep -c '<a string only the new code has>'
+```
+
+Pick a string that did not exist before the edit. On a port that will not free
+itself, take the PID from `netstat -ano | grep ':3111.*LISTENING'` and stop it by
+id rather than trusting `pkill`, which does not reliably match node processes on
+Windows.
+
 ## Still worth doing
 
 The endpoint sits under another project's domain because adding a subdomain needs
