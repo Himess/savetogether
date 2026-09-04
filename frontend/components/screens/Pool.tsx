@@ -1029,28 +1029,30 @@ export function PoolScreen() {
                     {phase === "revealed" ? "revealed" : phase === "open" ? "open · weights frozen" : "not open"}
                   </span>
                 </div>
-                {/* AE. The countdown is what a returning visitor opens the page
-                    for, so it is the largest thing in this block rather than one
-                    more 11px row among seven. */}
-                <div style={css("margin-top:9px;display:flex;justify-content:space-between;align-items:baseline;gap:10px")}>
-                  <span style={css("font:400 11.5px var(--display);color:var(--ink-2)")}>
-                    {clock.medianGap === null
-                      ? "Weights froze"
-                      : clock.overdueSeconds > 0
-                        ? "Next draw, overdue by"
-                        : "Next draw, in about"}
-                  </span>
-                  <span style={css(`font-family:var(--mono);font-size:19px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:${clock.overdueSeconds > 0 ? "var(--amber)" : "var(--ink)"}`)}>
-                    {clock.medianGap === null
-                      ? fmtElapsed(clock.sinceFrozen)
-                      : clock.overdueSeconds > 0
+                {/* AE. The countdown is what a returning visitor opens the page for,
+                    so when there IS one it is the largest thing in this block.
+
+                    When there is not one, this row does not render at all. Filling
+                    the countdown slot with elapsed time — which is what it did for
+                    one deploy — put "Weights froze" in both rows showing the same
+                    number, and left an ascending figure sitting where a reader is
+                    entitled to expect a descending one. A countdown with nothing to
+                    count down to should be absent, not repurposed. */}
+                {clock.medianGap !== null && (
+                  <div style={css("margin-top:9px;display:flex;justify-content:space-between;align-items:baseline;gap:10px")}>
+                    <span style={css("font:400 11.5px var(--display);color:var(--ink-2)")}>
+                      {clock.overdueSeconds > 0 ? "Next draw, overdue by" : "Next draw, in about"}
+                    </span>
+                    <span style={css(`font-family:var(--mono);font-size:19px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:${clock.overdueSeconds > 0 ? "var(--amber)" : "var(--ink)"}`)}>
+                      {clock.overdueSeconds > 0
                         ? fmtElapsed(clock.overdueSeconds)
                         : fmtRough(clock.etaSeconds ?? 0)}
-                  </span>
-                </div>
-                <div style={css("margin-top:5px;display:flex;justify-content:space-between;gap:10px;font:400 11.5px var(--display);color:var(--ink-2)")}>
+                    </span>
+                  </div>
+                )}
+                <div style={css(`margin-top:${clock.medianGap === null ? 9 : 5}px;display:flex;justify-content:space-between;align-items:baseline;gap:10px;font:400 11.5px var(--display);color:var(--ink-2)`)}>
                   <span>Weights froze</span>
-                  <span style={css("font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums")}>
+                  <span style={css(`font-family:var(--mono);font-variant-numeric:tabular-nums;${clock.medianGap === null ? "font-size:19px;font-weight:700;letter-spacing:-.02em;color:var(--ink)" : "font-size:11px"}`)}>
                     {fmtElapsed(clock.sinceFrozen)} ago
                   </span>
                 </div>
