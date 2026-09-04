@@ -1,0 +1,91 @@
+{
+  "at": "2026-09-04T09:39:54.499Z",
+  "signer": "0xF505e2E71df58D7244189072008f25f6b6aaE5ae",
+  "rows": [
+    {
+      "contract": "ConfidentialPrizePool",
+      "getter": "confidentialBalanceOf(me)",
+      "intendedReader": "the holder",
+      "handle": "0x8070a4746a65a1d077f1119201e91bc89ebbd218e5ff0000000000aa36a70500",
+      "readable": true,
+      "value": "12501000000",
+      "verdict": "granted"
+    },
+    {
+      "contract": "ConfidentialPrizePool",
+      "getter": "winningsOf(me)",
+      "intendedReader": "the holder",
+      "handle": "0x99e3738d107ef792dd71e3694a17ed6812dcff6513ff0000000000aa36a70500",
+      "readable": true,
+      "value": "1000000",
+      "verdict": "granted"
+    },
+    {
+      "contract": "ConfidentialPrizePool",
+      "getter": "pendingOf(me)",
+      "intendedReader": "the holder",
+      "handle": "0x3b6f28a735a6775ea5b381100dcdb70197447905b1ff0000000000aa36a70500",
+      "readable": true,
+      "value": "0",
+      "verdict": "granted"
+    },
+    {
+      "contract": "ConfidentialPrizePool",
+      "getter": "reserveHandle()",
+      "intendedReader": "unclear — no caller",
+      "handle": "0xbb051ee81c303163f16ca283d0ff3d111bae47e0f0ff0000000000aa36a70500",
+      "readable": false,
+      "verdict": "NOT GRANTED — Error: User address 0xF505e2E71df58D7244189072008f25f6b6aaE5"
+    },
+    {
+      "contract": "ConfidentialPrizePool",
+      "getter": "weightFor(3, me)",
+      "intendedReader": "the holder",
+      "handle": "0x74f42d50f4bfdaf72362a2acec32987686cb082090ff0000000000aa36a70600",
+      "readable": true,
+      "value": "5289000000000",
+      "verdict": "granted"
+    },
+    {
+      "contract": "ConfidentialPrizePool",
+      "getter": "cumulativeAt(me, t)",
+      "intendedReader": "the holder",
+      "handle": "0x8429aa608230270d6bb710006faee1c0e34e31f656ff0000000000aa36a70600",
+      "readable": true,
+      "value": "19455138000000",
+      "verdict": "granted"
+    },
+    {
+      "contract": "SteakhouseReplicaSource",
+      "getter": "principal()",
+      "intendedReader": "unclear — in the ABI",
+      "handle": "0x5cf15ceb7789c3004dea646ca246666c75feb3b555ff0000000000aa36a70500",
+      "readable": false,
+      "verdict": "NOT GRANTED — Error: User address 0xF505e2E71df58D7244189072008f25f6b6aaE5"
+    },
+    {
+      "contract": "SteakhouseReplicaSource",
+      "getter": "pending()",
+      "intendedReader": "unclear — in the ABI",
+      "handle": "0x359d931bd663ce400b61e1a56a0e3cacdd731f21e9ff0000000000aa36a70500",
+      "readable": false,
+      "verdict": "NOT GRANTED — Error: User address 0xF505e2E71df58D7244189072008f25f6b6aaE5"
+    },
+    {
+      "contract": "SteakhouseReplicaSource",
+      "getter": "inVault()",
+      "intendedReader": "unclear — in the ABI",
+      "handle": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "readable": null,
+      "verdict": "uninitialised — inconclusive"
+    },
+    {
+      "contract": "SaveTogetherSession",
+      "getter": "remainingOf(me, cUSDC)",
+      "intendedReader": "owner and session key",
+      "handle": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "readable": null,
+      "verdict": "uninitialised — inconclusive"
+    }
+  ]
+}

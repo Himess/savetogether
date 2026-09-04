@@ -1,0 +1,63 @@
+[
+  {
+    "path": "A",
+    "tx": "0x6d76aee249afb7c48ebd0249a0b69f7d86d8209ebd2147d0163889f22d2f2937",
+    "ops": 9,
+    "hcu": 586096,
+    "unpriced": 0,
+    "counts": {
+      "VerifyInput.u64": 1,
+      "FheGe.u64": 1,
+      "FheSub.u64": 1,
+      "FheIfThenElse.u64": 2,
+      "TrivialEncrypt.u64": 2,
+      "FheAdd.u64": 1,
+      "TrivialEncrypt.bool": 1
+    }
+  },
+  {
+    "path": "B",
+    "tx": "0xd884fcb31182e8f3f08997cbc4360cd0744fd60c32437fdf63f23fad29e720e3",
+    "ops": 20,
+    "hcu": 1758160,
+    "unpriced": 0,
+    "counts": {
+      "FheGe.u64": 3,
+      "FheSub.u64": 3,
+      "FheIfThenElse.u64": 6,
+      "TrivialEncrypt.u64": 4,
+      "FheAdd.u64": 3,
+      "TrivialEncrypt.bool": 1
+    }
+  },
+  {
+    "path": "C",
+    "tx": "0xd48cc7a9cfcbe650b2b85f389cdc3a0ea673f880217ccf192a69e9aca42e922e",
+    "ops": 11,
+    "hcu": 989064,
+    "unpriced": 0,
+    "counts": {
+      "FheShr.u64 scalar": 1,
+      "FheGe.u64": 2,
+      "FheSub.u64": 1,
+      "FheIfThenElse.u64": 3,
+      "TrivialEncrypt.u64": 2,
+      "FheAdd.u64": 2
+    }
+  },
+  {
+    "path": "D",
+    "tx": "0x376600c220f07066e0c3d5d150787c97dad93fb1cc4551609a2345582218fdd6",
+    "ops": 11,
+    "hcu": 1670064,
+    "unpriced": 0,
+    "counts": {
+      "FheDiv.u64 scalar": 1,
+      "FheGe.u64": 2,
+      "FheSub.u64": 1,
+      "FheIfThenElse.u64": 3,
+      "TrivialEncrypt.u64": 2,
+      "FheAdd.u64": 2
+    }
+  }
+]

@@ -1,0 +1,1078 @@
+{
+  "pool": "0x07A80C0a90c4c510054e6E933318F7F40f0aD430",
+  "rounds": 120,
+  "samples": [
+    {
+      "arm": "winner",
+      "round": 1,
+      "exec": "500995",
+      "hcu": 1285224,
+      "ops": "Castx1 FheAddx1 FheGex1 FheGtx1 FheIfThenElsex3 FheMulx1 FheSubx2 TrivialEncryptx6",
+      "tx": "0x47c1f10f98858a1d0459930dfc6252d99fec980dee3df8b1c29e0a7bec6a1dc2"
+    },
+    {
+      "arm": "loser",
+      "round": 1,
+      "exec": "500995",
+      "hcu": 1285224,
+      "ops": "Castx1 FheAddx1 FheGex1 FheGtx1 FheIfThenElsex3 FheMulx1 FheSubx2 TrivialEncryptx6",
+      "tx": "0x669fe56b3a9d39b47dfc95ad81115da17da9bcfcae174857098cfb9e2c92e325"
+    },
+    {
+      "arm": "winner",
+      "round": 2,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x66a3100883ad9f84a7a8c30c2aef2d3b4454a002f7bd7a68c2f1682eccb120fc"
+    },
+    {
+      "arm": "loser",
+      "round": 2,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x7e29106aaf8b5adcb22c53dbe2ba4047380fd6786f5680341f18d135c5b0ea7c"
+    },
+    {
+      "arm": "winner",
+      "round": 3,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x963c12e076acc572b0119a9858f77986c547fa4e7af426a75a2f7d2e02d422c0"
+    },
+    {
+      "arm": "loser",
+      "round": 3,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x8be71cc9a8f7ababc4ed04100bb81ca8a0fd379004ec7d79bf2a7be5574bf640"
+    },
+    {
+      "arm": "winner",
+      "round": 4,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xae2e39c63ab692ed3b9d9da4cdb0b580fd0150888b7d8561a1de8ae6bf748b22"
+    },
+    {
+      "arm": "loser",
+      "round": 4,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x644fae3bdaac80ae1f3bdd08ea1efb4387fc0fe949bd2c7833893ee26ab334c3"
+    },
+    {
+      "arm": "winner",
+      "round": 5,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x4cf6118c9821199a71a2e56286afab56c2b1be852ee8a8a5d7a7a4c616bd961d"
+    },
+    {
+      "arm": "loser",
+      "round": 5,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xc09afcd99c9ec11d90fed3d84ca63b9ecc18ee530499aa428bf5cf54b09c04dd"
+    },
+    {
+      "arm": "winner",
+      "round": 6,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x89bb02c4b907b8e9a25e49de3d42446f8d2547aef779d532ee90155d480cdf94"
+    },
+    {
+      "arm": "loser",
+      "round": 6,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x35bdb9da059cd115486ae8f459a69c513fc415cf520095d8cc60a78b1155c715"
+    },
+    {
+      "arm": "winner",
+      "round": 7,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x10bc5f96be672d0642d5a1edc0d73bb2d5cb2b8f512fe76e8c392794cb1d64d3"
+    },
+    {
+      "arm": "loser",
+      "round": 7,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xfebf864d27dfbd751d34b2e083407b33b7865fb9da6996cdccf924891096be3c"
+    },
+    {
+      "arm": "winner",
+      "round": 8,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xbbe8dd1bada8e68ce24ebea6bd35bf4bdd750ae0625e7fa4acbc742920834686"
+    },
+    {
+      "arm": "loser",
+      "round": 8,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x06c6ee34121bdb66e2ce0bfd58c53b5af24b86accacf6da65351096007eeded9"
+    },
+    {
+      "arm": "winner",
+      "round": 9,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xe4c972d4a42835e48669663572aadb45cbd0ff9a3c4f3dce3fb2643418e5f641"
+    },
+    {
+      "arm": "loser",
+      "round": 9,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xfff441a66c4f610ec134f376ebd662183e26739f70d31856bc964b8709e313b5"
+    },
+    {
+      "arm": "winner",
+      "round": 10,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x51976184557b1efc4e84f437bac94ea5b7d60b36dc2243b30b19c96bade0e7d2"
+    },
+    {
+      "arm": "loser",
+      "round": 10,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x043ea7ec5d4c2b54186e3cb6e1c835b3a351cd2f716b2919268372932ace1709"
+    },
+    {
+      "arm": "winner",
+      "round": 11,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x8558e627b9efb5814af496d376db6062dbd191a09275cf15259d37ef5d213c06"
+    },
+    {
+      "arm": "loser",
+      "round": 11,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x340792148141b05f719fe84d8548c45e70b2a7b8c872266f351201fdcf2c48b4"
+    },
+    {
+      "arm": "winner",
+      "round": 12,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xd4ddd283602a95910ac65bdff5c163726e2723dcf0d151b2861fbc096b146f60"
+    },
+    {
+      "arm": "loser",
+      "round": 12,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xce5db82d58e73cb5a0709b3e523b0e4e6a26394403e707de6994614d2a853b74"
+    },
+    {
+      "arm": "winner",
+      "round": 13,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x2d695924b590f284aa6d58434c0db6f3d38b9e08d9ddb0a6180afa6d1d1f9fc5"
+    },
+    {
+      "arm": "loser",
+      "round": 13,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xebee0b36d2d3cd425ab58815981619462912bdd78a691865673aba609a12e67c"
+    },
+    {
+      "arm": "winner",
+      "round": 14,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xfd9db843062421192b9afc0d6c84ffe05d5b1a411bce13704d6d417296b68722"
+    },
+    {
+      "arm": "loser",
+      "round": 14,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x44b850ff5cd9237226eebad923ff63e09c5a58552a0565fc80d5b8fe57cb75b4"
+    },
+    {
+      "arm": "winner",
+      "round": 15,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x76fe840242c8c43b43cbd1d760e11581a47e827caba397e9cd459dc17102a431"
+    },
+    {
+      "arm": "loser",
+      "round": 15,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x867d4f456ca33b14268d11a37a2da3231fad880efef7be706955358eacdbea70"
+    },
+    {
+      "arm": "winner",
+      "round": 16,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x421e16cd35345adb0b09e3e1a983a8af7f6662579125cb95a9952d3b38ba7fd7"
+    },
+    {
+      "arm": "loser",
+      "round": 16,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x6566e09319778fb81b0d0011f30d7862ba7ca79a7ffea18969503546bea12d8a"
+    },
+    {
+      "arm": "winner",
+      "round": 17,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x32da633cdbd16dc89330c1240838d60899a360b7ae5e87129bc8c049dc441319"
+    },
+    {
+      "arm": "loser",
+      "round": 17,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x2b453b97555b4a164e23f615bd6ab4699680cfb502c6dda23cd4cd8e2a4ab496"
+    },
+    {
+      "arm": "winner",
+      "round": 18,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x5c20568f7168073f669708a109fa0b4086bcb2a76f7c13f3d3f0c9796c1af069"
+    },
+    {
+      "arm": "loser",
+      "round": 18,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x5f497a6dc7d8906cf1c945f6a9f8ff9675b28a745755718f7ddfca1164f78a8d"
+    },
+    {
+      "arm": "winner",
+      "round": 19,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xfd3c399c1cf2df61cdf19a36bc02f4f1dfbf6987d28a440f6db0186e88584d62"
+    },
+    {
+      "arm": "loser",
+      "round": 19,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xb6b729dbf51ed140def63604c7b7d580cfe74d1c360849e3390cd528001b4122"
+    },
+    {
+      "arm": "winner",
+      "round": 20,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x2a20f89df47a3395fc8feda45468cf573d58b5282fa2c295c693f0c3d7a1c291"
+    },
+    {
+      "arm": "loser",
+      "round": 20,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x2b615e8449e381513440a46be653290756e85fccb671015e4147f55d36aa64e5"
+    },
+    {
+      "arm": "winner",
+      "round": 21,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x03a0afc8c0c153c30c69427c0d3c0babb2298f80c92b86e299b3c55ce2bcf4c4"
+    },
+    {
+      "arm": "loser",
+      "round": 21,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x1c71b0dcceaa914a238099f9743090bfb9bcd54cf54d0015561ae8d32d6675fb"
+    },
+    {
+      "arm": "winner",
+      "round": 22,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x705c7b25bf8eaa722cdcde6d5592499509a088903511bb9241a597881f9cba3c"
+    },
+    {
+      "arm": "loser",
+      "round": 22,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xcee511712f47afa324486beefd56c71c42881ad1bbbf59ef84b638314e26d308"
+    },
+    {
+      "arm": "winner",
+      "round": 23,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x021c83f32508ca4e577214ec0ce4a7d9f93c9b61b4c260a05f7c377140194981"
+    },
+    {
+      "arm": "loser",
+      "round": 23,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x533901df6751c788ab9c97ad8ebc3f1a7a5021ea0f07d93f40449bd7ffe14c46"
+    },
+    {
+      "arm": "winner",
+      "round": 24,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x7cbecb8b9754adca11adcb7067088d2654282a851467bed06da31c8f2b06d08a"
+    },
+    {
+      "arm": "loser",
+      "round": 24,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x1c7915adcde860226c078d1adc7f1948d78e940f5659c20c83633ba23e4d4612"
+    },
+    {
+      "arm": "winner",
+      "round": 25,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xad1c8d1ec830bfaef57d81012730e9f7c9778364ae5d7fe58fa162bcc5fb2b47"
+    },
+    {
+      "arm": "loser",
+      "round": 25,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x2dedb762f26ebdb4fa248c238f281914797f3ad27ef7e197add23604dff2c446"
+    },
+    {
+      "arm": "winner",
+      "round": 26,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x52577462bae8157f12db4a992c5a9273eace44bae2e98cb7b187a6f025549dad"
+    },
+    {
+      "arm": "loser",
+      "round": 26,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x581d868cb460fa5908a5f02cade0d183994642192217787d7389c6fbd82064dc"
+    },
+    {
+      "arm": "winner",
+      "round": 27,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xc44b92c8628177b661622f363edf4705b234e8287e00bb44f2752f6a5e027112"
+    },
+    {
+      "arm": "loser",
+      "round": 27,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x798c6abfec1f866bd6d67620d11e1a6cb48821abaf713e48045cc40a7c4e416f"
+    },
+    {
+      "arm": "winner",
+      "round": 28,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x0e96d66fe3e84c513616b6432da4c397c92d39e170e91a4f72bff2fe49650f20"
+    },
+    {
+      "arm": "loser",
+      "round": 28,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x5e7ae30569e05d23b6949605e8a207d2b46a0f6728fa041ea55910889448c931"
+    },
+    {
+      "arm": "winner",
+      "round": 29,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x91cf771c6587a63a69cee1b94fdfe55744ed3fe8989ffcfa1919bc72a4cf0bfc"
+    },
+    {
+      "arm": "loser",
+      "round": 29,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x53d5811953b75f1dbdd5010eff3ada4976886de105e8aad6cbdac7c3c9519b2d"
+    },
+    {
+      "arm": "winner",
+      "round": 30,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x75a82de9a52951300f01c1dfc04e28888d142587129795498a76874d69be4a50"
+    },
+    {
+      "arm": "loser",
+      "round": 30,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x3cd69b4c2c41d547bf089cf026c52b3d7ac2d8238f828788a6d91c8a2cb98e85"
+    },
+    {
+      "arm": "winner",
+      "round": 31,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xd4d3a4a6103785f6951d6a0d577146ce36c59a6b49c69cb0d4f8942f4894d631"
+    },
+    {
+      "arm": "loser",
+      "round": 31,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xe6f416b8ab35adc4067d000a6a1572b23375d714f796dfbd74debc238b1f251d"
+    },
+    {
+      "arm": "winner",
+      "round": 32,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x8cb65c8fc4dc7032568c493bdcd773a0ec6bf579897c3e7ec396cedf09f58adc"
+    },
+    {
+      "arm": "loser",
+      "round": 32,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xf3446de8128d44cb989adf513288039b5087706c489333fbb27b1a253dd9b62d"
+    },
+    {
+      "arm": "winner",
+      "round": 33,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x05da79da84023a8ebf06b0ec662368615d813caaf40cd067dbaf636afcbf29a2"
+    },
+    {
+      "arm": "loser",
+      "round": 33,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x5c456c2d465d5e39f683a470d2507372624244f9e811614eb0d21e54bb8989e9"
+    },
+    {
+      "arm": "winner",
+      "round": 34,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x053532099d6daa0970dd7834f73592300f5581893faf8b432e400dee049bfc6c"
+    },
+    {
+      "arm": "loser",
+      "round": 34,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x3224a768a278bb26cb7f5f5c9bd3fb4a6ffcdea81b4d7cb12c106dc233f0d535"
+    },
+    {
+      "arm": "winner",
+      "round": 35,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xceb93af74e27b4701702380f3359d204b3583c533e189846ff950fc94aa9daa2"
+    },
+    {
+      "arm": "loser",
+      "round": 35,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xff7e042143bdc1a190610404568378fda86c1d162399d72ca9cfbe1368ef41e7"
+    },
+    {
+      "arm": "winner",
+      "round": 36,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x79d5c8551083f7ceb03c366256a266c89f984c350f6809eb483f56a87abc004e"
+    },
+    {
+      "arm": "loser",
+      "round": 36,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x075464e819f2d2c08014d3749b076b5b8b9adf8b17b617bd55108ec0bf1d574a"
+    },
+    {
+      "arm": "winner",
+      "round": 37,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xf7c07ff84918b93b4f52cb7a479190dcd3fa6d232656e3d4e3b4f9af99120b98"
+    },
+    {
+      "arm": "loser",
+      "round": 37,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x7221aa03e11e14f4b77d5e765d881627419ce5a501ae69f800995ed9a190cd52"
+    },
+    {
+      "arm": "winner",
+      "round": 38,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xe0ae1900532fb429d011f8ef06b744d3e515aedec2d7614ee68f3af3944ad065"
+    },
+    {
+      "arm": "loser",
+      "round": 38,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xc6cc9f669fffd7706893d7420b357631daf0b2c10971cf7a09fc5b93b87a5e33"
+    },
+    {
+      "arm": "winner",
+      "round": 39,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xc789059de9b1ec6848b3548273f82f5328ecfbb108892ddc1508d5f37b8d818e"
+    },
+    {
+      "arm": "loser",
+      "round": 39,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x97fcece2f27ae2238ce4809280b1907e8b5d5b34a9ad4378a662d2e3ae943bbe"
+    },
+    {
+      "arm": "winner",
+      "round": 40,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xd7e4578c2afe22a68dcc01b2b3550b4dc6f8e5bdebcf4e9b176362802bbd3114"
+    },
+    {
+      "arm": "loser",
+      "round": 40,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xe9459c3f7701df4138cf027c4977aaa7d0ba02fff83d59c5cc532a1f6b74dbeb"
+    },
+    {
+      "arm": "winner",
+      "round": 41,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x1317b14ce1787c8841d999a35feeb0bd2b52855dda4a02d5ec17921a3bb076dd"
+    },
+    {
+      "arm": "loser",
+      "round": 41,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x9aadfe92927ac08803751357887ce5385d043fd9da9d5dc32766a25b9010f53f"
+    },
+    {
+      "arm": "winner",
+      "round": 42,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x08ba5837f5d875255e69cf2f96178cd123df6acf86372be073a8bee4212e1d5c"
+    },
+    {
+      "arm": "loser",
+      "round": 42,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xf2a72c124c8114300e3084fdde1834d6e048b5dfdff6a2a8af113968924467bd"
+    },
+    {
+      "arm": "winner",
+      "round": 43,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xefab1e8c6d428afa4b09e542e4d6b4d018a6ae888d09959beb870b2921e3e36f"
+    },
+    {
+      "arm": "loser",
+      "round": 43,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xc6c41564eb9ca4f5ed5be47c9c2513a2e8b9b21391f974c45e81440de3f51c46"
+    },
+    {
+      "arm": "winner",
+      "round": 44,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xdecd17551ae6b6e985f062e410545d0b09565fd565ece90f9b59c5e81469bcc0"
+    },
+    {
+      "arm": "loser",
+      "round": 44,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x62c50b51d142aa3ecf5529c3915d5dd07088c1c7d112b7faacc73d002dff6314"
+    },
+    {
+      "arm": "winner",
+      "round": 45,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x96a6ca0f0fcc41b79b6d59863b8136235f27d6941d8aad7ab9e9e2986da8a6eb"
+    },
+    {
+      "arm": "loser",
+      "round": 45,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xdbab7d54d1d4440a194a6eb75ec9be4d4ea5abd88f2db66b69204fde5e5cb585"
+    },
+    {
+      "arm": "winner",
+      "round": 46,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xa36824dd39bb02d2ec9d0a7d903a0c473f8db56b6cfd8edb4c8e397752ef4839"
+    },
+    {
+      "arm": "loser",
+      "round": 46,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xf91e698e51cf239ace7fe8975e10c6041da67a91a84d1109f9f3e2e35dd65d09"
+    },
+    {
+      "arm": "winner",
+      "round": 47,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x23761ef6c2a2563b68e5b48b52ac4eb982ad3ff52fc4a37caa7bcf8824ae9f11"
+    },
+    {
+      "arm": "loser",
+      "round": 47,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xb76444c2b3bf9fef59935e2da1f529368bddae7f5ac1ed4ae56f6c15fdafb511"
+    },
+    {
+      "arm": "winner",
+      "round": 48,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x8b2d77beca0c76bbec9ffae6c41665404fb02563115b2a53867f82a0b1923bdd"
+    },
+    {
+      "arm": "loser",
+      "round": 48,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x7b38043c7481f81545f1d3f2a0f9b8e42f883bfd5dac64b90a9b4a9d03680208"
+    },
+    {
+      "arm": "winner",
+      "round": 49,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x218ab57aade25b5848261b074c4d8bb854a89513b0de2b7ccbf324608b352566"
+    },
+    {
+      "arm": "loser",
+      "round": 49,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xb7a66080ccd551eeaeec6a356b016f7cd6c85a8c687d3a653231665b60abb669"
+    },
+    {
+      "arm": "winner",
+      "round": 50,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xd093023005d593432699ed83950962e199fd4e0d0a8ea3d41366c6ee2844ca25"
+    },
+    {
+      "arm": "loser",
+      "round": 50,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x63cd862f02996d476ae15d14c18607d960a8a052df883c797025fd3a97ebbb89"
+    },
+    {
+      "arm": "winner",
+      "round": 51,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x0640ed08bf7cb507d2ac53c5fb28fce4fb0c1eaad820f8f6c2e4b12db6e523cd"
+    },
+    {
+      "arm": "loser",
+      "round": 51,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x30e521a8050eef9deee796d42020ecbd24dc43a44d021771c30505be94ac192a"
+    },
+    {
+      "arm": "winner",
+      "round": 52,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xf66eccb420c2ced1ec9b3f9906080ba1563e9dff44a1d46334f47ab6ca29c472"
+    },
+    {
+      "arm": "loser",
+      "round": 52,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x09d33dc2dbb3a89b3153626cf0d51c7b9bc55f8043c915c27c6f1e6d0f5c3706"
+    },
+    {
+      "arm": "winner",
+      "round": 53,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x101eecaa9f9b563039d4e728984b3ebd45658c262632f51b913c8616efdb00ba"
+    },
+    {
+      "arm": "loser",
+      "round": 53,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x36ae3690768849e973c87edd31117b32806ce8bd16b637c4c79d1040576b781c"
+    },
+    {
+      "arm": "winner",
+      "round": 54,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xdba9be73d13a32e8e8ee524388a8026bf5ca11d6192bef58b8689f2c5e8536d4"
+    },
+    {
+      "arm": "loser",
+      "round": 54,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x24b28014c030c7c4b7387b6d016c0d7f64f3c90da6ab942b153ce444fd693fb5"
+    },
+    {
+      "arm": "winner",
+      "round": 55,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x4d86c0f22c2916c7d355f36002e20df7668ac4cb046c2f0d2021dda7ddcdb16d"
+    },
+    {
+      "arm": "loser",
+      "round": 55,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x6070a6217b0e728a8f4f3c4ad644bf01bdb803a29cc1c2a65eb70cfba145b13a"
+    },
+    {
+      "arm": "winner",
+      "round": 56,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x96e19c47fab8edbbde3d92d77ca5e623756dab3b066139d78d235f07fd7c0d5f"
+    },
+    {
+      "arm": "loser",
+      "round": 56,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xc65d10ddbba1b7b5d8c63e7008ec731dd3f582a5e9ba6c89b7211801df75705d"
+    },
+    {
+      "arm": "winner",
+      "round": 57,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x75b8ca99d71b7e98b47072923fa84e6b247efeadb221d222a4f62a83e9d08910"
+    },
+    {
+      "arm": "loser",
+      "round": 57,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xde6ccfc8da9bfc5d0cdfe8673e43b460138a6b0e51d6652892467fe41ba46e53"
+    },
+    {
+      "arm": "winner",
+      "round": 58,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x494dc8bf2624dfb08ec2ca90e5b897c95095f28cd05a95394abb6bb4eb94ee89"
+    },
+    {
+      "arm": "loser",
+      "round": 58,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x3ed49c98175e3e0f269291db11e413fd83fbb23df7763b3049e26080beb5df77"
+    },
+    {
+      "arm": "winner",
+      "round": 59,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x2e94395a5163cbc17598201d6890f73692986d552560625bdad52f7b2c82adb1"
+    },
+    {
+      "arm": "loser",
+      "round": 59,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x3c44b77b8cbbd68cd06101a5036094dc3fa9a543d8ccb78a1eb385adcd789932"
+    },
+    {
+      "arm": "winner",
+      "round": 60,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xa8db67757e48511c6ad31aac5c07c8198a58452fe3d1a63e1c3119d9a6d597c7"
+    },
+    {
+      "arm": "loser",
+      "round": 60,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xe7aa4dbbacf8c78d74ed424fc1bb6f5cb0966e0860fafb661f6be05e9b2a19b1"
+    },
+    {
+      "arm": "winner",
+      "round": 61,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xc6d4ad3b39d90ca390a2046a0eec720f8f891fc7eae391f287d9f15004370b3d"
+    },
+    {
+      "arm": "loser",
+      "round": 61,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xb8b0c1b4d6ae681d3a450cb029d9cd7fb8f01775ed54955a640094173dd78d8c"
+    },
+    {
+      "arm": "winner",
+      "round": 62,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x0dc69244ab0b0ad764db2aa3d0c683ae36eb4083907be3266b21ee8c2453e555"
+    },
+    {
+      "arm": "loser",
+      "round": 62,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x28c90010d4e2c96b31bbf73d3fdf700582c24855c13414eddbc5456e984907b4"
+    },
+    {
+      "arm": "winner",
+      "round": 63,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xb20215f70df5f18c5039348849dcf8cb587e3365d85028a193acf5bd4a06011d"
+    },
+    {
+      "arm": "loser",
+      "round": 63,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xc6d5855f9b00b6959e3454546b6c8ebe74598dae3adca3aafb8f6ede1b16aef8"
+    },
+    {
+      "arm": "winner",
+      "round": 64,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x4fe93f0890e116bfcf97daba90cbe2b483f25512ac5ec447b3a58ba0a544fd2b"
+    },
+    {
+      "arm": "loser",
+      "round": 64,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x2f3225a5e4f78848c00de433a6359d0e03a85bbea605a6649afa20434631fc3c"
+    },
+    {
+      "arm": "winner",
+      "round": 65,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x1a67bdd53f049a0919e43065188797c1edc6a04f52638fea20b8149924930db5"
+    },
+    {
+      "arm": "loser",
+      "round": 65,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x629a0c58414e3ab9b32fbe6d99a0004400fa535d31ebb78bfc72e7c7822e30b6"
+    },
+    {
+      "arm": "winner",
+      "round": 66,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x1fddbdfc60cf709da0663e1353a65e527610ed8467136edc80397c365ee39e2c"
+    },
+    {
+      "arm": "loser",
+      "round": 66,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xe04f8b0280007572c795079b326dd85ac481293cf2793da25946b395787a427b"
+    },
+    {
+      "arm": "winner",
+      "round": 67,
+      "exec": "560285",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0x8310d1108adcfc30f6d783151d4cc0a37ad900021bf438a93e674febca52d690"
+    },
+    {
+      "arm": "loser",
+      "round": 67,
+      "exec": "560289",
+      "hcu": 2023192,
+      "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+      "tx": "0xef77b34d871b5c933387f4d566501b5fb866fde4796eab3535c88a1a7e0ae8a7"
+    }
+  ]
+}

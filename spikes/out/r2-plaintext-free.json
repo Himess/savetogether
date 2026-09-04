@@ -1,0 +1,60 @@
+{
+  "network": "sepolia",
+  "token": "0x1bbBE55d24174d57305632E75fE47ac3C5158a9F",
+  "spike": "0xda069574078f59035ABAF757BdCBe0440C64B47C",
+  "block": 11599073,
+  "rows": [
+    {
+      "path": "A",
+      "what": "depositExternal(externalEuint64, proof)",
+      "txs": 1,
+      "gas": "625465",
+      "fheOps": 9,
+      "credited": "100",
+      "hashes": [
+        "0x6d76aee249afb7c48ebd0249a0b69f7d86d8209ebd2147d0163889f22d2f2937"
+      ],
+      "expected": "100",
+      "ok": true
+    },
+    {
+      "path": "B",
+      "what": "token.confidentialTransferAndCall(spike, balanceHandle)",
+      "txs": 1,
+      "gas": "823637",
+      "fheOps": 20,
+      "credited": "2200",
+      "hashes": [
+        "0xd884fcb31182e8f3f08997cbc4360cd0744fd60c32437fdf63f23fad29e720e3"
+      ],
+      "expected": "2200",
+      "ok": true
+    },
+    {
+      "path": "C",
+      "what": "ACL.allow + depositShifted(handle, 1)",
+      "txs": 2,
+      "gas": "564104",
+      "fheOps": 11,
+      "credited": "400",
+      "hashes": [
+        "0xd48cc7a9cfcbe650b2b85f389cdc3a0ea673f880217ccf192a69e9aca42e922e"
+      ],
+      "expected": "400",
+      "ok": true
+    },
+    {
+      "path": "D",
+      "what": "ACL.allow + depositDivided(handle, 3)",
+      "txs": 2,
+      "gas": "564271",
+      "fheOps": 11,
+      "credited": "433",
+      "hashes": [
+        "0x376600c220f07066e0c3d5d150787c97dad93fb1cc4551609a2345582218fdd6"
+      ],
+      "expected": "433",
+      "ok": true
+    }
+  ]
+}

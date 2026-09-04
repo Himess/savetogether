@@ -1,0 +1,24 @@
+{
+  "at": "2026-09-04T09:30:05.685Z",
+  "freshWallet": "0xC8f71821CDEaefA58e3a932261EbA26569a70344",
+  "funder": "0xF505e2E71df58D7244189072008f25f6b6aaE5ae",
+  "drawId": 2,
+  "hashes": {
+    "fund gas": "0x7ff8b78553d23f7f73c7e60cbd42d27660194810e8a216cd653c49429cd58f12",
+    "fund cUSDC": "0xff9e697460129dd24f39d0056b3ecd06b4cb73ad6ff5265f7c89b1a249dd0287",
+    "1. setOperator(pool)": "0xdb7c471ca1f770a8c26150fbd7348615253e1a5a21ac71d7486eec2df9beb190",
+    "2. deposit 200 cUSDC": "0xc503cf8fc8801998ce1e2b1e1d7e07ad6ee707b76af61ae83df685df9b35d606",
+    "   harvest (keeper)": "0x35b9ede953e04cadd6ef6a87d3f49352f8438d6128017014b3c8a514be5ec30b",
+    "   openDraw (keeper)": "0xdb61fdb143d523091b539ac4f3f7c426879f4e84a395b66f7982fd7ae34dcb13",
+    "   revealDraw (keeper)": "0x1d3cca1121d6a7463414e33a33d61e9cdff8989de0e4f653f4a82ff42200bd4d",
+    "3. accrue(self)": "0x00ce45e1486b8a769528e80e301d667439dea5ec47b5dd0e4a249ed1364bd094",
+    "4. claim(self)": "0xaacf251196fe69a84cc43249531bc7a59fde705b8bd9d0657ca392c35e84a868",
+    "5. withdraw 120 cUSDC": "0x7b2ec11d17f21444bfa3d7d983e9c67a1d3a55db52502b57638077eaf0bcd31b"
+  },
+  "positionAfterDeposit": "200000000",
+  "winningsAfterAccrue": "0",
+  "positionAfterClaim": "200000000",
+  "positionEnd": "80000000",
+  "walletEnd": "220000000",
+  "pendingReadableByOwner": true
+}

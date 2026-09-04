@@ -1,0 +1,16 @@
+{
+  "at": "2026-09-03T16:53:21.330Z",
+  "signer": "0xF505e2E71df58D7244189072008f25f6b6aaE5ae",
+  "hashes": {
+    "harvest": "0x75731ed30c4814dd1dc506168c2ba73bbfd3a43f899b02666cc0302d5158bb28",
+    "openDraw": "0xb59ab12480702cb7fc131705be39afc1401adfb96ed429ed2929f62a3d351a53",
+    "revealDraw": "0x3f804883b402eb1ed6b27800a06518a3a822fec20fb5dbada76cf6aa6e62d499",
+    "accrue": "0x1ef0e39d5d30790963c57030a050fbc480932a86e0527429b449f41ed6bbedc1",
+    "claim": "0x42743cf9421110ad11a8a81c783d1926bc2a2fbc62907d409510ba776eb7e3e0"
+  },
+  "startWinnings": "40000000",
+  "endWinnings": "41000000",
+  "positionBeforeClaim": "12290000000",
+  "positionAfterClaim": "12291000000",
+  "claimMoved": "1000000"
+}

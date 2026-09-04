@@ -1292,8 +1292,9 @@ depends on it, and it is where the claim gets verified rather than argued.
 ### 13.4 The equality run is in flight
 
 `ROUNDS=120` launched after the reveal was verified, per G2's ordering. Roughly
-150 minutes, unattended, writing incrementally to `out/equality.json` so a crash
-loses progress rather than everything.
+150 minutes, unattended, writing incrementally so a crash loses progress rather than everything. The three arms
+landed as `out/equality-a.json`, `out/equality-b.json` and `out/equality-c.json`, which
+is what this paragraph used to cite under a single filename that no run ever produced.
 
 120 per arm reaches ±12.7 points at 80% power — the resolution SaveTogether published
 — for 0.605 ETH. 206 per arm would buy ±9.7 for another 0.43 ETH and 108 minutes;

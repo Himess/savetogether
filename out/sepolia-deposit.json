@@ -1,0 +1,27 @@
+{
+  "token": "0x03B41AcAaBc258ac45799A5E804c4E3e4E0213a1",
+  "pool": "0x68C004C59f24d92116c5fb3e8F9E874508332AA7",
+  "rows": [
+    {
+      "i": 0,
+      "gas": "873534",
+      "tx": "0xc1e4c6471f72485effbf1790b7a811e6cbc6d82d24411ec3f327ed792ab7b2f4"
+    },
+    {
+      "i": 1,
+      "gas": "1035168",
+      "tx": "0xb66542f172d8f38a585c3208a3fdce4fea5f12b705cfa0d64becd95b705d6a0f"
+    },
+    {
+      "i": 2,
+      "gas": "1035172",
+      "tx": "0xf8afb74f61c52c40abad59a29a8590af5a9dc6729071b0667c66a01b8ea2f31b"
+    },
+    {
+      "i": 3,
+      "gas": "1035196",
+      "tx": "0x63f8d8f583fbb4e5fc6520e33e650ea2ba7daa55c1bae99305096725473a5c77"
+    }
+  ],
+  "mean": "1035178"
+}

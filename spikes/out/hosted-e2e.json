@@ -1,0 +1,38 @@
+{
+  "ownerAddress": "0xF505e2E71df58D7244189072008f25f6b6aaE5ae",
+  "sessionKeyAddress": "0x678F0C499B36a16720b0191d919E35140b3A1377",
+  "mcpUrl": "http://127.0.0.1:8791/mcp/MAbLReKEg9rsE028sHRqUjeriDpgrFFabe0HL4ual6ANsRp4AwDTwocSHa9pBIknNrymnwi_JOElVb6O5LnsiQWVDr_0Kr5dJQ1IEE3QwCL_HCPY-zsw8E5scUX0gp_di7SNr-GbPs5_oixKPw",
+  "openHashes": [
+    "0xc4b7467d7da9fcdcb52c617cb2dccf8083cd4f1c5115bca96c6599033824eaaf",
+    "0x1b3dc09db6b2756badafe81249c1e32d8727df0abb0e5e826605e541b29be096",
+    "0x2f22da0dc7864bc6ccaa7f83f7437fce0d3f1676379b9bfc8462d10215207951",
+    "0x3f3352a8c4f77c5eee3402326338f15f94f7c2a940634c0c910807c4ed119317"
+  ],
+  "depositText": "Done: authorised the pool to move the session's tokens, moved it from the vault within the session budget, deposited. The figure was encrypted before it reached the chain, and it was never given to me. The deposited amount is available as dep_ueov490b.",
+  "revokeHashes": [
+    "0xd755f0741732b1159adb3281072131c68d1843850b9677fd5f64b351069172ce",
+    "0xa79ea987c676a80d41b687c963d4ff831521e2c0ce949c43c2eace8b523d4318",
+    "0xd4096a7df749b6782560adf748875333b6b740fc63184afdca50c95377e57f76"
+  ],
+  "liveBefore": true,
+  "liveAfter": false,
+  "forgedRejected": true,
+  "deadEndpointRejected": true,
+  "hostedTools": [
+    "balance",
+    "can_afford",
+    "list_assets",
+    "pool_deposit",
+    "pool_position",
+    "pool_status",
+    "pool_withdraw",
+    "remaining",
+    "revoke_all",
+    "send",
+    "session_status",
+    "vault_join",
+    "vault_status",
+    "wrap"
+  ],
+  "survivedRestart": true
+}

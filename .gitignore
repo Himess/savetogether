@@ -2,7 +2,7 @@ node_modules/
 artifacts/
 cache/
 types/
-out/
+out/*
 .next/
 probe/secrets.json
 .env
@@ -17,3 +17,47 @@ packages/*/dist/
 # to make. `git add -A` swept them in once; this stops that recurring. Remove this
 # line if the decision is to publish them.
 bundle/
+
+# --- out/ : evidence yes, keys never -------------------------------------
+#
+# out/ is ignored because it holds LIVE PRIVATE KEYS: demo-participants.json is
+# a bare array of them, and arms-c.json carries them under arms[].pk controlling
+# funded Sepolia accounts. Neither has ever been committed and neither ever
+# should be.
+#
+# But the docs cite this directory 100+ times — out/deployment.json alone is
+# referenced 53 times — and a citation pointing at a file nobody can open is
+# exactly the failure the September audit found elsewhere. So the evidence is
+# committed and the keys are not.
+#
+# This is an ALLOWLIST. Adding a file here means screening it first:
+#   node scripts/check-out-artifacts.mjs
+# which refuses anything with a 64-hex value in a bare array or under a
+# key/pk/secret field.
+!out/abi-deposit.json
+!out/abi-redeem.json
+!out/accrue-cost.json
+!out/batcher-src.txt
+!out/cd-exercise.json
+!out/cd-join-vault.json
+!out/cd-round.json
+!out/d1-claim-proof.json
+!out/d1-cycle.json
+!out/d1-preflight.json
+!out/d1-why-no-credit.json
+!out/d1-wrapper.json
+!out/deployment-cusdc.json
+!out/deployment.json
+!out/draw-hcu.json
+!out/e1-wrap.json
+!out/equality-a.json
+!out/equality-b.json
+!out/equality-c.json
+!out/f1-acl-sweep.json
+!out/f3-fresh-wallet.json
+!out/participants.json
+!out/reveal.json
+!out/sepolia-deposit.json
+!out/storage-cost.json
+!out/u3-twab-verify.json
+!out/x1-window-solve.json

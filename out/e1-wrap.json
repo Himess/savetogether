@@ -1,0 +1,15 @@
+{
+  "W0": {
+    "reverted": true,
+    "detail": "execution reverted"
+  },
+  "W1": {
+    "reverted": false,
+    "detail": "succeeded"
+  },
+  "handleAfterWrap": "0x7dfa98f94c43a8eac345ba41ad175e2a5dbe82dcc2ff0000000000aa36a70500",
+  "W2": {
+    "reverted": false,
+    "detail": "succeeded"
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "at": "2026-09-03T20:35:51.942Z",
+  "holder": "0xF505e2E71df58D7244189072008f25f6b6aaE5ae",
+  "observations": [
+    {
+      "timestamp": 1788361584,
+      "balance": "12000000000",
+      "cumulative": "0"
+    },
+    {
+      "timestamp": 1788453660,
+      "balance": "12040000000",
+      "cumulative": "1104912000000000"
+    },
+    {
+      "timestamp": 1788453660,
+      "balance": "12540000000",
+      "cumulative": "1104912000000000"
+    },
+    {
+      "timestamp": 1788453756,
+      "balance": "12540000000",
+      "cumulative": "1106115840000000"
+    },
+    {
+      "timestamp": 1788453792,
+      "balance": "12540000000",
+      "cumulative": "1106567280000000"
+    },
+    {
+      "timestamp": 1788453792,
+      "balance": "12290000000",
+      "cumulative": "1106567280000000"
+    },
+    {
+      "timestamp": 1788454392,
+      "balance": "12291000000",
+      "cumulative": "1113941280000000"
+    }
+  ],
+  "rows": [
+    {
+      "draw": 36,
+      "local": "11651832000000",
+      "chain": "11651832000000",
+      "match": true
+    },
+    {
+      "draw": 35,
+      "local": "4129440000000",
+      "chain": "4129440000000",
+      "match": true
+    },
+    {
+      "draw": 34,
+      "local": "4156440000000",
+      "chain": "4156440000000",
+      "match": true
+    }
+  ],
+  "ok": true
+}

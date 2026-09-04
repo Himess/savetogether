@@ -19,7 +19,8 @@
     "check:live": "bash scripts/check-live.sh",
     "deploy:hosted": "bash scripts/deploy-hosted.sh",
     "build:deck": "bash scripts/sync-deck.sh",
-    "check:addresses": "node scripts/check-addresses.mjs"
+    "check:addresses": "node scripts/check-addresses.mjs",
+    "check:artifacts": "node scripts/check-out-artifacts.mjs"
   },
   "dependencies": {
     "@fhevm/solidity": "^0.11.1",

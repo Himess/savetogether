@@ -1,0 +1,16 @@
+{
+  "shape": "3 tiers, k=[100,10,1], prizes=[25000,5000,1000]",
+  "samples": 312,
+  "winners": 81,
+  "losers": 231,
+  "distinctWinnerCosts": [
+    "479576",
+    "518575"
+  ],
+  "distinctLoserCosts": [
+    "479576",
+    "518575"
+  ],
+  "onlyWinner": [],
+  "onlyLoser": []
+}

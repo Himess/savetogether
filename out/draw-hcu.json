@@ -1,0 +1,520 @@
+{
+  "contract": "0x956D490628e197Edfa9e54978e1cDfC4a5F67dA4",
+  "signer": "0xF505e2E71df58D7244189072008f25f6b6aaE5ae",
+  "claim": {
+    "rounds": 12,
+    "winner": {
+      "arm": "winner",
+      "n": 12,
+      "execValues": [
+        "169939",
+        "169943"
+      ],
+      "hcuValues": [
+        172064
+      ],
+      "opSequences": [
+        "FheGtx1 FheIfThenElsex1 TrivialEncryptx2"
+      ]
+    },
+    "loser": {
+      "arm": "loser",
+      "n": 12,
+      "execValues": [
+        "169943",
+        "169939"
+      ],
+      "hcuValues": [
+        172064
+      ],
+      "opSequences": [
+        "FheGtx1 FheIfThenElsex1 TrivialEncryptx2"
+      ]
+    },
+    "identical": false,
+    "samples": [
+      {
+        "arm": "winner",
+        "m": {
+          "total": "170295",
+          "exec": "169939",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x0be3bfd02f7775762a652e0f7f2bf83d146f480af11b76aabfaeba1426def7da"
+        }
+      },
+      {
+        "arm": "loser",
+        "m": {
+          "total": "170299",
+          "exec": "169943",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0xacac8f7f454f303574b30bdb497fb10e8c9dd9e569a2031aa5d6f023bc5870cc"
+        }
+      },
+      {
+        "arm": "winner",
+        "m": {
+          "total": "170299",
+          "exec": "169943",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x248395a233f06207a9c05bb9346c76410f20fbe3ea1ebb8be32960ddd209f835"
+        }
+      },
+      {
+        "arm": "loser",
+        "m": {
+          "total": "170295",
+          "exec": "169939",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x2607a8890697a89cb9ed5fdfbd3cc88ec04fddda703fcbbd36d8ce5286316e19"
+        }
+      },
+      {
+        "arm": "winner",
+        "m": {
+          "total": "170299",
+          "exec": "169943",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x47857cd146f7560fcd7f08e8e65c8a3285fbd7849a10e4c380e89b9fbf07df65"
+        }
+      },
+      {
+        "arm": "loser",
+        "m": {
+          "total": "170299",
+          "exec": "169943",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x86f56fc73204d512b3e04069e60a6df62315bc0c63c2f98d6e164e039a2ec264"
+        }
+      },
+      {
+        "arm": "winner",
+        "m": {
+          "total": "170299",
+          "exec": "169943",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x9b52f57866fb220b8abe2f1d55cc1b01f274ffbb390e50da5648d1c473be02de"
+        }
+      },
+      {
+        "arm": "loser",
+        "m": {
+          "total": "170299",
+          "exec": "169943",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x602eae912773d39d427b14f5af0288e7bbdbfafa45238e98bfbcd3f9c27f8d3c"
+        }
+      },
+      {
+        "arm": "winner",
+        "m": {
+          "total": "170299",
+          "exec": "169943",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x9f7dbe69e2adc8979db1d86bc9aa7f136b5fc891674a30ca63d8d0978cc07869"
+        }
+      },
+      {
+        "arm": "loser",
+        "m": {
+          "total": "170299",
+          "exec": "169943",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x3a04ae02c020c1f4b0ef622eb3f7347ae22f90e8a537208191af04a8eea72a08"
+        }
+      },
+      {
+        "arm": "winner",
+        "m": {
+          "total": "170295",
+          "exec": "169939",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0xf24594407141d7ee558bf7cae7f27338900665e7f688643b87869ed6d6285506"
+        }
+      },
+      {
+        "arm": "loser",
+        "m": {
+          "total": "170295",
+          "exec": "169939",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x9d88d8a52fd57026fedf45a96fdc680f9ddcd44bc860c0a53f6c2f5e30e4ee9b"
+        }
+      },
+      {
+        "arm": "winner",
+        "m": {
+          "total": "170299",
+          "exec": "169943",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x8b7de378b8a548576029b5de1710062b7785802975907476bd8a83921a655555"
+        }
+      },
+      {
+        "arm": "loser",
+        "m": {
+          "total": "170295",
+          "exec": "169939",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x300106e6ed1309e295574edc5e3c81fac2ad50f3427d558f74ed7dfe46f71eac"
+        }
+      },
+      {
+        "arm": "winner",
+        "m": {
+          "total": "170299",
+          "exec": "169943",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x998d5c17ec9062fcc27feb9b0efd8ef1cf279b5cb26ef6e2e86cc30015eb2b55"
+        }
+      },
+      {
+        "arm": "loser",
+        "m": {
+          "total": "170299",
+          "exec": "169943",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x4311ba8d119a5bd1c6b2023bf6688ef7e86ac3f1b174240748ee46cde7fd6a3e"
+        }
+      },
+      {
+        "arm": "winner",
+        "m": {
+          "total": "170299",
+          "exec": "169943",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0xfe2723334d414c9d8cfa0c5733a32bd545114412eb1e9c5bf07c539bb9268f88"
+        }
+      },
+      {
+        "arm": "loser",
+        "m": {
+          "total": "170295",
+          "exec": "169939",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x8dac80fff9c94035ca9e1bf3c308e57c9836422443e74ab89cbc3a21f9a79c37"
+        }
+      },
+      {
+        "arm": "winner",
+        "m": {
+          "total": "170299",
+          "exec": "169943",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x8fd01c85cc84abc153cc5a92011f53b8ee341118471d53bf240fc8b85788028c"
+        }
+      },
+      {
+        "arm": "loser",
+        "m": {
+          "total": "170295",
+          "exec": "169939",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x27dc1b609ae9fd61500d02907d941c8d7c0efa40a3b8fec27faa61e8ccdf3801"
+        }
+      },
+      {
+        "arm": "winner",
+        "m": {
+          "total": "170299",
+          "exec": "169943",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0xcda970f0a8b6303c978b7adee94ad78dcdc8510a55c399ad81fe339a668dd83b"
+        }
+      },
+      {
+        "arm": "loser",
+        "m": {
+          "total": "170299",
+          "exec": "169943",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0xedd5459c835d88586a78f62b243b368f699dd2bae1da172c323f4dbdcf80ec30"
+        }
+      },
+      {
+        "arm": "winner",
+        "m": {
+          "total": "170295",
+          "exec": "169939",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x05cbe3cfadc61dd4a6778eddcf510343d10521bd8cbbf9e6feb4f22edd32aa1b"
+        }
+      },
+      {
+        "arm": "loser",
+        "m": {
+          "total": "170299",
+          "exec": "169943",
+          "hcu": 172064,
+          "ops": "FheGtx1 FheIfThenElsex1 TrivialEncryptx2",
+          "tx": "0x5cc52406d3097ffc12ae15c2867ca22d291ede56edafd8cf4a41ccee768b8d39"
+        }
+      }
+    ]
+  },
+  "sweep": [
+    {
+      "n": 5,
+      "design": "naive",
+      "hcu": 3587032,
+      "exec": "470833",
+      "ops": "FheAddx5 FheBitAndx5 FheLex5 FheLtx5 FheRandx1 FheRemx1 TrivialEncryptx1",
+      "tx": "0x05bfa12d43cd02cfa1af17c4cd718cab1762b5e985e2c246660bcb1d4ceec309"
+    },
+    {
+      "n": 5,
+      "design": "incremental",
+      "hcu": 2777000,
+      "exec": "375344",
+      "ops": "FheBitAndx5 FheLex5 FheLtx5 FheRandx1 FheRemx1",
+      "tx": "0x5e886675d12c60dfadee5bb587f9ec1a3b773c179cff296a2f3d5c64fd7ba402"
+    },
+    {
+      "n": 5,
+      "design": "incremental+credit",
+      "hcu": 3052064,
+      "exec": "480717",
+      "ops": "FheBitAndx5 FheIfThenElsex5 FheLex5 FheLtx5 FheRandx1 FheRemx1 TrivialEncryptx2",
+      "tx": "0x114271aeed781a4994343c5afec80b84962aba5d562230e85cce424676aae3a1"
+    },
+    {
+      "n": 10,
+      "design": "naive",
+      "hcu": 5997032,
+      "exec": "777731",
+      "ops": "FheAddx10 FheBitAndx10 FheLex10 FheLtx10 FheRandx1 FheRemx1 TrivialEncryptx1",
+      "tx": "0xb0b303e05110f73cd8efe18b40e6b7b4a48ff0e842e2466a5cd92984f1d2f403"
+    },
+    {
+      "n": 10,
+      "design": "incremental",
+      "hcu": 4377000,
+      "exec": "627191",
+      "ops": "FheBitAndx10 FheLex10 FheLtx10 FheRandx1 FheRemx1",
+      "tx": "0x8a61540ed6ee9a9f517ba157a31aee852f2598c681c9e7dcd2fe802497c80031"
+    },
+    {
+      "n": 10,
+      "design": "incremental+credit",
+      "hcu": 4927064,
+      "exec": "817255",
+      "ops": "FheBitAndx10 FheIfThenElsex10 FheLex10 FheLtx10 FheRandx1 FheRemx1 TrivialEncryptx2",
+      "tx": "0x24e9ea7dbb258f4fc6b1670ec1e81fd50952ee3b2f80e978f680836fddec0dcf"
+    },
+    {
+      "n": 20,
+      "design": "naive",
+      "hcu": 10817032,
+      "exec": "1425752",
+      "ops": "FheAddx20 FheBitAndx20 FheLex20 FheLtx20 FheRandx1 FheRemx1 TrivialEncryptx1",
+      "tx": "0x112d2e39ab0b788f69647aab5362bfa2ddd5a2b4916c5d8fe13e32cae4f79f71"
+    },
+    {
+      "n": 20,
+      "design": "incremental",
+      "hcu": 7577000,
+      "exec": "1130902",
+      "ops": "FheBitAndx20 FheLex20 FheLtx20 FheRandx1 FheRemx1",
+      "tx": "0x94a93b3ceabbe09dff970dd265d888aa18311932c980719c144ac184c2654803"
+    },
+    {
+      "n": 20,
+      "design": "incremental+credit",
+      "hcu": 8677064,
+      "exec": "1490326",
+      "ops": "FheBitAndx20 FheIfThenElsex20 FheLex20 FheLtx20 FheRandx1 FheRemx1 TrivialEncryptx2",
+      "tx": "0xfebf85b43f2746dbdd2cd36fd763b5b09d37e6b85d3c86ba96ef1920ec5d4d0a"
+    },
+    {
+      "n": 25,
+      "design": "naive",
+      "hcu": 13227032,
+      "exec": "1749765",
+      "ops": "FheAddx25 FheBitAndx25 FheLex25 FheLtx25 FheRandx1 FheRemx1 TrivialEncryptx1",
+      "tx": "0x455d267b34deb59e13f9cc6342cb8fb842944cf0553917120e1db21f02452e8a"
+    },
+    {
+      "n": 25,
+      "design": "incremental",
+      "hcu": 9177000,
+      "exec": "1382756",
+      "ops": "FheBitAndx25 FheLex25 FheLtx25 FheRandx1 FheRemx1",
+      "tx": "0x91a93b26700108ccd68d171c150b39c37de215999b24640db57b465031480603"
+    },
+    {
+      "n": 25,
+      "design": "incremental+credit",
+      "hcu": 10552064,
+      "exec": "1826864",
+      "ops": "FheBitAndx25 FheIfThenElsex25 FheLex25 FheLtx25 FheRandx1 FheRemx1 TrivialEncryptx2",
+      "tx": "0x673b82f53dd18604a5cec57a79b212ac6c042ebe904b84b0e1957ebe5f7cf92e"
+    },
+    {
+      "n": 30,
+      "design": "naive",
+      "failed": "VM Exception while processing transaction: reverted with custom error 'HCUTransactionDepthLimitExceeded()'"
+    },
+    {
+      "n": 30,
+      "design": "incremental",
+      "hcu": 10777000,
+      "exec": "1634612",
+      "ops": "FheBitAndx30 FheLex30 FheLtx30 FheRandx1 FheRemx1",
+      "tx": "0xcd1e79f8c0bb4aae67c014a1bd83e47d8ec63777a19da6485a2cf15c16542b9c"
+    },
+    {
+      "n": 30,
+      "design": "incremental+credit",
+      "hcu": 12427064,
+      "exec": "2163399",
+      "ops": "FheBitAndx30 FheIfThenElsex30 FheLex30 FheLtx30 FheRandx1 FheRemx1 TrivialEncryptx2",
+      "tx": "0xd7c41c5095ebf3a75a97446942be5aa2f44953678618b85ab358ca0a24acf30f"
+    },
+    {
+      "n": 35,
+      "design": "naive",
+      "failed": "VM Exception while processing transaction: reverted with custom error 'HCUTransactionDepthLimitExceeded()'"
+    },
+    {
+      "n": 35,
+      "design": "incremental",
+      "hcu": 12377000,
+      "exec": "1886464",
+      "ops": "FheBitAndx35 FheLex35 FheLtx35 FheRandx1 FheRemx1",
+      "tx": "0x64f157be55aaf059550d08bd8952d59bb09ec7c4262e7509dc042a9e3615ee30"
+    },
+    {
+      "n": 35,
+      "design": "incremental+credit",
+      "hcu": 14302064,
+      "exec": "2499944",
+      "ops": "FheBitAndx35 FheIfThenElsex35 FheLex35 FheLtx35 FheRandx1 FheRemx1 TrivialEncryptx2",
+      "tx": "0xd831bc58aa954482488562eef7881bbb946692658a83f10a481e52131b6c7270"
+    },
+    {
+      "n": 40,
+      "design": "naive",
+      "failed": "VM Exception while processing transaction: reverted with custom error 'HCUTransactionDepthLimitExceeded()'"
+    },
+    {
+      "n": 40,
+      "design": "incremental",
+      "hcu": 13977000,
+      "exec": "2138325",
+      "ops": "FheBitAndx40 FheLex40 FheLtx40 FheRandx1 FheRemx1",
+      "tx": "0xfb9b0c12175225033135ce4d496f68986f0da06241c149de94e45dce8b241d09"
+    },
+    {
+      "n": 40,
+      "design": "incremental+credit",
+      "hcu": 16177064,
+      "exec": "2836487",
+      "ops": "FheBitAndx40 FheIfThenElsex40 FheLex40 FheLtx40 FheRandx1 FheRemx1 TrivialEncryptx2",
+      "tx": "0x57ec1f1823b869871d0c6f51d84b5a524ba57c1f67c886715b7eec87a34fbb36"
+    },
+    {
+      "n": 50,
+      "design": "naive",
+      "failed": "VM Exception while processing transaction: reverted with custom error 'HCUTransactionDepthLimitExceeded()'"
+    },
+    {
+      "n": 50,
+      "design": "incremental",
+      "hcu": 17177000,
+      "exec": "2642042",
+      "ops": "FheBitAndx50 FheLex50 FheLtx50 FheRandx1 FheRemx1",
+      "tx": "0x746bf22712c494d5b6a38aa115ff9d690f2a1ed8d3d097f13b8cd80e062f8b34"
+    },
+    {
+      "n": 50,
+      "design": "incremental+credit",
+      "hcu": 19927064,
+      "exec": "3509572",
+      "ops": "FheBitAndx50 FheIfThenElsex50 FheLex50 FheLtx50 FheRandx1 FheRemx1 TrivialEncryptx2",
+      "tx": "0x64bafca6021b94d1a7555829356b7b45eab390d30c6798f80168ef5927ffb3e0"
+    },
+    {
+      "n": 60,
+      "design": "naive",
+      "failed": "VM Exception while processing transaction: reverted with custom error 'HCUTransactionDepthLimitExceeded()'"
+    },
+    {
+      "n": 60,
+      "design": "incremental",
+      "failed": "VM Exception while processing transaction: reverted with custom error 'HCUTransactionLimitExceeded()'"
+    },
+    {
+      "n": 60,
+      "design": "incremental+credit",
+      "failed": "VM Exception while processing transaction: reverted with custom error 'HCUTransactionLimitExceeded()'"
+    },
+    {
+      "n": 70,
+      "design": "naive",
+      "failed": "VM Exception while processing transaction: reverted with custom error 'HCUTransactionDepthLimitExceeded()'"
+    },
+    {
+      "n": 70,
+      "design": "incremental",
+      "failed": "VM Exception while processing transaction: reverted with custom error 'HCUTransactionLimitExceeded()'"
+    },
+    {
+      "n": 70,
+      "design": "incremental+credit",
+      "failed": "VM Exception while processing transaction: reverted with custom error 'HCUTransactionLimitExceeded()'"
+    },
+    {
+      "n": 80,
+      "design": "naive",
+      "failed": "VM Exception while processing transaction: reverted with custom error 'HCUTransactionDepthLimitExceeded()'"
+    },
+    {
+      "n": 80,
+      "design": "incremental",
+      "failed": "VM Exception while processing transaction: reverted with custom error 'HCUTransactionLimitExceeded()'"
+    },
+    {
+      "n": 80,
+      "design": "incremental+credit",
+      "failed": "VM Exception while processing transaction: reverted with custom error 'HCUTransactionLimitExceeded()'"
+    },
+    {
+      "n": 100,
+      "design": "naive",
+      "failed": "VM Exception while processing transaction: reverted with custom error 'HCUTransactionDepthLimitExceeded()'"
+    },
+    {
+      "n": 100,
+      "design": "incremental",
+      "failed": "VM Exception while processing transaction: reverted with custom error 'HCUTransactionLimitExceeded()'"
+    },
+    {
+      "n": 100,
+      "design": "incremental+credit",
+      "failed": "VM Exception while processing transaction: reverted with custom error 'HCUTransactionLimitExceeded()'"
+    }
+  ]
+}

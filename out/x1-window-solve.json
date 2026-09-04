@@ -1,0 +1,15 @@
+{
+  "at": "2026-09-03T21:36:49.384Z",
+  "events": 12,
+  "solved": [
+    {
+      "draw": 33,
+      "kind": "deposit",
+      "who": "0xF505e2E71df58D7244189072008f25f6b6aaE5ae",
+      "tx": "0xf6fbd169e117cefda236d71c4e0e827d01ea769f42ff70eee88eb48ecda01109",
+      "recovered": "540000000",
+      "recoveredHuman": 540,
+      "exact": true
+    }
+  ]
+}

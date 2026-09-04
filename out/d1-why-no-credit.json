@@ -1,0 +1,25 @@
+{
+  "at": "2026-09-03T16:50:30.531Z",
+  "drawId": 34,
+  "r": "7454850309418129409",
+  "totalWeight": "6508440000000",
+  "myWeight": "4156440000000",
+  "thresholds": [
+    {
+      "tier": 0,
+      "threshold": "69206957740674",
+      "cleared": false
+    },
+    {
+      "tier": 1,
+      "threshold": "52956078390283",
+      "cleared": false
+    },
+    {
+      "tier": 2,
+      "threshold": "6437377792438",
+      "cleared": false
+    }
+  ],
+  "verdict": "ordinary-loss"
+}

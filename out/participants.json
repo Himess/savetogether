@@ -1,0 +1,22 @@
+{
+  "pool": "0xa9B69Dc9F9f4C4512c926ba9eA432eBcF0026631",
+  "phrase": "savetogether seed participant",
+  "participants": [
+    {
+      "address": "0x12Ee5A94e62c403c4075A34695Aaa6E595309BF1",
+      "amount": "3000000000"
+    },
+    {
+      "address": "0xc5F41c8B93f03464daC13F6064e8e9C6fa0f9568",
+      "amount": "2000000000"
+    },
+    {
+      "address": "0x9926e60263575a3355136c71f1db475D6249fbB9",
+      "amount": "1200000000"
+    },
+    {
+      "address": "0xC79A26439f3464B7564Dd9420C15f0C1ec7a49E8",
+      "amount": "800000000"
+    }
+  ]
+}

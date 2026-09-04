@@ -1,0 +1,29 @@
+{
+  "spike": "0xe3a46F7E7664Ab82DF50f66954E154c936b365fb",
+  "results": [
+    {
+      "label": "flat",
+      "tiers": 1,
+      "hcu": 205000,
+      "gas": "191985"
+    },
+    {
+      "label": "2-tier",
+      "tiers": 2,
+      "hcu": 410000,
+      "gas": "219071"
+    },
+    {
+      "label": "3-tier",
+      "tiers": 3,
+      "hcu": 615000,
+      "gas": "261476"
+    },
+    {
+      "label": "4-tier",
+      "tiers": 4,
+      "hcu": 820000,
+      "gas": "303877"
+    }
+  ]
+}

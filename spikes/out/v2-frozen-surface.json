@@ -1,0 +1,14 @@
+{
+  "beforeV2": {
+    "winner": "426105",
+    "loser": "426093"
+  },
+  "afterV2": {
+    "winner": "501148",
+    "loser": "501136"
+  },
+  "delta": {
+    "winner": "75043",
+    "loser": "75043"
+  }
+}

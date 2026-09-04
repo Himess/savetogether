@@ -1,0 +1,10 @@
+{
+  "pool": "0x70157aC697181d510C9d6e1D81FC4eDF338D4d2c",
+  "r": "9331665430707183917",
+  "totalWeight": "36012",
+  "threshold": "28053",
+  "weight": "36012",
+  "shouldWin": true,
+  "won": "5000",
+  "revealGas": "383919"
+}

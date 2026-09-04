@@ -1,0 +1,20 @@
+{
+  "pool": "0x894F6492357277CF36e9973787663AE9F73387BE",
+  "at": "2026-09-04T09:23:23.791Z",
+  "revealTx": "0x31ce709cf7dbbdd28c987837b07803ca9004d062eca33053f77fa52266533e5c",
+  "revealGas": "862214",
+  "solventHandle": "0x40179c0a6ed308f0e84bcf14ba39d508899badcb00ff0000000000aa36a70000",
+  "solventValue": "false",
+  "accrueFirstTx": "0xe3d739a83240aeb7f0a6b6e367fe7000c6a7192a09a686a2f3080d57b0ada0fe",
+  "accrueSecondTx": "0x9ddeabbbeebc4e1bd97c6d18d5ef94c9b3d5ff1c93efb6374919edc70fefa345",
+  "feeFirst": "200000",
+  "feeSecond": "0",
+  "livenessEvents": 2,
+  "livenessTxs": [
+    "0x580d60af609b01f744520d6d8c5dab6ea5e1916f6361a80d031792e69e49d429",
+    "0x31ce709cf7dbbdd28c987837b07803ca9004d062eca33053f77fa52266533e5c"
+  ],
+  "withdrawMaxTx": "0xb883d1122d7af2b5f7731f6249737e5c0389bf71449440c7713621d9fb9f09f2",
+  "positionBefore": "12000000000",
+  "positionAfter": "0"
+}

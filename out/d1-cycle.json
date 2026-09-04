@@ -1,0 +1,77 @@
+{
+  "at": "2026-09-04T09:38:44.311Z",
+  "signer": "0xF505e2E71df58D7244189072008f25f6b6aaE5ae",
+  "drawId": 3,
+  "before": {
+    "position": "12250",
+    "pending": "0",
+    "winnings": "0",
+    "walletCUSDC": "69038.363396",
+    "walletUSDC": "700.246912"
+  },
+  "after": {
+    "position": "12501",
+    "pending": "0",
+    "winnings": "1",
+    "walletCUSDC": "68688.366516",
+    "walletUSDC": "700.246912"
+  },
+  "steps": [
+    {
+      "step": "1. deposit 500 cUSDC",
+      "ok": true,
+      "hash": "0xe78dd9c203e4b94854d924dae61ed28665e4f3271218fe4e6ee39177ee3e241d",
+      "block": 11632624,
+      "gasUsed": "2248686",
+      "note": "encrypted deposit into the pool"
+    },
+    {
+      "step": "2a. openDraw",
+      "ok": true,
+      "hash": "0xcc83774db1ec207588ae638ff4258e21a8cdf72ee53666b4b0017dd73b642c77",
+      "block": 11632627,
+      "gasUsed": "939410",
+      "note": "snapshots the window and draws encrypted R"
+    },
+    {
+      "step": "2b. revealDraw",
+      "ok": true,
+      "hash": "0x541848cd40ae219a965a379c42192a04db68198d150c65ee8df5f03754ba169c",
+      "block": 11632628,
+      "gasUsed": "862222",
+      "note": "publishes R and totalWeight with the KMS proof"
+    },
+    {
+      "step": "2c. accrue(me)",
+      "ok": true,
+      "hash": "0xcf85576c5614bf1d24c2f8e3bdad088a55e4d77a4b2b18316d12dea9ab9026d9",
+      "block": 11632629,
+      "gasUsed": "817720",
+      "note": "unconditional accrual — wins and losses look identical"
+    },
+    {
+      "step": "3. claim(me)",
+      "ok": true,
+      "hash": "0x39b75a19c05278aef95c44831296a4d2074471406206655e404d375609f07fe8",
+      "block": 11632631,
+      "gasUsed": "654207",
+      "note": "pending 1 -> 0 cUSDC"
+    },
+    {
+      "step": "4. withdraw 250 cUSDC",
+      "ok": true,
+      "hash": "0x0ce067d756710b16e12c860668a7010bcac9fcdb7f356e8201508a593806eb25",
+      "block": 11632635,
+      "gasUsed": "2002197",
+      "note": "clamped: asking for more than held moves nothing"
+    },
+    {
+      "step": "5. unwrap 100 cUSDC to USDC",
+      "ok": true,
+      "hash": "0x10bbbede191a4f7e07d77bc35bcb80191c8fca4e87e8a2579d8f56e2ed1324bb",
+      "block": 11632639,
+      "gasUsed": "592515",
+      "note": "asynchronous — the KMS decrypts and USDC settles after"
+    }
+  ]
+}

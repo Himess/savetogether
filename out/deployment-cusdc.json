@@ -1,0 +1,15 @@
+{
+  "network": "sepolia",
+  "chainId": 11155111,
+  "note": "the pool on Zama's deployed confidential USDC",
+  "pool": "0x3Eddf704b0909F6A8fa491857533D28C22f9b8d4",
+  "token": "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639",
+  "underlying": "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF",
+  "yieldSource": "0x87735E305704607470A8473Bf622816fDC80Ca54",
+  "decimals": 6,
+  "rateBps": "100000",
+  "prize": "25000000",
+  "pot": "250000000000",
+  "deployer": "0xF505e2E71df58D7244189072008f25f6b6aaE5ae",
+  "block": 11593628
+}

@@ -1,0 +1,12 @@
+{
+  "at": "2026-09-03T16:38:43.498Z",
+  "me": "0xF505e2E71df58D7244189072008f25f6b6aaE5ae",
+  "position": "12000000000",
+  "pending": "40000000",
+  "winnings": "40000000",
+  "walletCUSDC": "70338148996",
+  "drawCount": 32,
+  "drawStatus": "Cancelled",
+  "nextOpenDrawAt": 1788446484,
+  "poolIsOperator": true
+}

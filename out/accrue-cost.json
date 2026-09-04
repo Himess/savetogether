@@ -1,0 +1,15 @@
+{
+  "pool": "0x62D145C7315fE40be042225925FbaCB36FE7288C",
+  "draw1": {
+    "gas": "501555",
+    "ops": "Castx1 FheAddx1 FheGex1 FheGtx1 FheIfThenElsex3 FheMulx1 FheSubx2 TrivialEncryptx6",
+    "lower": 1285224,
+    "upper": 1948224
+  },
+  "draw2": {
+    "gas": "589971",
+    "ops": "Castx1 FheAddx3 FheGex3 FheGtx1 FheIfThenElsex5 FheMulx1 FheSubx2 TrivialEncryptx5",
+    "lower": 2023192,
+    "upper": 2884192
+  }
+}

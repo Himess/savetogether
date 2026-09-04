@@ -1,0 +1,13 @@
+{
+  "ownerAddress": "0xF505e2E71df58D7244189072008f25f6b6aaE5ae",
+  "sessionKeyAddress": "0x59B9260e1E593d8910f1D9fD344893858285647B",
+  "openHashes": [
+    "0x15171595a634b32bce34d71f632a6884464f21eb211c1f32d5756a54ea52d10f",
+    "0x56f4361d79c4f7be74743061c4bb21ef1fc8b78b00083fe7cfff3e9b15f65c7f"
+  ],
+  "sendHash": "0x35f3b13fadeffb98bdfcfc25b9c82842e6bc07e10f547a1efdc15ca7b6105970",
+  "closeHash": "0x8af7e42631ff422465d09c9f8363baa5f7dc997335dd6828caf174ebc99c762b",
+  "adopted": true,
+  "impostorRejected": true,
+  "deadKeyRejected": true
+}

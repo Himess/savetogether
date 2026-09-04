@@ -1,0 +1,13 @@
+{
+  "shifted": {
+    "gas": "864808",
+    "before": "1000",
+    "after": "500"
+  },
+  "ordinary": {
+    "gas": "944769",
+    "before": "1000",
+    "after": "500"
+  },
+  "saving": "79961"
+}

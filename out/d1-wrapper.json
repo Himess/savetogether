@@ -1,0 +1,19 @@
+{
+  "cusdc": "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639",
+  "caseA": {
+    "reverted": false,
+    "detail": "succeeded",
+    "stranger": "0x5E099cFF1F8c729f2803f49AD5324f71EAC568bD",
+    "handleUninitialised": true
+  },
+  "caseB": {
+    "reverted": false,
+    "detail": "succeeded",
+    "funded": true
+  },
+  "caseC": {
+    "reverted": false,
+    "detail": "succeeded"
+  },
+  "balanceAfterOverdraw": "61116148996"
+}

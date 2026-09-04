@@ -1,0 +1,30 @@
+[
+  {
+    "path": "A",
+    "what": "depositExternal(externalEuint64, proof)",
+    "calldataBytes": 356,
+    "priorBalanceHandle": "0x0d30cffd77957c2e65ea1cfc3a9461aa8b961c5528ff0000000000aa36a70500",
+    "calldataNamesTheBalanceHandle": false
+  },
+  {
+    "path": "B",
+    "what": "token.confidentialTransferAndCall(spike, balanceHandle)",
+    "calldataBytes": 132,
+    "priorBalanceHandle": "0x9ad2f785ddb43c3b179f5e7fe7215e43ad37c16f52ff0000000000aa36a70500",
+    "calldataNamesTheBalanceHandle": true
+  },
+  {
+    "path": "C",
+    "what": "ACL.allow + depositShifted(handle, 1)",
+    "calldataBytes": 68,
+    "priorBalanceHandle": "0xf9bea990fff170d5b661fb268c2d3626c1e9fe4f8fff0000000000aa36a70500",
+    "calldataNamesTheBalanceHandle": true
+  },
+  {
+    "path": "D",
+    "what": "ACL.allow + depositDivided(handle, 3)",
+    "calldataBytes": 68,
+    "priorBalanceHandle": "0xf7743b8934a10446ca7ffed8b9572aa4e60891bc24ff0000000000aa36a70500",
+    "calldataNamesTheBalanceHandle": true
+  }
+]
