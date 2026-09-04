@@ -11,6 +11,7 @@ import { useOnSepolia } from "@/lib/chain";
 import { useAction } from "@/lib/tx";
 import { TxStatus } from "@/components/TxStatus";
 import { TokenIcon } from "@/components/TokenIcon";
+import { Solvency } from "@/components/Solvency";
 
 const ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
 const STATUS = ["none", "open", "revealed"] as const;
@@ -994,6 +995,11 @@ export function PoolScreen() {
                 actually are — every input already in this browser, none of it
                 weakening confidentiality: the holder can already decrypt their own
                 weight and the aggregate is published by design. */}
+            {/* Whether this draw can pay what the tiers above promise. Sits with
+                the prize rather than in an ops panel, because it is the number the
+                prize depends on. */}
+            <Solvency drawId={round} />
+
             {/* AD. The clock is not per-address and never was: when the next draw
                 runs is a property of the pool, published on chain, and the same
                 for everyone reading it. It used to be gated behind a connected

@@ -17,6 +17,15 @@ export const POOL_ABI = [
   { type: "function", name: "owner", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
   { type: "function", name: "observationCount", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] },
   { type: "function", name: "observationAt", stateMutability: "view", inputs: [{ name: "account", type: "address" }, { name: "i", type: "uint256" }], outputs: [{ type: "tuple", components: [{ name: "timestamp", type: "uint40" }, { name: "balance", type: "bytes32" }, { name: "cumulative", type: "bytes32" }] }] },
+  // Added so the product can do what it keeps SAYING anyone can do: harvest,
+  // open a draw and settle an address are permissionless, and until now the ABI
+  // did not carry them, so no screen could offer them.
+  { type: "function", name: "harvest", stateMutability: "nonpayable", inputs: [], outputs: [] },
+  { type: "function", name: "openDraw", stateMutability: "nonpayable", inputs: [], outputs: [{ type: "uint32" }] },
+  { type: "function", name: "accrueMany", stateMutability: "nonpayable", inputs: [{ type: "address[]" }, { type: "uint32" }], outputs: [] },
+  // One bit per draw: does the reserve cover SOLVENCY_COVER grand prizes. Publicly
+  // decryptable by design — no wallet, no permit.
+  { type: "function", name: "solventAt", stateMutability: "view", inputs: [{ type: "uint32" }], outputs: [{ type: "bytes32" }] },
   { type: "function", name: "minPeriod", stateMutability: "view", inputs: [], outputs: [{ type: "uint40" }] },
   { type: "function", name: "accrued", stateMutability: "view", inputs: [{ type: "uint32" }, { type: "address" }], outputs: [{ type: "bool" }] },
   // Permissionless and unconditional: anyone may call it for anyone, and it does

@@ -9,6 +9,7 @@ import { POOL_ABI } from "@/lib/abis";
 import { useOnSepolia } from "@/lib/chain";
 import { oddsPct, rejectionFloor, thresholdFor } from "@/lib/draw";
 import { weightForWindow, type Observation } from "@/lib/twab";
+import { Keepable } from "@/components/Keepable";
 
 const ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
@@ -572,6 +573,7 @@ export function VerifyScreen() {
           — a wallet balance is public — so it renders for a visitor who has
           connected nothing. */}
       <KeeperRunway />
+      <Keepable />
 
       {/* V2. The composition proof, moved here from the retired Vault tab.
           It belongs on the evidence page: its reader wants it, and on the Pool
