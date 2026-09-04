@@ -177,8 +177,23 @@ export function ChatScreen() {
       for (const call of status.revoke) {
         await sendTransactionAsync({ to: call.to, data: call.data });
       }
-      if (token !== null) await refresh(token);
-      toast("Revoked · the URL can no longer spend");
+      // B2.4 — revoking on chain and leaving the credential on screen is the
+      // worst of both. The old code refreshed status and stopped: the connector
+      // URL stayed visible with a live Copy button beside a token that could no
+      // longer spend, the spend-capable token stayed in localStorage after the
+      // user had explicitly asked for it to stop working, and the open-a-session
+      // form never came back because it renders on `mcpUrl === null` — so the
+      // only route out was clearing site data.
+      setToken(null);
+      setMcpUrl(null);
+      setStatus(null);
+      try {
+        window.localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // Private mode, or storage disabled. The on-chain revocation is what
+        // actually removes the authority; this is tidying.
+      }
+      toast("Revoked · the key can no longer spend, and the URL is gone from this browser");
     } catch (e) {
       toast(humanise(e), "err");
     } finally {

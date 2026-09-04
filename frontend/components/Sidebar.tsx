@@ -88,7 +88,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside style={css("position:sticky;top:14px;align-self:flex-start;height:calc(100vh - 28px);width:264px;flex:none;background:var(--surface);border:1px solid var(--line);border-radius:24px;box-shadow:0 1px 2px rgba(20,18,12,.04),0 10px 30px rgba(20,18,12,.03)")}>
+    <aside className="rail" style={css("position:sticky;top:14px;align-self:flex-start;height:calc(100vh - 28px);width:264px;flex:none;background:var(--surface);border:1px solid var(--line);border-radius:24px;box-shadow:0 1px 2px rgba(20,18,12,.04),0 10px 30px rgba(20,18,12,.03)")}>
       <div style={css("display:flex;flex-direction:column;height:100%;padding:22px 15px 16px")}>
         <div style={css("display:flex;align-items:center;gap:9px;padding:2px 9px 6px")}>
           {/* AB. The mark beside LIVE text, not the PNG lockup.
@@ -108,7 +108,7 @@ export function Sidebar() {
 
         <nav style={css("display:flex;flex-direction:column;gap:3px")}>
           {ITEMS.map((it) => (
-            <button key={it.r} style={navStyle(route === it.r)} onClick={() => go(it.r)}>
+            <button className="navitem" key={it.r} style={navStyle(route === it.r)} onClick={() => go(it.r)}>
               {ICON[it.r]}<span>{it.label}</span>
             </button>
           ))}

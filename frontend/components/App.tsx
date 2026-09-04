@@ -40,7 +40,7 @@ export function App() {
   return (
     <ToastProvider>
       <NavProvider>
-        <div style={css("display:flex;gap:22px;padding:14px;min-height:100vh;align-items:flex-start")}>
+        <div className="shell" style={css("display:flex;gap:22px;padding:14px;min-height:100vh;align-items:flex-start")}>
           <Sidebar />
           <main style={css("flex:1;min-width:0;padding:14px 10px 60px")}>
             <Screen />

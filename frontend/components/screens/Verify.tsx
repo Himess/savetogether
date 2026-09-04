@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { useAccount, useBalance, usePublicClient, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useBalance, usePublicClient, useReadContract, useReadContracts } from "wagmi";
 import { useDecryptValues, useGrantPermit, useHasPermit } from "@zama-fhe/react-sdk";
 import { css } from "@/lib/css";
 import { shortAddr } from "@/lib/format";
@@ -8,6 +8,7 @@ import { DEPOSIT_BATCHER, EXPLORER, KEEPER, KEEPER_ETH_PER_DRAW, POOL, REDEEM_BA
 import { POOL_ABI } from "@/lib/abis";
 import { useOnSepolia } from "@/lib/chain";
 import { oddsPct, rejectionFloor, thresholdFor } from "@/lib/draw";
+import { weightForWindow, type Observation } from "@/lib/twab";
 
 const ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
@@ -85,13 +86,66 @@ export function VerifyScreen() {
   const { address } = useAccount();
   const onSepolia = useOnSepolia();
   const client = usePublicClient();
-  const { writeContractAsync } = useWriteContract();
 
   const [drawId, setDrawId] = useState<number | null>(null);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [myWeightHandle, setMyWeightHandle] = useState<`0x${string}` | null>(null);
+  /**
+   * B2.3 — the weight is computed in this browser, not bought from the chain.
+   *
+   * This used to call `weightFor(draw, self)` as a TRANSACTION: the ACL grant is
+   * a state change, so it cost gas, and the handle only came back from a paired
+   * `simulateContract`. Three things were wrong with that beyond the gas.
+   *
+   * The screen's own headline says anyone can recompute every threshold for any
+   * address in any draw, and then showed a disconnected visitor a single sign-in
+   * button. The draw selector sat inside the branch its `onChange` collapsed, so
+   * the control destroyed the panel containing it. And the default target is the
+   * newest draw, which is normally still Open — so the first transaction anyone
+   * paid for was guaranteed to come back "pick an earlier one".
+   *
+   * Worst of it: sending `weightFor(N, self)` minutes after draw N reveals is,
+   * to an observer, someone checking their own result. docs/leakage.md:107 sets
+   * the rule this broke — "no one has to transact merely to learn whether they
+   * won" — and the audit screen was the one place breaking it.
+   *
+   * `weightForWindow` is exact rather than approximate. It computes
+   * `cumulativeAt(snapshotAt) - cumulativeAt(periodStart)`, and the contract's
+   * own comment at :925 says why its cached branch is equivalent: for a Revealed
+   * predecessor, `periodStart` IS its snapshot.
+   */
+  const { data: obsCount } = useReadContract({
+    abi: POOL_ABI, address: POOL, functionName: "observationCount",
+    args: address ? [address] : undefined, query: { enabled: !!address },
+  });
+  const nObs = Number(obsCount ?? 0n);
+  const obsCalls = useMemo(
+    () =>
+      address && nObs > 0
+        ? Array.from({ length: nObs }, (_, i) => ({
+            abi: POOL_ABI, address: POOL, functionName: "observationAt", args: [address, BigInt(i)],
+          }))
+        : [],
+    [address, nObs],
+  );
+  const { data: rawObsRaw } = useReadContracts({
+    contracts: obsCalls as never, query: { enabled: obsCalls.length > 0 },
+  });
+  const rawObs = rawObsRaw as unknown as
+    | { status: string; result?: { timestamp: bigint; balance: string; cumulative: string } }[]
+    | undefined;
+
+  const obsHandles = useMemo(() => {
+    const out: { encryptedValue: `0x${string}`; contractAddress: string }[] = [];
+    for (const r of rawObs ?? []) {
+      const o = r.result;
+      if (!o) continue;
+      if (o.balance && o.balance !== ZERO) out.push({ encryptedValue: o.balance as `0x${string}`, contractAddress: POOL });
+      if (o.cumulative && o.cumulative !== ZERO) out.push({ encryptedValue: o.cumulative as `0x${string}`, contractAddress: POOL });
+    }
+    return out;
+  }, [rawObs]);
 
   const { data: drawCount } = useReadContract({
     abi: POOL_ABI, address: POOL, functionName: "drawCount", query: { refetchInterval: 20_000 },
@@ -122,15 +176,44 @@ export function VerifyScreen() {
   const { data: hasPermit } = useHasPermit({ contractAddresses: [POOL] }, { enabled: !!address });
   const { mutate: grantPermit, isPending: granting } = useGrantPermit();
   const handles = useMemo(
-    () => (myWeightHandle && myWeightHandle !== ZERO
-      ? [{ encryptedValue: myWeightHandle, contractAddress: POOL as string }]
+    () => (obsHandles.length > 0
+      ? obsHandles
       : []),
-    [myWeightHandle],
+    [obsHandles],
   );
   const { data: clear, isFetching } = useDecryptValues(handles, {
     enabled: !!address && hasPermit === true && handles.length > 0,
   });
-  const myWeight = myWeightHandle ? (clear?.[myWeightHandle] as bigint | undefined) : undefined;
+  const observations: Observation[] | null = useMemo(() => {
+    if (!rawObs || hasPermit !== true || clear === undefined) return null;
+    const out: Observation[] = [];
+    for (const r of rawObs) {
+      const o = r.result;
+      if (!o) return null;
+      const b = o.balance === ZERO ? 0n : clear[o.balance as `0x${string}`];
+      const c = o.cumulative === ZERO ? 0n : clear[o.cumulative as `0x${string}`];
+      if (b === undefined || c === undefined) return null;
+      out.push({
+        timestamp: Number(o.timestamp),
+        balance: BigInt(b as string | number | bigint),
+        cumulative: BigInt(c as string | number | bigint),
+      });
+    }
+    return out.sort((a, b) => a.timestamp - b.timestamp);
+  }, [rawObs, hasPermit, clear]);
+
+  const myWeight: bigint | undefined = useMemo(() => {
+    if (observations === null || draw === undefined) return undefined;
+    const d = draw as unknown as { periodStart: bigint; snapshotAt: bigint };
+    if (d.snapshotAt === undefined) return undefined;
+    return weightForWindow(observations, {
+      id: target,
+      periodStart: Number(d.periodStart),
+      snapshotAt: Number(d.snapshotAt),
+      totalWeight: BigInt((draw as unknown as { totalWeight: bigint }).totalWeight ?? 0n),
+      revealed: Number((draw as unknown as { status: number }).status) === 2,
+    });
+  }, [observations, draw, target]);
 
   const myThresholds = useMemo(() => {
     if (!address || d === undefined || !revealed || !tiersReady) return null;
@@ -197,26 +280,6 @@ export function VerifyScreen() {
     }
   }
 
-  async function revealMyWeight(): Promise<void> {
-    if (address === undefined) return;
-    setError(null);
-    try {
-      // Two calls, and both are needed. The transaction persists the ACL grant;
-      // the simulation returns the handle, which a receipt does not carry.
-      // `weightFor` is not a view — the grant is a state change — so this is
-      // `simulateContract` rather than `readContract`.
-      await writeContractAsync({
-        abi: POOL_ABI, address: POOL, functionName: "weightFor", args: [target, address],
-      });
-      const sim = await client!.simulateContract({
-        abi: POOL_ABI, address: POOL, functionName: "weightFor", args: [target, address],
-        account: address,
-      });
-      setMyWeightHandle(sim.result as `0x${string}`);
-    } catch (e) {
-      setError((e as Error).message.slice(0, 200));
-    }
-  }
 
   const allMatch = rows !== null && rows.length > 0 && rows.every((r) => r.match);
 
@@ -265,24 +328,23 @@ export function VerifyScreen() {
         </p>
       </div>
 
-    {hasPermit !== true ? (
-      <button
-        onClick={() => grantPermit([POOL])}
-        disabled={granting || !onSepolia}
-        style={css("margin-top:14px;padding:11px 18px;border-radius:12px;border:none;background:var(--accent);font:700 13px var(--display);color:var(--on-accent);cursor:pointer")}
-      >
-        {granting ? "Waiting for signature…" : "Sign once to read my own values"}
-      </button>
-    ) : myWeightHandle === null ? (
-      <button
-        onClick={() => void revealMyWeight()}
-        disabled={!onSepolia}
-        style={css("margin-top:14px;padding:11px 18px;border-radius:12px;border:none;background:var(--accent);font:700 13px var(--display);color:var(--on-accent);cursor:pointer")}
-      >
-        Compute my weight for draw #{target}
-      </button>
-    ) : (
+    {/* The audit is no longer behind this button. Recomputing the draw needs no
+        wallet, no signature and no transaction — it is arithmetic over public
+        inputs — so it renders for anyone who opens the page, which is what the
+        paragraph above it has always claimed. The signature below buys one extra
+        thing: YOUR OWN weight, to compare against a threshold anyone can already
+        compute for you. */}
+    {(
       <div style={css("margin-top:16px;display:flex;flex-direction:column;gap:10px")}>
+        {address !== undefined && hasPermit !== true && (
+          <button
+            onClick={() => grantPermit([POOL])}
+            disabled={granting || !onSepolia}
+            style={css("align-self:flex-start;padding:11px 18px;border-radius:12px;border:none;background:var(--accent);font:700 13px var(--display);color:var(--on-accent);cursor:pointer")}
+          >
+            {granting ? "Waiting for signature…" : "Sign once to add my own weight"}
+          </button>
+        )}
 
       <div style={css("height:1px;background:var(--line);margin:22px 0 26px")} />
 
@@ -292,7 +354,7 @@ export function VerifyScreen() {
           <span style={css("font:650 10.5px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)")}>Draw</span>
           <select
             value={target}
-            onChange={(e) => { setDrawId(Number(e.target.value)); setRows(null); setMyWeightHandle(null); }}
+            onChange={(e) => { setDrawId(Number(e.target.value)); setRows(null); }}
             style={css("padding:6px 10px;border-radius:9px;border:1px solid var(--line-2);background:var(--surface-2);font:650 13px var(--display);color:var(--ink)")}
           >
             {Array.from({ length: latest }, (_, i) => latest - i).map((n) => (
@@ -438,7 +500,7 @@ export function VerifyScreen() {
                       </span>
                     </span>
                     <span style={css(`font-weight:700;color:${cleared === null ? "var(--ink-3)" : cleared ? "var(--green)" : "var(--ink-3)"}`)}>
-                      {cleared === null ? "•••" : cleared ? `WON ${Number(prizes[t] ?? 0n) / 1e6} cUSDC` : "not cleared"}
+                      {cleared === null ? "•••" : cleared ? `cleared · ${Number(prizes[t] ?? 0n) / 1e6} cUSDC` : "not cleared"}
                     </span>
                   </div>
                 );
@@ -447,6 +509,17 @@ export function VerifyScreen() {
                 The best tier you cleared is the one credited, never several. This is computed in your
                 browser from your own decrypted weight — the chain never published it, and the credit
                 reached you whether or not you ever opened this page.
+              </p>
+              <p style={css("margin:8px 0 0;padding:9px 11px;border-radius:10px;background:var(--amber-bg);border:1px solid var(--amber-line);font:400 11px/1.6 var(--display);color:var(--amber)")}>
+                <b style={css("font-weight:650")}>Cleared is not the same as paid.</b> Clearing a
+                threshold is the whole of the public rule, and it is what this page can check. The
+                payment is a second step the page cannot see: <span style={css("font-family:var(--mono);font-size:10.5px")}>accrue</span>{" "}
+                credits the prize only if the reserve covers it, and a reserve that is short credits
+                <b style={css("font-weight:650")}> zero</b> — which on chain is indistinguishable from
+                losing. Simulated at 3.2–3.6% of wins per configuration, and 97.3% on a first draw
+                against an empty reserve. Compare this against your own decrypted{" "}
+                <span style={css("font-family:var(--mono);font-size:10.5px")}>winningsOf</span> on{" "}
+                <b style={css("font-weight:650")}>Your position</b>: you are the only party who can.
               </p>
             </div>
           )}
@@ -474,7 +547,7 @@ export function VerifyScreen() {
               </thead>
               <tbody>
                 {Array.from({ length: latest }, (_, i) => latest - i).map((n) => (
-                  <HistoryRow key={n} id={n} onPick={() => { setDrawId(n); setRows(null); setMyWeightHandle(null); }} />
+                  <HistoryRow key={n} id={n} onPick={() => { setDrawId(n); setRows(null);  }} />
                 ))}
               </tbody>
             </table>

@@ -138,6 +138,154 @@ export function PoolScreen() {
     | undefined;
   const phase = d === undefined ? "none" : (STATUS[Number(d.status)] ?? "none");
 
+
+  /**
+   * AC7. A draw nobody revealed, past the point anyone may abandon it.
+   *
+   * `cancelDraw` is permissionless and nobody would ever think to call it, so a
+   * keeper that dies leaves a visitor looking at a frozen pool with no way
+   * forward. Surfacing it turns B5 from a documented mitigation into a
+   * demonstrated recovery — which is the more useful thing to have.
+   */
+  const { data: cancelAfter } = useReadContract({
+    abi: POOL_ABI, address: POOL, functionName: "CANCEL_AFTER",
+  });
+  const stale = useMemo(() => {
+    if (d === undefined || Number(d.status) !== 1 || cancelAfter === undefined) return null;
+    const at = Number(d.snapshotAt) + Number(cancelAfter);
+    return Date.now() / 1000 >= at ? { at } : null;
+  }, [d, cancelAfter]);
+
+  const refresh = async () => {
+    await refetchOperator();
+    await refetchWallet();
+    await refetchPool();
+  };
+
+  const submit = () => {
+    if (address === undefined) return;
+    const fn = tab === "deposit" ? "deposit" : "withdraw";
+    void run(
+      tab === "deposit" ? "Depositing" : "Withdrawing",
+      tab === "deposit"
+        ? "Your position is in the pool, encrypted, and starts earning weight now."
+        : "The transaction landed — check your position to see whether it moved. A withdrawal is all-or-nothing: if the amount is more than you hold, or more than the pool has liquid, nothing moves and nothing is lost. A smaller amount goes through.",
+      async () => {
+        const enc = await encrypt({
+          contractAddress: POOL,
+          userAddress: address,
+          values: [{ type: "euint64", value: units }],
+        });
+        return writeContractAsync({
+          abi: POOL_ABI, address: POOL, functionName: fn,
+          args: [enc.encryptedValues[0] as `0x${string}`, enc.inputProof],
+        });
+      },
+    ).then(refresh);
+  };
+
+  const apy = rateBps === undefined ? "—" : `${(Number(rateBps) / 100).toFixed(0)}%`;
+
+  /**
+   * W4. A second hand, so the clock is visibly a clock.
+   *
+   * The panel said "Next draw, at the earliest — now" and sat there, which reads
+   * as a stuck component rather than a satisfied condition. This re-renders every
+   * second so both figures move; it is the only interval on the screen and it
+   * costs one state write per tick.
+   */
+  const [tick, setTick] = useState(() => Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    const h = setInterval(() => setTick(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(h);
+  }, []);
+
+  // ---------------------------------------------------------------- R4
+  /**
+   * The only cost this protocol charges a depositor, and nothing read it.
+   *
+   * It is paid out of `_reserve` — the same pot the prizes come from — under the
+   * same `tryDecrease`, so it competes directly with a prize for a pot that can
+   * run short. A product that says "a round you do not win costs you nothing"
+   * owes the reader the one number that is not nothing.
+   */
+  const { data: keeperFee } = useReadContract({
+    abi: POOL_ABI, address: POOL, functionName: "keeperFee",
+  });
+
+  const { data: minPeriod } = useReadContract({
+    abi: POOL_ABI, address: POOL, functionName: "minPeriod",
+  });
+  const { data: obsCount } = useReadContract({
+    abi: POOL_ABI, address: POOL, functionName: "observationCount",
+    args: address ? [address] : undefined, query: { enabled: !!address },
+  });
+  const { data: firstObs } = useReadContract({
+    abi: POOL_ABI, address: POOL, functionName: "observationAt",
+    args: address && (obsCount ?? 0n) > 0n ? [address, 0n] : undefined,
+    query: { enabled: !!address && (obsCount ?? 0n) > 0n },
+  });
+
+  /**
+   * R4. Where this draw is, and when the next one can open.
+   *
+   * `minPeriod` is the floor, not the cadence. The configured 300 s and the ~44
+   * minutes actually observed are different numbers, and the difference is
+   * Zama's batcher settling between rounds rather than our keeper being slow —
+   * so the earliest time is stated as a floor and never as a prediction.
+   */
+  /**
+   * AD. How far apart the draws have ACTUALLY run.
+   *
+   * `minPeriod` is 300s and the observed cadence is nothing like it, so a panel
+   * built on the floor answers "eligible now" for hours and calls that an answer.
+   * The last eight rounds spaced out like this:
+   *
+   *     6m  6m  16m  41m  41m  41m  41m  41m  125m
+   *
+   * which is why this takes the MEDIAN rather than the mean — the 125-minute
+   * round is a keeper outage and the mean would carry it forward into every
+   * future estimate. The median is the cadence a visitor will actually see.
+   */
+  const { data: recentDraws } = useReadContracts({
+    contracts: Array.from({ length: 8 }, (_, i) => ({
+      abi: POOL_ABI, address: POOL, functionName: "drawAt",
+      args: [BigInt(Math.max(1, Number(drawCount ?? 0n) - 7 + i))],
+    })),
+    query: { enabled: (drawCount ?? 0n) > 1n, refetchInterval: 60_000 },
+  });
+
+  /** The most recent draw that actually published an aggregate. */
+  const lastRevealed = useMemo(() => {
+    const rows = (recentDraws ?? []) as ReadonlyArray<{
+      status: string;
+      result?: { snapshotAt: bigint; periodStart: bigint; status: number; totalWeight: bigint };
+    }>;
+    const done = rows
+      .filter((r) => r.status === "success" && r.result && Number(r.result.status) === 2 && r.result.totalWeight > 0n)
+      .map((r) => r.result!)
+      .sort((a, b) => Number(b.snapshotAt) - Number(a.snapshotAt));
+    return done[0] ?? null;
+  }, [recentDraws]);
+
+  /**
+   * Balance-seconds per second, i.e. the pool's average aggregate balance.
+   *
+   * Taken from the current draw when it has revealed, and from the last revealed
+   * draw otherwise. Both are public; neither needs a permit.
+   */
+  const avgAggregate = useMemo(() => {
+    const pick =
+      d !== undefined && Number(d.status) === 2 && d.totalWeight > 0n
+        ? { totalWeight: d.totalWeight, snapshotAt: d.snapshotAt, periodStart: (d as unknown as { periodStart: bigint }).periodStart }
+        : lastRevealed;
+    if (pick === null || pick === undefined) return null;
+    const window = Number(pick.snapshotAt) - Number(pick.periodStart);
+    if (window <= 0) return null;
+    const avg = Number(pick.totalWeight) / window;
+    return avg > 0 ? { avg, stale: pick !== undefined && lastRevealed !== null && (d === undefined || Number(d.status) !== 2) } : null;
+  }, [d, lastRevealed]);
+
   /**
    * P1. Whether THIS address has been accrued for THIS draw.
    *
@@ -220,121 +368,16 @@ export function PoolScreen() {
    * the encrypted weight itself.
    */
   const myOdds = useMemo(() => {
-    if (d === undefined || hasPermit !== true) return null;
-    const window = Number(d.snapshotAt) - Number((d as unknown as { periodStart: bigint }).periodStart);
-    const total = window > 0 ? Number(d.totalWeight) / window : 0;
+    if (hasPermit !== true || avgAggregate === null) return null;
+    const total = avgAggregate.avg;
     const raw = poolHandle && poolHandle !== ZERO ? clear?.[poolHandle as `0x${string}`] : undefined;
-    if (total <= 0 || raw === undefined) return null;
+    if (raw === undefined) return null;
     const share = Number(BigInt(raw as string | number | bigint)) / total;
     return tiers.map((t) => ({
       label: t.label,
       pct: t.every === undefined ? 0 : (share / Number(t.every)) * 100,
     }));
-  }, [d, hasPermit, poolHandle, clear, tiers]);
-
-  /**
-   * AC7. A draw nobody revealed, past the point anyone may abandon it.
-   *
-   * `cancelDraw` is permissionless and nobody would ever think to call it, so a
-   * keeper that dies leaves a visitor looking at a frozen pool with no way
-   * forward. Surfacing it turns B5 from a documented mitigation into a
-   * demonstrated recovery — which is the more useful thing to have.
-   */
-  const { data: cancelAfter } = useReadContract({
-    abi: POOL_ABI, address: POOL, functionName: "CANCEL_AFTER",
-  });
-  const stale = useMemo(() => {
-    if (d === undefined || Number(d.status) !== 1 || cancelAfter === undefined) return null;
-    const at = Number(d.snapshotAt) + Number(cancelAfter);
-    return Date.now() / 1000 >= at ? { at } : null;
-  }, [d, cancelAfter]);
-
-  const refresh = async () => {
-    await refetchOperator();
-    await refetchWallet();
-    await refetchPool();
-  };
-
-  const submit = () => {
-    if (address === undefined) return;
-    const fn = tab === "deposit" ? "deposit" : "withdraw";
-    void run(
-      tab === "deposit" ? "Depositing" : "Withdrawing",
-      tab === "deposit"
-        ? "Your position is in the pool, encrypted, and starts earning weight now."
-        : "The transaction landed — check your position to see whether it moved. A withdrawal is all-or-nothing: if the amount is more than you hold, or more than the pool has liquid, nothing moves and nothing is lost. A smaller amount goes through.",
-      async () => {
-        const enc = await encrypt({
-          contractAddress: POOL,
-          userAddress: address,
-          values: [{ type: "euint64", value: units }],
-        });
-        return writeContractAsync({
-          abi: POOL_ABI, address: POOL, functionName: fn,
-          args: [enc.encryptedValues[0] as `0x${string}`, enc.inputProof],
-        });
-      },
-    ).then(refresh);
-  };
-
-  const apy = rateBps === undefined ? "—" : `${(Number(rateBps) / 100).toFixed(0)}%`;
-
-  /**
-   * W4. A second hand, so the clock is visibly a clock.
-   *
-   * The panel said "Next draw, at the earliest — now" and sat there, which reads
-   * as a stuck component rather than a satisfied condition. This re-renders every
-   * second so both figures move; it is the only interval on the screen and it
-   * costs one state write per tick.
-   */
-  const [tick, setTick] = useState(() => Math.floor(Date.now() / 1000));
-  useEffect(() => {
-    const h = setInterval(() => setTick(Math.floor(Date.now() / 1000)), 1000);
-    return () => clearInterval(h);
-  }, []);
-
-  // ---------------------------------------------------------------- R4
-  const { data: minPeriod } = useReadContract({
-    abi: POOL_ABI, address: POOL, functionName: "minPeriod",
-  });
-  const { data: obsCount } = useReadContract({
-    abi: POOL_ABI, address: POOL, functionName: "observationCount",
-    args: address ? [address] : undefined, query: { enabled: !!address },
-  });
-  const { data: firstObs } = useReadContract({
-    abi: POOL_ABI, address: POOL, functionName: "observationAt",
-    args: address && (obsCount ?? 0n) > 0n ? [address, 0n] : undefined,
-    query: { enabled: !!address && (obsCount ?? 0n) > 0n },
-  });
-
-  /**
-   * R4. Where this draw is, and when the next one can open.
-   *
-   * `minPeriod` is the floor, not the cadence. The configured 300 s and the ~44
-   * minutes actually observed are different numbers, and the difference is
-   * Zama's batcher settling between rounds rather than our keeper being slow —
-   * so the earliest time is stated as a floor and never as a prediction.
-   */
-  /**
-   * AD. How far apart the draws have ACTUALLY run.
-   *
-   * `minPeriod` is 300s and the observed cadence is nothing like it, so a panel
-   * built on the floor answers "eligible now" for hours and calls that an answer.
-   * The last eight rounds spaced out like this:
-   *
-   *     6m  6m  16m  41m  41m  41m  41m  41m  125m
-   *
-   * which is why this takes the MEDIAN rather than the mean — the 125-minute
-   * round is a keeper outage and the mean would carry it forward into every
-   * future estimate. The median is the cadence a visitor will actually see.
-   */
-  const { data: recentDraws } = useReadContracts({
-    contracts: Array.from({ length: 8 }, (_, i) => ({
-      abi: POOL_ABI, address: POOL, functionName: "drawAt",
-      args: [BigInt(Math.max(1, Number(drawCount ?? 0n) - 7 + i))],
-    })),
-    query: { enabled: (drawCount ?? 0n) > 1n, refetchInterval: 60_000 },
-  });
+  }, [avgAggregate, hasPermit, poolHandle, clear, tiers]);
 
   const medianGap = useMemo(() => {
     const rows = (recentDraws ?? []) as ReadonlyArray<{
@@ -436,10 +479,8 @@ export function PoolScreen() {
    * estimate for the NEXT draw rather than a claim about this one.
    */
   const quoted = useMemo(() => {
-    if (d === undefined || units === 0n) return null;
-    const window = Number(d.snapshotAt) - Number((d as unknown as { periodStart: bigint }).periodStart);
-    const avg = window > 0 ? Number(d.totalWeight) / window : 0;
-    if (avg <= 0) return null;
+    if (units === 0n || avgAggregate === null) return null;
+    const avg = avgAggregate.avg;
     const raw = poolHandle && poolHandle !== ZERO ? clear?.[poolHandle as `0x${string}`] : undefined;
     const current = raw === undefined ? 0 : Number(BigInt(raw as string | number | bigint));
     const after = current + Number(units);
@@ -447,7 +488,7 @@ export function PoolScreen() {
       label: t.label,
       pct: t.every === undefined ? 0 : (after / (avg + Number(units)) / Number(t.every)) * 100,
     }));
-  }, [d, units, poolHandle, clear, tiers]);
+  }, [avgAggregate, units, poolHandle, clear, tiers]);
 
   /**
    * M3. Why the primary button is unavailable, in the order a user hits them.
@@ -517,7 +558,11 @@ export function PoolScreen() {
           <div style={css("display:flex;flex-wrap:wrap;gap:22px 44px;margin-top:28px")}>
             <Metric label="Round" value={round === 0 ? "—" : `#${round}`} />
             <Metric label="Grand prize" value={t0.data === undefined ? "—" : fmtUnits6(t0.data as bigint)} unit="cUSDC" />
-            <Metric label="Funded by yield at" value={apy} />
+            {/* README:723 makes "every screen that shows it says so" an
+                obligation, and a 34px number with its correction 80 lines below
+                the fold satisfies the letter of that and not the point. The rate
+                is ours; Zama's Sepolia vault is idle-only. */}
+            <Metric label="Funded by yield at" value={apy} unit="our rate, not Zama's" />
           </div>
 
           {/* Three prizes cannot be shown as one number, and the odds are the
@@ -876,7 +921,13 @@ export function PoolScreen() {
                   ))}
                 </div>
                 <p style={css("margin:8px 0 0;font:400 10.5px/1.5 var(--display);color:var(--ink-3)")}>
-                  Your share of the pool, per tier. Nobody else can compute this for you.
+                  Your share of the pool, per tier. The numerator is a weight only you can
+                  decrypt &mdash; though in a draw where you were the only depositor to move,
+                  the published aggregate can be solved for it. See{" "}
+                  <b style={css("font-weight:650")}>Try to break it</b>, row 4.{" "}
+                  {avgAggregate?.stale
+                    ? "The current draw has not published its aggregate yet, so this uses the last one that did."
+                    : "Against this draw’s published aggregate."}
                 </p>
               </div>
             )}
@@ -974,6 +1025,17 @@ export function PoolScreen() {
                     {fmtElapsed(clock.sinceFrozen)} ago
                   </span>
                 </div>
+                <div style={css("margin-top:8px;padding-top:8px;border-top:1px solid var(--line-2);display:flex;justify-content:space-between;gap:10px;font:400 11.5px var(--display);color:var(--ink-2)")}>
+                  <span>Keeper fee, per accrual batch</span>
+                  <span style={css("font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums;color:var(--ink)")}>
+                    {keeperFee === undefined ? "—" : `${(Number(keeperFee) / 1e6).toFixed(2)} cUSDC`}
+                  </span>
+                </div>
+                <p style={css("margin:4px 0 0;font:400 10.5px/1.5 var(--display);color:var(--ink-3)")}>
+                  Paid from the same reserve the prizes come from, to whoever sends the
+                  transaction. It is the only cost this pool charges you, and it competes with
+                  a prize rather than being taken from your principal.
+                </p>
                 <p style={css("margin:6px 0 0;font:400 10.5px/1.5 var(--display);color:var(--ink-3)")}>
                   {clock.medianGap === null ? (
                     <>

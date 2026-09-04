@@ -400,6 +400,9 @@ export function Position() {
           {/* ------------------------------------------------------------ U2 */}
           <Panel title="Every draw you were in">
             <div style={css("display:flex;gap:24px;flex-wrap:wrap;margin-bottom:12px")}>
+              {/* Both figures are over the last HISTORY draws, not all time. The
+                  screen's premise is that every number on it is honestly derived,
+                  which makes an unlabelled window the one thing it cannot have. */}
               <span style={css("font:400 12.5px var(--display);color:var(--ink-2)")}>
                 Entered{" "}
                 <b style={css("font-weight:750;font-size:15px;color:var(--ink)")}>{entered ?? "—"}</b>{" "}
@@ -408,6 +411,9 @@ export function Position() {
               <span style={css("font:400 12.5px var(--display);color:var(--ink-2)")}>
                 Cleared a tier in{" "}
                 <b style={css("font-weight:750;font-size:15px;color:var(--ink)")}>{wins ?? "—"}</b>
+              </span>
+              <span style={css("font:400 11.5px var(--display);color:var(--ink-3)")}>
+                of the last {HISTORY} draws
               </span>
             </div>
             <div style={css("overflow-x:auto")}>

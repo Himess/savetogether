@@ -256,11 +256,45 @@ input:focus {
   padding: 7px 10px;
 }
 
+/* --------------------------------------------------------------- narrow --
+   Under 900px the 264px rail costs more than it gives: at 375px it left about
+   61px for the actual screen. The rail becomes a compact header and the nav
+   becomes a horizontal scrolling strip — same buttons, same routes, same order.
+   CSS only: no matchMedia, no resize listener, no hydration mismatch. */
+@media (max-width: 900px) {
+  .shell { flex-direction: column; gap: 10px; padding: 10px; }
+
+  .rail {
+    position: static !important;
+    height: auto !important;
+    width: 100% !important;
+    border-radius: 18px !important;
+  }
+  .rail > div { padding: 11px 13px !important; gap: 9px !important; }
+
+  /* The nav is the part that has to change axis. */
+  .rail nav {
+    flex-direction: row !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 6px !important;
+    padding-bottom: 2px;
+  }
+  .rail nav::-webkit-scrollbar { display: none; }
+  .rail .navitem { width: auto !important; white-space: nowrap; padding: 8px 12px !important; }
+
+  /* The tagline repeats the page it sits above; drop it rather than wrap it. */
+  .rail > div > p { display: none !important; }
+
+  main { padding: 4px 6px 72px !important; }
+  table { min-width: 0 !important; }
+}
+
 @media (max-width: 560px) {
-  main { padding: 26px 16px 72px; }
+  main { padding: 4px 4px 72px !important; }
   .panel { padding: 18px 16px 16px; }
-  .masthead-inner { padding: 16px; }
-  .chain-pill { margin-left: 0; }
+  h1 { font-size: 30px !important; }
 }
 
 /* The route table carries two lines per cell, so it needs room the compact

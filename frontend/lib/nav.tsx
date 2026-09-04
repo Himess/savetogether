@@ -20,6 +20,19 @@ import { createContext, useContext, useState, ReactNode } from "react";
  * The page used to be one column of unrelated panels, which made it impossible
  * to tell what any of it was for.
  */
+/**
+ * R7 — "rubric" is a route with no sidebar entry, deliberately.
+ *
+ * The screen exists and is correct, and a scorecard belongs in a submission
+ * rather than in a product: a visitor who came to save money should not be
+ * shown how the thing they are using is being marked. It stays reachable so
+ * the README and the deck can link it, and it stays out of the nav so the
+ * product does not read as a submission folder.
+ *
+ * If it is ever deleted, delete the route with it. Neither shipped nor
+ * removed is the one state it should not be in, and it was in that state
+ * until this comment.
+ */
 export type Route = "pool" | "wrap" | "vault" | "verify" | "position" | "break" | "rubric" | "chat" | "balances";
 
 interface NavState {
