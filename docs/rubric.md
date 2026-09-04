@@ -169,6 +169,34 @@ the right arguments — and that is the product's actual interface.
 
 ---
 
+
+## 5. What the redeploy added, exercised on chain
+
+Four changes shipped with the CD redeploy, and none of them had a live transaction
+behind it until these. A claim with no transaction behind it is the thing this project
+spent a week removing everywhere else.
+
+| what | shown by | result |
+|---|---|---|
+| **A solvency bit per draw** — can the reserve cover the grand prize? | [`0x580d60af…`](https://sepolia.etherscan.io/tx/0x580d60af609b01f744520d6d8c5dab6ea5e1916f6361a80d031792e69e49d429) opened draw 1 | `solventAt(1)` decrypts to **false** — correct: one harvest is 6.85 cUSDC against a 4 × 25 = 100 cUSDC bar |
+| **The keeper fee is paid per accrual PERFORMED** | [`0xe3d739a8…`](https://sepolia.etherscan.io/tx/0xe3d739a83240aeb7f0a6b6e367fe7000c6a7192a09a686a2f3080d57b0ada0fe) then [`0x9ddeabbb…`](https://sepolia.etherscan.io/tx/0x9ddeabbbeebc4e1bd97c6d18d5ef94c9b3d5ff1c93efb6374919edc70fefa345) | **+0.200000** then **+0.000000** on the same address |
+| **A liveness reward on the two functions that wedge the pool** | [`0x580d60af…`](https://sepolia.etherscan.io/tx/0x580d60af609b01f744520d6d8c5dab6ea5e1916f6361a80d031792e69e49d429) `openDraw`, [`0x31ce709c…`](https://sepolia.etherscan.io/tx/0x31ce709cf7dbbdd28c987837b07803ca9004d062eca33053f77fa52266533e5c) `revealDraw` | 2 `LivenessPaid` events, **12,240** and **1,200** units, both under the cap |
+| **`withdraw(type(uint64).max)` empties an account** | [`0xb883d112…`](https://sepolia.etherscan.io/tx/0xb883d1122d7af2b5f7731f6249737e5c0389bf71449440c7713621d9fb9f09f2) | **12,000 → 0 cUSDC**. Impossible before: the clamp went to zero, so an over-ask moved nothing |
+
+**On the solvency bit reading `false`.** That is the first honest thing it said. A fresh
+pool has one harvest in the reserve and the bar is four grand prizes; a bit that read
+`true` there would have been the bug. It is one bit about the **pool**, never about a
+participant, and it converts the silent-zero shortfall from undetectable into
+pre-announced.
+
+**On the fee.** Before this, `accrueMany` paid for the *length of the array*. `accrue`
+returns early for an already-settled address, `_payKeeper` only checked the array was
+non-empty, the fee goes to `msg.sender`, and the function is external with no modifier —
+so anyone could collect 0.2 cUSDC for an accrual that did nothing, about 125 times per
+grand prize. The B4 suite had two cases and neither called `accrueMany` twice, so both
+passed with or without the guard. `test/cd-keeper-fee-and-acl.ts` closes that: with the
+guard reverted, two of its four cases fail.
+
 ## What a scoring sheet with nothing in the "limit" column would mean
 
 Nine of the twenty rows above carry a limitation or a divergence. That is the honest half of

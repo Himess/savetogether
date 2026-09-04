@@ -635,7 +635,7 @@ thing a lottery really has to prove.
 ## 🎁 Claiming announces nothing
 
 > **What `claim` is, because the name misleads.** There *is* a `claim(address)`, it is
-> deployed, and it has moved real cUSDC on Sepolia — [`0x39b75a19…e3e0`](https://sepolia.etherscan.io/tx/0x39b75a19c05278aef95c44831296a4d2074471406206655e404d375609f07fe8). Nothing is missing.
+> deployed, and it has moved real cUSDC on Sepolia — [`0x39b75a19…7fe8`](https://sepolia.etherscan.io/tx/0x39b75a19c05278aef95c44831296a4d2074471406206655e404d375609f07fe8). Nothing is missing.
 > But "claim" in every other lottery means *collect your prize*, and here it means
 > *fold an already-credited balance in*:
 >
