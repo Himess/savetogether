@@ -8,6 +8,7 @@ import { EXPLORER, POOL } from "@/lib/addresses";
 import { POOL_ABI } from "@/lib/abis";
 import { useOnSepolia } from "@/lib/chain";
 import { solveWindows, type BalanceEvent, type DrawRow, type SolveReport } from "@/lib/windowSolve";
+import { DEFAULT_UPPER, liveSearch, type LiveResult, type Probe as LiveProbe } from "@/lib/liveAfford";
 import { keccak256, toHex } from "viem";
 
 /** The topic0 for an event signature. */
@@ -37,6 +38,49 @@ const GAS_PAIR = [
  * whole value is that it attacks rather than cites. Everything needed is public,
  * so this needs no wallet and no signature.
  */
+/**
+ * Row 5, against the deployed server instead of a copy of the rule.
+ *
+ * The session token is the one the visitor already holds — the Talk-to-it screen
+ * writes it to localStorage when a session is opened. Nothing is minted here and
+ * nothing is stored; if there is no session, the row says so and offers no button.
+ */
+const SESSION_KEY = "ghostpool.hosted.session";
+const MAX_LIVE_PROBES = 14;
+
+function useLiveAfford() {
+  const [token, setToken] = useState<string | null>(null);
+  const [probes, setProbes] = useState<LiveProbe[]>([]);
+  const [res, setRes] = useState<LiveResult | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(SESSION_KEY);
+      if (raw === null) return;
+      const t = JSON.parse(raw) as { token?: string } | string;
+      setToken(typeof t === "string" ? t : (t.token ?? null));
+    } catch {
+      // No session, private mode, or a shape we do not recognise. The row copes.
+    }
+  }, []);
+
+  const run = useCallback(async () => {
+    if (token === null) return;
+    setBusy(true); setErr(null); setProbes([]); setRes(null);
+    try {
+      setRes(await liveSearch(token, DEFAULT_UPPER, MAX_LIVE_PROBES, (p) => setProbes((v) => [...v, p])));
+    } catch (e) {
+      setErr((e as Error).message.slice(0, 160));
+    } finally {
+      setBusy(false);
+    }
+  }, [token]);
+
+  return { token, probes, res, err, busy, run };
+}
+
 function useWindowSolve() {
   const client = usePublicClient();
   const [report, setReport] = useState<SolveReport | null>(null);
@@ -294,6 +338,7 @@ export function Break() {
   const liveGas = useLiveGas();
   // §8, run against the pool on screen rather than quoted from a terminal.
   const solve = useWindowSolve();
+  const live = useLiveAfford();
   const { address } = useAccount();
   const onSepolia = useOnSepolia();
   const client = usePublicClient();
@@ -660,12 +705,78 @@ export function Break() {
           status={result ? "closed" : "idle"}
         >
           <div style={css("padding:11px 13px;border-radius:11px;background:var(--red-bg);border:1px solid #e0c4c4;font:600 12px/1.6 var(--display);color:var(--red)")}>
-            This attack worked, and unlike the budget row below it, it is not closed. It is one of two rows describing a real defect
-            in shipped code — found, measured at 40 calls, and closed. What runs below is the
-            same search against the rule that closed it.
+            This attack worked and it IS closed — found, measured at 40 calls, and fixed by
+            coarsening. Two runs below: the first sends real calls to the deployed server and is
+            the one that proves anything; the second is a simulation against a number you pick,
+            kept because it lets you watch the search fail without holding a session.
           </div>
 
-          <div style={css("margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap")}>
+          {/* THE LIVE RUN. Everything below this block is a simulation and is
+              labelled as one — this is the part that actually attacks the server. */}
+          <div style={css("margin-top:12px;padding:11px 13px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line-2)")}>
+            <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap")}>
+              <span style={css("font:650 10px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)")}>
+                Against the deployed server
+              </span>
+              <span style={css("font:600 10.5px var(--display);color:var(--ink-3)")}>
+                {live.token === null ? "no session on this device" : "session found"}
+              </span>
+            </div>
+
+            {live.token === null ? (
+              <p style={css("margin:8px 0 0;font:400 11px/1.6 var(--display);color:var(--ink-2)")}>
+                <span style={css("font-family:var(--mono);font-size:10.5px")}>can_afford</span> answers about{" "}
+                <b style={css("font-weight:650")}>your</b> encrypted budget, so this needs a session to attack.
+                Open one on <b style={css("font-weight:650")}>Talk to it</b> and come back — the button appears
+                by itself. Until then the run below is a <b style={css("font-weight:650")}>simulation</b>, and it
+                says so rather than borrowing the credibility of a live one.
+              </p>
+            ) : (
+              <>
+                <button
+                  onClick={() => void live.run()}
+                  disabled={live.busy}
+                  style={css(`margin-top:10px;padding:9px 15px;border-radius:11px;border:none;background:var(--accent);font:700 12px var(--display);color:var(--on-accent);cursor:${live.busy ? "wait" : "pointer"}`)}
+                >
+                  {live.busy ? `probing… ${live.probes.length}/${MAX_LIVE_PROBES}` : `Binary-search my real budget (${MAX_LIVE_PROBES} live calls)`}
+                </button>
+                <p style={css("margin:7px 0 0;font:400 10.5px/1.55 var(--display);color:var(--ink-3)")}>
+                  {MAX_LIVE_PROBES} and not 40, because the server allows 60 calls a minute and a full search
+                  would sit on that ceiling. A truthful {MAX_LIVE_PROBES} is worth more than a simulated 40 —
+                  and the point of the row is where the search <i>stops</i>, which {MAX_LIVE_PROBES} reaches.
+                </p>
+              </>
+            )}
+
+            {live.err !== null && <Out>{"live run failed: " + live.err}</Out>}
+
+            {live.probes.length > 0 && (
+              <Out>{[
+                "LIVE — every line below is one HTTP call to the deployed server",
+                ...live.probes.map(
+                  (p) => `  call ${String(p.call).padStart(2)}  "can I afford ${(Number(p.amount) / 1e6).toFixed(6)}?"  ${p.yes ? "yes" : "no"}`,
+                ),
+                ...(live.res === null
+                  ? []
+                  : [
+                      "",
+                      `  after ${live.res.probes.length} live calls the bracket is`,
+                      `  ${(Number(live.res.lo) / 1e6).toFixed(6)}  ..  ${(Number(live.res.hi) / 1e6).toFixed(6)}`,
+                      "",
+                      live.res.exhausted
+                        ? "  the search converged — and it converged on a BUCKET, not a figure"
+                        : "  stopped at the probe limit, not because the search ran out",
+                      "  every budget inside one 50-token bucket answers identically,",
+                      "  so further calls divide nothing. that is the fix, working.",
+                    ]),
+              ].join("\n")}</Out>
+            )}
+          </div>
+
+          <div style={css("margin-top:14px;font:650 10px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)")}>
+            Simulation — the same search against a number you choose
+          </div>
+          <div style={css("margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap")}>
             <label style={css("font:600 12px var(--display);color:var(--ink-2)")}>
               a budget to hunt for
             </label>

@@ -10,6 +10,7 @@ import { useOnSepolia } from "@/lib/chain";
 import { oddsPct, rejectionFloor, thresholdFor } from "@/lib/draw";
 import { weightForWindow, type Observation } from "@/lib/twab";
 import { Keepable } from "@/components/Keepable";
+import { Activity } from "@/components/Activity";
 
 const ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
@@ -572,8 +573,10 @@ export function VerifyScreen() {
           and accrueMany are both permissionless. It needs no wallet and no permit
           — a wallet balance is public — so it renders for a visitor who has
           connected nothing. */}
+      <PoolAge />
       <KeeperRunway />
       <Keepable />
+      <Activity />
 
       {/* V2. The composition proof, moved here from the retired Vault tab.
           It belongs on the evidence page: its reader wants it, and on the Pool
@@ -703,6 +706,44 @@ function KeeperRunway() {
           </>
         )}
       </p>
+    </div>
+  );
+}
+
+
+/**
+ * How long this pool has been running, and how much it has recorded.
+ *
+ * CT. `totalObservationCount` counts OBSERVATIONS, not participants — one per
+ * balance change per account, plus one on the aggregate. Showing it as a depositor
+ * count would be wrong, and showing it raw would mean nothing to a visitor, so it
+ * is labelled as what it is and paired with the age that makes it legible.
+ */
+function PoolAge() {
+  const { data: genesis } = useReadContract({ abi: POOL_ABI, address: POOL, functionName: "genesis" });
+  const { data: obs } = useReadContract({
+    abi: POOL_ABI, address: POOL, functionName: "totalObservationCount",
+    query: { refetchInterval: 30_000 },
+  });
+  if (genesis === undefined) return null;
+  const started = Number(genesis);
+  const days = (Math.floor(Date.now() / 1000) - started) / 86400;
+  const when = new Date(started * 1000).toISOString().slice(0, 10);
+
+  return (
+    <div style={css("margin-top:18px;display:flex;gap:22px;flex-wrap:wrap;align-items:baseline")}>
+      <span style={css("font:400 11.5px var(--display);color:var(--ink-2)")}>
+        Running since{" "}
+        <b style={css("font-weight:650;color:var(--ink)")}>{when}</b>
+        {days >= 1 ? ` · ${Math.floor(days)} day${Math.floor(days) === 1 ? "" : "s"}` : " · today"}
+      </span>
+      <span style={css("font:400 11.5px var(--display);color:var(--ink-2)")}>
+        <b style={css("font-weight:650;color:var(--ink)")}>{obs === undefined ? "—" : String(obs)}</b>{" "}
+        balance observations recorded
+      </span>
+      <span style={css("font:400 10.5px var(--display);color:var(--ink-3)")}>
+        one per balance change, not one per depositor
+      </span>
     </div>
   );
 }

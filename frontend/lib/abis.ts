@@ -26,6 +26,17 @@ export const POOL_ABI = [
   // One bit per draw: does the reserve cover SOLVENCY_COVER grand prizes. Publicly
   // decryptable by design — no wallet, no permit.
   { type: "function", name: "solventAt", stateMutability: "view", inputs: [{ type: "uint32" }], outputs: [{ type: "bytes32" }] },
+  // CU. These were hardcoded in the UI. This project has spent a week on figures
+  // that drifted between surfaces; three more constants typed into a component is
+  // how the next drift starts. Read them.
+  { type: "function", name: "SOLVENCY_COVER", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
+  { type: "function", name: "LIVENESS_CAP", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
+  { type: "function", name: "LIVENESS_RATE_PER_SEC", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
+  { type: "function", name: "FEE_SHARE_DIVISOR", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
+  // CT. When the pool started, and how many observations it holds — NOT a
+  // depositor count, which is what a reader would assume if it were unlabelled.
+  { type: "function", name: "genesis", stateMutability: "view", inputs: [], outputs: [{ type: "uint40" }] },
+  { type: "function", name: "totalObservationCount", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
   { type: "function", name: "minPeriod", stateMutability: "view", inputs: [], outputs: [{ type: "uint40" }] },
   { type: "function", name: "accrued", stateMutability: "view", inputs: [{ type: "uint32" }, { type: "address" }], outputs: [{ type: "bool" }] },
   // Permissionless and unconditional: anyone may call it for anyone, and it does

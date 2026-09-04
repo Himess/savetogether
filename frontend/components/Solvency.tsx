@@ -25,7 +25,18 @@ const ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000
  * It is one bit about the POOL and never about a participant. It says whether a
  * prize can be paid; it says nothing about who might receive one.
  */
-export function Solvency({ drawId, cover = 4, grand = 25 }: { drawId: number; cover?: number; grand?: number }) {
+export function Solvency({ drawId }: { drawId: number }) {
+  // CU. Read from the contract, not typed in here. `SOLVENCY_COVER` is what "can
+  // pay its grand prize" actually MEANS, so a stale copy would have this panel
+  // state a threshold the chain does not use.
+  const { data: coverRaw } = useReadContract({
+    abi: POOL_ABI, address: POOL, functionName: "SOLVENCY_COVER",
+  });
+  const { data: grandRaw } = useReadContract({
+    abi: POOL_ABI, address: POOL, functionName: "tierPrize", args: [0n],
+  });
+  const cover = coverRaw === undefined ? null : Number(coverRaw);
+  const grand = grandRaw === undefined ? null : Number(grandRaw) / 1e6;
   const { data: handle } = useReadContract({
     abi: POOL_ABI, address: POOL, functionName: "solventAt",
     args: [drawId], query: { enabled: drawId > 0 },
@@ -68,7 +79,7 @@ export function Solvency({ drawId, cover = 4, grand = 25 }: { drawId: number; co
       <p style={css("margin:7px 0 0;font:400 10.5px/1.55 var(--display);color:var(--ink-3)")}>
         {state === "no" ? (
           <>
-            The reserve does not yet cover <b style={css("font-weight:650")}>{cover} × {grand} cUSDC</b>. A
+            The reserve does not yet cover <b style={css("font-weight:650")}>{cover ?? "…"} × {grand ?? "…"} cUSDC</b>. A
             cleared threshold against a short reserve credits <b style={css("font-weight:650")}>zero</b>, and on
             chain that is indistinguishable from losing — so this is the one warning the design cannot give you
             after the fact. It fills from <span style={css("font-family:var(--mono);font-size:10px")}>harvest()</span>{" "}
@@ -76,14 +87,17 @@ export function Solvency({ drawId, cover = 4, grand = 25 }: { drawId: number; co
           </>
         ) : (
           <>
-            The reserve covers <b style={css("font-weight:650")}>{cover} × {grand} cUSDC</b> — four grand prizes,
-            not one, because a draw can produce several winners and one prize of cover leaves nothing for the
-            second.
+            The reserve covered <b style={css("font-weight:650")}>{cover ?? "…"} × {grand ?? "…"} cUSDC</b> when this
+            draw opened — {cover ?? "several"} grand prizes rather than one, because a draw can produce several
+            winners and covering a single prize leaves nothing for the second.
           </>
         )}{" "}
-        Computed on chain as an encrypted comparison and published as a single bit: it says whether a prize{" "}
-        <i>can</i> be paid and nothing about who might receive one. No wallet and no signature — the network
-        public key decrypts it, so anyone can check this.
+        Computed on chain as an encrypted comparison and published as one bit.
+        <b style={css("font-weight:650")}> It is not a guarantee that you will be paid.</b> It says what the
+        reserve held <i>at the moment the draw opened</i>, about the pool and never about a participant —
+        whether a prize <i>can</i> be paid, not whether one is owed to you or will land. Verify&apos;s tier table
+        makes the matching distinction between clearing a threshold and being credited. No wallet and no
+        signature: the network public key decrypts it, so anyone can check this.
       </p>
     </div>
   );

@@ -182,21 +182,34 @@ input and the build that was deployed, and it is not the same claim as the other
 ## 🔗 Composed with Zama's vault, both directions
 
 ```mermaid
-graph LR
-    U["👤 Depositor"] -->|"encrypted deposit"| P["ConfidentialPrizePool<br/>TWAB · draw · 3 tiers"]
-    P -->|"supply"| S["SteakhouseReplicaSource"]
-    S -->|"joinVault<br/>half the remainder"| DB["Zama DepositBatcher"]
+%% Top-to-bottom on purpose. As `graph LR` this was an eleven-node chain that
+%% GitHub scaled to fit the README column, which made every label unreadable —
+%% a diagram nobody can read is worse than a paragraph.
+flowchart TB
+    U["👤 Depositor"]
+    P["<b>ConfidentialPrizePool</b><br/>TWAB · draw · 3 tiers"]
+    S["<b>SteakhouseReplicaSource</b><br/>the yield engine"]
+    DB["Zama DepositBatcher"]
+    RB["Zama RedeemBatcher"]
+    V["Steakhouse Confidential Prime USDC<br/>ERC-4626, on mainnet"]
+
+    U -->|"encrypted deposit"| P
+    P -->|"supply"| S
+    S -->|"joinVault · half the remainder"| DB
     DB -->|"csteakcUSDC"| S
-    S -->|"requestUnwind<br/>all shares"| RB["Zama RedeemBatcher"]
+    S -->|"requestUnwind · all shares"| RB
     RB -->|"cUSDC back"| S
-    DB --- V["Steakhouse Confidential Prime USDC<br/>ERC-4626"]
+    DB --- V
     RB --- V
     S -->|"harvest → reserve"| P
     P -->|"encrypted prize"| U
-    classDef ours fill:#ffd208,stroke:#1a1a1a,color:#1a1a1a,font-weight:bold;
-    classDef zama fill:#16181f,stroke:#2f333d,color:#eceef2;
+
+    classDef ours fill:#1b3a5c,stroke:#12293f,color:#ffffff,font-weight:bold;
+    classDef zama fill:#f6f1e8,stroke:#ded3c0,color:#5c4a2a;
+    classDef vault fill:#eef2f7,stroke:#c6d2e0,color:#1b3a5c;
     class P,S ours;
-    class DB,RB,V zama;
+    class DB,RB zama;
+    class V vault;
 ```
 
 **The honest split, and both halves are on screen wherever they are shown:**
@@ -307,19 +320,34 @@ disappear.
 `"put half my balance in the pool"`, through all three:
 
 ```mermaid
-graph LR
-    U["👤 You<br/><i>knows: everything</i>"] -->|"'half my balance'"| M["💬 The model<br/><i>knows: the words<br/>and bal_1:half</i>"]
-    M -->|"pool_deposit(bal_1:half)"| S["🖥 The session client<br/><i>knows: 12,290<br/>and therefore 6,145</i>"]
-    S -->|"encrypt(6145000000)"| E["🔒 externalEuint64<br/>+ input proof"]
-    E -->|"deposit(handle, proof)"| C["⛓ The chain<br/><i>knows: a handle,<br/>a sender, a timestamp</i>"]
-    C -->|"euint64 position"| K["🔐 Only you<br/>can decrypt"]
-    classDef you fill:#ffd208,stroke:#1a1a1a,color:#1a1a1a,font-weight:bold;
-    classDef mid fill:#16181f,stroke:#2f333d,color:#eceef2;
-    classDef chain fill:#eef3fd,stroke:#c3d4f2,color:#2b4c8c;
+%% Also TB. This is the diagram the whole "three principals" argument rests on,
+%% and as a horizontal chain it rendered at about the height of a line of text.
+flowchart TB
+    U["<b>👤 You</b><br/><i>knows: everything</i>"]
+    M["<b>💬 The model</b><br/><i>knows: the words,<br/>and the string bal_1:half</i>"]
+    S["<b>🖥 The session client</b><br/><i>knows: 12,290 —<br/>and therefore 6,145</i>"]
+    E["🔒 externalEuint64<br/>+ input proof"]
+    C["<b>⛓ The chain</b><br/><i>knows: a handle,<br/>a sender, a timestamp</i>"]
+    K["<b>🔐 Only you</b><br/>can decrypt the position"]
+
+    U -->|"“half my balance”"| M
+    M -->|"pool_deposit(bal_1:half)"| S
+    S -->|"encrypt(6145000000)"| E
+    E -->|"deposit(handle, proof)"| C
+    C -->|"euint64 position"| K
+
+    classDef you fill:#1b3a5c,stroke:#12293f,color:#ffffff,font-weight:bold;
+    classDef noFigure fill:#eaf3ee,stroke:#c3ddcf,color:#2f6b4f;
+    classDef seesIt fill:#f6f1e8,stroke:#ded3c0,color:#8a6d3b,font-weight:bold;
+    classDef chain fill:#eef2f7,stroke:#c6d2e0,color:#1b3a5c;
     class U,K you;
-    class M,S,E mid;
+    class M,E noFigure;
+    class S seesIt;
     class C chain;
 ```
+
+> Green is *never sees the figure*; amber is *does*. The session client is the only
+> amber box, and it is amber because it has to be — it builds the ciphertext.
 
 **The model never holds `6,145`.** It holds the string `bal_1:half`, and the
 resolution happens one hop later, in a process that already had to know the balance

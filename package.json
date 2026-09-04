@@ -20,7 +20,8 @@
     "deploy:hosted": "bash scripts/deploy-hosted.sh",
     "build:deck": "bash scripts/sync-deck.sh",
     "check:addresses": "node scripts/check-addresses.mjs",
-    "check:artifacts": "node scripts/check-out-artifacts.mjs"
+    "check:artifacts": "node scripts/check-out-artifacts.mjs",
+    "check:pushed": "bash scripts/check-pushed.sh"
   },
   "dependencies": {
     "@fhevm/solidity": "^0.11.1",
