@@ -380,7 +380,21 @@ export function PoolScreen() {
     }));
   }, [avgAggregate, hasPermit, poolHandle, clear, tiers]);
 
-  const medianGap = useMemo(() => {
+  /**
+   * How far apart draws actually run — or an honest refusal to guess.
+   *
+   * ONE GAP USED TO BE ENOUGH. It produced a "median" from a sample of one, and on
+   * a freshly redeployed pool that sample was three draws I had opened by hand,
+   * minutes apart, while the keeper's real period is forty minutes. The panel
+   * then reported the difference as "overdue by 7m 26s" and counted up forever:
+   * the SUBTRACTION was right and the number it subtracted from was meaningless.
+   *
+   * A median needs enough gaps to be a median. Below that this returns null and
+   * the panel says the cadence is not established instead of inventing one — the
+   * same rule the window solve follows when it will not claim a solve.
+   */
+  const MIN_GAPS = 4;
+  const cadence = useMemo(() => {
     const rows = (recentDraws ?? []) as ReadonlyArray<{
       status: string; result?: { snapshotAt: bigint };
     }>;
@@ -390,10 +404,11 @@ export function PoolScreen() {
       .sort((a, b) => a - b);
     const gaps: number[] = [];
     for (let i = 1; i < snaps.length; i++) if (snaps[i] > snaps[i - 1]) gaps.push(snaps[i] - snaps[i - 1]);
-    if (gaps.length === 0) return null;
+    if (gaps.length < MIN_GAPS) return { median: null, samples: gaps.length };
     gaps.sort((a, b) => a - b);
-    return gaps[Math.floor(gaps.length / 2)];
+    return { median: gaps[Math.floor(gaps.length / 2)]!, samples: gaps.length };
   }, [recentDraws]);
+  const medianGap = cadence.median;
 
   const clock = useMemo(() => {
     if (d === undefined || minPeriod === undefined) return null;
@@ -1019,14 +1034,18 @@ export function PoolScreen() {
                     more 11px row among seven. */}
                 <div style={css("margin-top:9px;display:flex;justify-content:space-between;align-items:baseline;gap:10px")}>
                   <span style={css("font:400 11.5px var(--display);color:var(--ink-2)")}>
-                    {clock.overdueSeconds > 0 ? "Next draw, overdue by" : "Next draw, in about"}
+                    {clock.medianGap === null
+                      ? "Weights froze"
+                      : clock.overdueSeconds > 0
+                        ? "Next draw, overdue by"
+                        : "Next draw, in about"}
                   </span>
                   <span style={css(`font-family:var(--mono);font-size:19px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:${clock.overdueSeconds > 0 ? "var(--amber)" : "var(--ink)"}`)}>
-                    {clock.etaSeconds === null
-                      ? "—"
+                    {clock.medianGap === null
+                      ? fmtElapsed(clock.sinceFrozen)
                       : clock.overdueSeconds > 0
                         ? fmtElapsed(clock.overdueSeconds)
-                        : fmtRough(clock.etaSeconds)}
+                        : fmtRough(clock.etaSeconds ?? 0)}
                   </span>
                 </div>
                 <div style={css("margin-top:5px;display:flex;justify-content:space-between;gap:10px;font:400 11.5px var(--display);color:var(--ink-2)")}>
@@ -1049,14 +1068,17 @@ export function PoolScreen() {
                 <p style={css("margin:6px 0 0;font:400 10.5px/1.5 var(--display);color:var(--ink-3)")}>
                   {clock.medianGap === null ? (
                     <>
-                      An estimate needs a few rounds of history and there are not enough yet. The
-                      floor is <span style={css("font-family:var(--mono)")}>minPeriod</span>,{" "}
-                      {Number(minPeriod ?? 0n)}s.
+                      <b style={css("font-weight:650")}>No estimate yet, on purpose.</b> A median needs at
+                      least {MIN_GAPS} gaps between draws and this pool has {cadence.samples}. Guessing from
+                      one or two would produce a confident number built on nothing — and on a fresh pool those
+                      first gaps are usually manual runs minutes apart, nothing like the cadence a keeper
+                      settles into. The only figure the contract guarantees is the floor:{" "}
+                      <span style={css("font-family:var(--mono)")}>minPeriod</span>, {Number(minPeriod ?? 0n)}s.
                     </>
                   ) : (
                     <>
-                      An estimate, not a schedule — the median of the last rounds&apos; actual
-                      spacing ({fmtRough(clock.medianGap)}), not{" "}
+                      An estimate, not a schedule — the median of the last {cadence.samples} gaps
+                      between draws ({fmtRough(clock.medianGap)}), not{" "}
                       <span style={css("font-family:var(--mono)")}>minPeriod</span>, which is only a{" "}
                       {Number(minPeriod ?? 0n)}s floor. The keeper waits on Zama&apos;s batcher
                       between rounds, so a round can run late.
