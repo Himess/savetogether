@@ -188,6 +188,20 @@ button {
 }
 button:hover:not(:disabled) { box-shadow: 0 4px 14px -6px rgba(26, 24, 21, 0.45); }
 button:active:not(:disabled) { transform: translateY(1px); }
+/* A disabled control must LOOK disabled, everywhere, without the next person
+   remembering to style it. Inline styles set `cursor:pointer` on most buttons in
+   this app, so both properties carry !important — otherwise the inline rule wins
+   and a dead button keeps a pointer cursor.
+
+   This is not cosmetic. "Get 1,000" is disabled off Sepolia and looked identical
+   to a live button, so pressing it appeared to do nothing at all. */
+button:disabled,
+button[disabled] {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  filter: saturate(0.6);
+}
+
 button:disabled {
   background: var(--surface-2);
   border-color: var(--line);

@@ -287,6 +287,21 @@ export function WrapScreen() {
                 Get 1,000
               </button>
             </div>
+            {/* Say it once, at the top, instead of leaving three dead buttons to be
+                discovered by pressing them. The unwrap panel already said "Switch
+                your wallet to Sepolia first" — but it is 400px lower, so somebody
+                pressing Get 1,000 never saw it. */}
+            {address !== undefined && !onSepolia && (
+              <div style={css("margin:2px 0 8px;padding:9px 11px;border-radius:10px;background:var(--red-bg);border:1px solid #e0c4c4;font:600 11.5px/1.55 var(--display);color:var(--red)")}>
+                Your wallet is not on Sepolia, so every button in this panel is disabled. There is a{" "}
+                <b style={css("font-weight:750")}>Switch to Sepolia</b> button in the sidebar.
+              </div>
+            )}
+            {address === undefined && (
+              <div style={css("margin:2px 0 8px;padding:9px 11px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line-2);font:500 11.5px/1.55 var(--display);color:var(--ink-2)")}>
+                Connect a wallet to use this panel.
+              </div>
+            )}
             <div style={css("display:flex;align-items:center;justify-content:space-between;padding:10px 0")}>
               <span style={css("font:500 12.5px var(--display);color:var(--ink-2)")}>Wrapper may take them</span>
               {approved && units > 0n ? (

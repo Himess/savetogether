@@ -1,7 +1,8 @@
 "use client";
 import { CSSProperties, ReactNode, useState } from "react";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
 import { css } from "@/lib/css";
+import { SEPOLIA_CHAIN_ID } from "@/lib/addresses";
 import { useNav, type Route } from "@/lib/nav";
 import { shortAddr } from "@/lib/format";
 import { useToast } from "@/components/Toast";
@@ -57,6 +58,9 @@ export function Sidebar() {
   const { address, isConnected } = useAccount();
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
+  const { switchChain, isPending: switching } = useSwitchChain();
+  const { chainId } = useAccount();
+  const wrongChain = isConnected && chainId !== SEPOLIA_CHAIN_ID;
 
   /**
    * Which wallet, decided by the person using it.
@@ -132,11 +136,35 @@ export function Sidebar() {
         <div style={css("flex:1")} />
 
         <div style={css("margin-bottom:10px;padding:11px 12px;border-radius:13px;background:var(--surface-2);border:1px solid var(--line)")}>
+          {/* This said "Sepolia testnet" as a hardcoded string, whatever the wallet
+              was actually on. `lib/chain.ts` exists precisely because `useChainId()`
+              reports the CONFIGURED chain rather than the connected one — and the one
+              place a user looks to check their network was asserting the thing that
+              library was written to disprove. A wallet on mainnet saw a green pip,
+              its own address, and the word Sepolia, then pressed buttons that were
+              disabled and looked enabled. */}
           <div style={css("font:700 10px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)")}>Network</div>
           <div style={css("display:flex;align-items:center;gap:7px;margin-top:5px")}>
-            <span style={css("width:7px;height:7px;border-radius:50%;background:#8a63d2")} />
-            <span style={css("font:650 12.5px var(--display);color:var(--ink-2)")}>Sepolia testnet</span>
+            <span style={css(`width:7px;height:7px;border-radius:50%;background:${wrongChain ? "var(--red)" : "#8a63d2"}`)} />
+            <span style={css(`font:650 12.5px var(--display);color:${wrongChain ? "var(--red)" : "var(--ink-2)"}`)}>
+              {!isConnected ? "Sepolia testnet" : wrongChain ? "Wrong network" : "Sepolia testnet"}
+            </span>
           </div>
+          {wrongChain && (
+            <>
+              <p style={css("margin:6px 0 0;font:400 10.5px/1.5 var(--display);color:var(--red)")}>
+                Your wallet is on chain {chainId}. Everything here needs Sepolia, so every button is
+                disabled until you switch.
+              </p>
+              <button
+                onClick={() => switchChain({ chainId: SEPOLIA_CHAIN_ID })}
+                disabled={switching}
+                style={css(`margin-top:7px;width:100%;padding:8px;border-radius:10px;border:none;background:var(--accent);font:700 11.5px var(--display);color:var(--on-accent);cursor:${switching ? "wait" : "pointer"}`)}
+              >
+                {switching ? "Ask your wallet…" : "Switch to Sepolia"}
+              </button>
+            </>
+          )}
         </div>
 
         <button
