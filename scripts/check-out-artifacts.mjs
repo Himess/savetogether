@@ -31,4 +31,3 @@ for (const f of fs.readdirSync("out").sort()) {
 }
 
 console.log(`\n${safe.length} artifact(s) cleared to commit`);
-fs.writeFileSync(".safe-out.json", JSON.stringify(safe, null, 1));

@@ -2,6 +2,13 @@
 
 **Public endpoint: `https://survivorsbyashborn.com/ghostpool`**
 
+> **The path says `ghostpool` and the product is called SaveTogether.** That is not
+> an oversight. This path, `/opt/ghostpool`, and the `ghostpool-hosted` and
+> `ghostpool-keeper` units are **addresses**: every MCP URL handed to a Claude
+> connector so far points at this one, and renaming it would break each of them to
+> change a string nobody reads. The site, the deck and the docs say SaveTogether;
+> the plumbing keeps the name it was built under.
+
 Stable, on a VPS, under systemd with `Restart=always` and `enabled` at boot. No
 tunnel, no laptop, no build-time URL to keep in sync.
 

@@ -140,6 +140,14 @@ export class HostedServer {
    * canonical URL worked, which is why it went unnoticed: it is the one nobody
    * opens while debugging.
    *
+   * THE PREFIX BELOW SAYS `ghostpool` AND THAT IS CORRECT. The product is
+   * SaveTogether; the Vercel PROJECT is still named ghostpool, and the project
+   * name is what Vercel puts in every per-deployment hostname. Renaming the
+   * project would change all of those at once and break this pattern, for no gain
+   * a visitor can see — the canonical alias is what anybody types. Same reason the
+   * hosted path is still `/ghostpool` and the systemd units still carry it: those
+   * are addresses, and renaming a live address breaks the sessions using it.
+   *
    * Deliberately not a wildcard. The pattern is anchored, names this project, and
    * is confined to the vercel.app apex — `*.vercel.app` would let any Vercel user
    * call a server that holds session keys.
@@ -204,7 +212,7 @@ export class HostedServer {
         {
           service: "ghostpool-hosted",
           what: "The server behind SaveTogether's conversational layer. There is no page here.",
-          openASession: "https://ghostpool-himess.vercel.app",
+          openASession: "https://savetogether-himess.vercel.app",
           endpoints: {
             "GET /api/health": "liveness",
             "POST /api/session/prepare": "generate a session key and return the calls your wallet signs",

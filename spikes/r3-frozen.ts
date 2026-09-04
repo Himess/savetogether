@@ -147,6 +147,10 @@ async function main(): Promise<void> {
 
   const out = { sourceClean, prefixBytes: prefix / 2, suffixBytes: suffix / 2, gas: results, same };
   fs.mkdirSync(path.join(__dirname, "out"), { recursive: true });
+  // NOTE: this path is dead configuration, not a missing artifact. This spike has
+  // not been run since `spikes/out/` started being kept, so `r3-frozen.json` has
+  // never existed — nothing cites it but this line. `r3-gas.json` is the frozen
+  // surface measurement that survived and is what the docs reference.
   fs.writeFileSync(path.join(__dirname, "out", "r3-frozen.json"), JSON.stringify(out, null, 2));
   console.log("\nwritten to spikes/out/r3-frozen.json");
 }

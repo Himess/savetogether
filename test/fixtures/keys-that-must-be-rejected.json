@@ -1,0 +1,10 @@
+{
+  "_comment": "A FIXTURE, not real keys. Deliberately shaped like the two files in out/ that hold live private keys, so the artifact screen can be shown to reject them. If check:artifacts ever passes this file, the screen is broken and the next `git add -A` can publish a key.",
+  "bareArray": [
+    "0x0000000000000000000000000000000000000000000000000000000000000001",
+    "0x0000000000000000000000000000000000000000000000000000000000000002"
+  ],
+  "arms": [
+    { "name": "winner", "pk": "0x0000000000000000000000000000000000000000000000000000000000000003" }
+  ]
+}

@@ -16,7 +16,7 @@ packages/*/dist/
 # different act from keeping them on disk to read, and it is not this repo's call
 # to make. `git add -A` swept them in once; this stops that recurring. Remove this
 # line if the decision is to publish them.
-bundle/
+bundle/*
 
 # --- out/ : evidence yes, keys never -------------------------------------
 #
@@ -61,3 +61,18 @@ bundle/
 !out/storage-cost.json
 !out/u3-twab-verify.json
 !out/x1-window-solve.json
+
+# --- bundle/ : our own reports in, third-party corpora out ----------------
+#
+# bundle/ is ignored because most of it is ~7 MB of verbatim third-party
+# documentation (Zama, PoolTogether, OpenZeppelin), fetched as a reading corpus.
+# Republishing somebody else's docs is not this repository's call to make, and it
+# was swept in once by a  before anyone noticed.
+#
+# These four are OURS: dated reports this project wrote, small, and cited nine
+# times from tracked files. A citation to a file nobody can open is the defect the
+# September audit found in rubric.md, so they come in.
+!bundle/STATE-NOW.md
+!bundle/F1-ACL-SWEEP.md
+!bundle/G1-BUDGET-ORACLE.md
+!bundle/D1-LIVE-CYCLE.md

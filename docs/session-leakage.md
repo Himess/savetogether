@@ -42,7 +42,7 @@ A budget rejection, an insufficient balance and a successful transfer must be in
 
 ### What is exactly equal
 
-Across 180 live transactions, 60 per path (`docs/step3-gate.md`, `spikes/out/sepolia-distribution.json`):
+Across 180 live transactions, 60 per path (`docs/step3-gate.md`; raw file **(raw file not kept — see below)**):
 
 ```
 FHE operation sequence   FheAdd x2  FheGe x2  FheIfThenElse x4  FheSub x3  TrivialEncrypt x2

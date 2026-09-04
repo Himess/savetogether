@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#
+# out/ holds live private keys — demo-participants.json and arms-c.json — and the
+# .gitignore allowlist is what keeps them out. This is the second lock: if a staged
+# file under out/ ever carries key-shaped data, the commit stops here.
+#
+# Enable once per clone:   git config core.hooksPath .githooks
+set -euo pipefail
+
+staged=$(git diff --cached --name-only --diff-filter=ACM | grep '^out/' || true)
+[ -z "$staged" ] && exit 0
+
+if ! node scripts/check-out-artifacts.mjs > /tmp/artifact-screen.$$ 2>&1; then
+  echo "!! the artifact screen failed to run"; cat /tmp/artifact-screen.$$; rm -f /tmp/artifact-screen.$$; exit 1
+fi
+
+fail=0
+while IFS= read -r f; do
+  b=$(basename "$f")
+  if grep -q "SKIP.*$b" /tmp/artifact-screen.$$; then
+    echo "!! REFUSING TO COMMIT $f"
+    grep "SKIP.*$b" /tmp/artifact-screen.$$
+    fail=1
+  fi
+done <<< "$staged"
+rm -f /tmp/artifact-screen.$$
+
+if [ "$fail" -ne 0 ]; then
+  echo
+  echo "   That file did not pass scripts/check-out-artifacts.mjs. out/ holds live"
+  echo "   private keys; nothing from it is committed unless the screen clears it."
+  exit 1
+fi

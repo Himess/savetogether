@@ -7,7 +7,7 @@ Step 2's headline claim was backed by mock mode only. This is the live-chain che
 - Module: [`0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6`](https://sepolia.etherscan.io/address/0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6)
 - Token: [`0xCFf87b42b916f7aA0F61CD060C9f48772F303D37`](https://sepolia.etherscan.io/address/0xCFf87b42b916f7aA0F61CD060C9f48772F303D37)
 - Script: `spikes/sepolia-equality.ts` — `pnpm spike:sepolia-gate`
-- Raw data: `spikes/out/sepolia-equality.json`
+- Raw data: `spikes/out/sepolia-equality.json` **(raw file not kept — see below)**
 
 **Resampled at n = 180.** The original run at 20 samples per path was underpowered: it showed 45% / 30% / 20% and chi-square 2.927, which is "not distinguishable" only in the weak sense of not having the power to see an effect that size. At 60 per path the spread collapses to 30.0% / 31.7% / 26.7% and chi-square falls to **0.374, p = 0.83**. Details in §2; the bound and the power statement live in [`leakage.md`](./leakage.md) §3.
 
@@ -142,3 +142,20 @@ The original criterion — execution gas exactly equal across paths — is falsi
 **Recommendation: (b).** It asserts hard equality exactly where the claim lives — the FHE layer — keeps the gas residual bounded and explained rather than waved away, and requires the control run that makes the "no leak" argument falsifiable. (a) is weaker without the control and identical to (b) with it. (c) buys precision at a cost in fragility.
 
 **This has not been applied.** The gate still fails as written. The criterion is the reviewer's call, not the implementer's.
+
+### On the two raw files this document cites
+
+`spikes/out/sepolia-equality.json` and `spikes/out/sepolia-distribution.json` **are not
+in the repository.** The script that produced them, `spikes/sepolia-equality.ts`, still
+is; the JSON was never committed, because `spikes/out/` was ignored at the time and the
+files did not survive.
+
+Marked rather than quietly repointed, and rather than regenerated. Re-running the gate
+means 180 live Sepolia transactions and would produce a **different** dataset — the
+figures quoted above describe the run that happened, not a run that could be made to
+happen now. Pointing them at `out/equality-a/b/c.json` would be worse still: those are
+the accrual-equality arms, a different study with 134, 24 and 160 samples.
+
+So the numbers here are supported by this document and by the transaction hashes in it,
+and not by a file you can open. That is a weaker claim than the rest of this repository
+makes, and it is stated rather than hidden — the same treatment `docs/shots/` gets.
