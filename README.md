@@ -31,24 +31,27 @@ the keeper. Not the pool.**
 
 ## 💡 Why
 
+**Zama shipped confidential yield. We turned that yield into a prize — and hid the
+winner and the odds.**
+
+*Who won* is the obvious secret. *What each participant's odds were* is the second one,
+and it is a question that **does not exist** when everyone earns pro rata: yield paid in
+proportion has no winner, so it creates no "who" to hide. A prize does. That gap is the
+whole contribution.
+
+Now the part that qualifies it, which used to come first.
+
 **Zama and Steakhouse × Morpho already shipped the supply side.** `app.zama.org`
 runs a confidential vault — Steakhouse Confidential Prime USDC, **7.20% APY,
 40,252,088.60 USDC deposited** *(read from `app.zama.org/earn` on 2026-09-04 — it moved
 from 7.19% and 40,251,401.78 the day before, so treat every figure here as dated rather
 than current)* — where your deposit, your shares and your yield are all encrypted.
 
-That vault already hides everything about your savings: the deposit, the shares and
-the yield are all encrypted. Nothing here improves on that, and this project would be
-dishonest to claim otherwise.
-
-**Zama shipped confidential yield. We turned that yield into a prize — and hid the
-winner and the odds.**
-
-Both halves earn their place. *Who won* is the obvious secret. *What each
-participant's odds were* is the second one — and it is a question that **does not
-exist** when everyone earns pro rata. Yield paid in proportion has no winner, so it
-creates no "who" to hide. A prize does. That gap is the whole contribution, and it is
-not that Zama failed to conceal earnings.
+That vault already hides everything about your savings: the deposit, the shares and the
+yield are all encrypted. **Nothing here improves on that**, and this project would be
+dishonest to claim otherwise. The contribution is not that Zama failed to conceal
+earnings — it is that turning concealed earnings into a prize creates two new secrets,
+and neither survives a public chain.
 
 ### What this actually is
 
@@ -121,7 +124,9 @@ branching on anything encrypted.
 - [Testing](#-testing)
 - [What is hidden, and what is not](#-what-is-hidden-and-what-is-not)
 - [Running it](#-running-it)
+- [Two findings about Zama's own deployed contracts](#-two-findings-about-zamas-own-deployed-contracts)
 - [What is not done](#-what-is-not-done)
+- [Numbers of record](docs/NUMBERS.md)
 
 ---
 
@@ -344,14 +349,6 @@ What it holds is a session key whose authority is bounded on chain:
 - an expiry bounds how long, capped at 24 hours
 - **you close it from your own wallet**, needing nothing from us
 
-The nearest thing to this in production is MoonPay's PayBox, which reaches a
-comparable experience with MPC key shares in hardware enclaves plus a passkey,
-built on a company acquired for roughly $100M. Their limits are enforced by their
-policy layer — code they run, that you cannot inspect while it runs. Ours are
-enforced by a contract, and **the limit itself is encrypted**: the clamp is
-measured across 306 live samples with an identical operation sequence and
-identical HCU whether a spend fits, exceeds the budget, or exceeds the balance.
-
 And the part that is not reassuring: **a compromised server can spend up to the
 remaining budget, to the addresses already on your allowlist, until you revoke.**
 It cannot exceed the budget, cannot send anywhere else, cannot extend its own
@@ -378,7 +375,21 @@ and the full disclosure table is in
 
 ### What it looks like
 
-Five captures from a real session. The first is the one worth reading twice.
+> ### 📷 The captures are not in the repository yet
+>
+> `docs/shots/` holds a README and nothing else. The five blocks below describe
+> screenshots that **do not exist**, and one of them — the refusal — is the only
+> substantive claim in this file whose sole evidence would be an image. Everything else
+> here has a test, a transaction, or a document.
+>
+> They are described rather than shown because they need a human at a Claude Desktop
+> session, which is not something the build can produce. **Read the blocks below as
+> claims awaiting evidence, not as evidence.** The *mechanism* named in each one is
+> independently checkable: `can_afford`'s coarsening is pinned by
+> `test/g1-can-afford-oracle.ts`, the reference-not-figure boundary by
+> `packages/mcp-server/src/sanitize.ts`, and the budget clamp on chain.
+
+Five captures from a real session, described. The first is the one worth reading twice.
 
 <!-- SCREENSHOT 1 — docs/shots/refusal.png
      The model asked for a balance, declining; then asked to narrow it down by
@@ -521,12 +532,34 @@ the tier count itself. If the first canary goes unclaimed the next draw has one 
 tier; if the second is claimed, one more. That is how V5 lets gas prices and incoming
 yield decide prize size and prize count without governance.
 
-**A canary reads its signal from public claim behaviour, and that is exactly the signal
-this design removes.** Nobody here claims, winning and losing are the same transaction,
-and no observer can count claims per tier. V5's auto-tuning is not something we skipped —
-it is unavailable to us at any price, and it is unavailable *because* of the property the
-pool exists for. Our three tiers are fixed by `setTiers` under owner control and derived
-in [`docs/tier-derivation.md`](docs/tier-derivation.md) instead.
+**V5's canary is not a win counter. It is a market, and we removed the market.**
+
+This paragraph used to say auto-tuning was *"unavailable to us at any price"* because no
+observer can count claims per tier. The conclusion holds; the reasoning did not, in two
+places.
+
+First, the count is not expensive and is not secret. `accrue` already computes
+`ebool won` for every tier and every user, so accumulating a per-tier winner count costs
+one `select` and one `add` — about 188,000 HCU against ~3.95M, roughly **4.8%** — and
+publishing it reuses the `makePubliclyDecryptable` path `openDraw` already runs. Not "any
+price"; a known, small one. Nor would it breach the disclosure bar:
+[`docs/leakage.md`](docs/leakage.md) §3 already accepts an aggregate winner count, and
+notes the tier composition is partly derivable from the change in the aggregate today.
+
+Second, and this is the real reason: **the count carries no information here.**
+[`docs/tier-derivation.md`](docs/tier-derivation.md) §2 proves
+`E[winners of tier t] = 1/k[t]`, distribution-free. The realised count is an unbiased
+estimator of a constant *we chose*, so it says nothing about gas prices, yield, or prize
+adequacy — the three things V5's canary senses.
+
+V5's canary works because a bot claims a canary prize **only when `prize > gas`**. The
+claim count is a revealed-preference oracle on prize economics, and it needs a voluntary,
+cost-sensitive action to read. Push-based distribution has none: `accrue` runs for
+everyone at the same cost whether they won or not. *Removing the claim removed the
+market, and the market was the oracle.*
+
+Our three tiers are fixed by `setTiers` under owner control and derived in
+[`docs/tier-derivation.md`](docs/tier-derivation.md) instead.
 
 | tier | prize | k | expected frequency | at a 30-minute cadence |
 |---|---|---|---|---|
@@ -674,10 +707,33 @@ version is sharper:
 > They removed the user's **burden**. The claim transaction still names the
 > winner. We removed the **signal**: winning and losing are the same transaction.
 
+**And the same removal recurs somewhere we did not expect it.** V5 funds prizes by
+selling yield through a two-part dutch auction. That auction prices itself from plaintext
+views a bidder reads *before* swapping — `liquidatableBalanceOf`, `maxAmountOut`,
+`computeExactAmountIn`. Under FHE those are ciphertexts, so a liquidator cannot size or
+price a swap at all; it can only submit a guess and be clamped. The same thing blocks a
+fractional draw auction: V5 prices the keeper's reward as a fraction of the reserve, and
+ours is encrypted.
+
+**A confidential balance is structurally incompatible with any mechanism that discovers
+price by watching who acts.** Three of them fall to it — the claimer market, the
+liquidation auction, and the canary tier — and all three fall for one reason:
+*confidentiality removes markets that price things by watching who acts.* Where we needed
+one of those mechanisms we replaced it with a published schedule instead of a bid: the
+keeper's liveness reward is `min(elapsed × rate, cap)` in plaintext, which needs no view
+onto the pot.
+
 **What that costs us, measured.** Their claim is `O(winners)` because only winners
-are claimed for. Ours is `O(participants)` because everybody must be accrued
-whether they won or not: 386,608 gas each, so a hundred participants is 38.7M gas
-per draw — over a block. That is the price of the property. The design that would
+are claimed for. Ours is `O(participants)` because everybody must be accrued whether
+they won or not, and that is the price of the property.
+
+The specific constant this used to quote — 386,608 gas each, and a hundred participants
+at 38.7M gas per draw — **had no artifact behind it**: searching every test, spike,
+script and output returns one prose comment. Three live `accrueMany(1)` transactions on
+the deployed pool cost **648,832 to 1,043,326**, because accrual gas tracks the length of
+that account's observation history. The property is unchanged and the arithmetic built on
+the constant is withdrawn until a measured `accrueMany(1..7)` curve replaces it. See
+[`docs/NUMBERS.md`](docs/NUMBERS.md) §4. The design that would
 fix it is lazy accrual: settle a participant on their next interaction rather than
 pushing to everyone, which trades the keeper's O(n) sweep for an O(1) cost the user
 pays. It is not built, and it moves the cost rather than removing it.
@@ -854,6 +910,18 @@ against a threshold at 98.9%. Draw 35's win moved `winnings` from 40 to 41.
 
 Anyone can open both links. The systematic version is below.
 
+### We published a null after our own significant result turned out to be an artifact
+
+The 306-sample accrual equality run first returned a chi-square **over** threshold. The
+tempting move is to report it as a finding. The correct move was to check the unit of
+analysis, which was wrong: 19 repeats on 8 fixed addresses is not 306 independent
+observations, and treating repeated measures as independent inflates the statistic.
+
+Re-analysed at the level of the address: **Welch t = 1.03, df = 4.6, p = 0.35.** No
+separation. That is the number we publish, and the path to it is the reason it should be
+believed — a result that survived its author trying to break it is worth more than one
+that was never tested. `findings.md` §14.
+
 ### The systematic version
 
 | | |
@@ -894,10 +962,15 @@ would be worse than no screen at all.
 | Read another participant's balance | pick any depositor from the public `Deposited` log, request their handle, watch Zama's relayer refuse |
 | Work out who won | fetch all six credit handles — same length, same shape, no flag, no ordering |
 | Infer the outcome from gas | draw 34 lost and draw 35 won, same address, both **684,273 gas** |
-| Recover an individual from `totalWeight` | one equation, six unknowns |
+| **Recover an individual from `totalWeight`** | one equation, **one** unknown in a single-event window — solved exactly, 540.000000 cUSDC |
 | **Binary-search the session budget** | forty probes against `can_afford`, converging — then stopping at the bucket floor |
 
-The last row is the only one describing an attack that **worked**. `can_afford` was a free,
+**Two rows describe attacks that worked, and they are not the same kind.** The
+`totalWeight` solve is **open and disclosed** — `docs/leakage.md` §8 declines to mitigate
+it at this size, because both mitigations are costed and neither is affordable, so the
+disclosure IS the mitigation. The budget search below is **closed**.
+
+`can_afford` was a free,
 uncounted, caller-parameterised predicate over an encrypted budget: 40 calls recovered an
 exact figure, inside the hosted server's 60-per-minute allowance. It is closed now by
 coarsening rather than rate-limiting — rate-limiting would have made it slower, not
@@ -1057,7 +1130,67 @@ machine, its self-healing keeper, and four KMS traps it paid to discover.
 
 ---
 
+## 🔎 Two findings about Zama's own deployed contracts
+
+Reading the batcher's verified source to understand what our principal was joining turned
+up two failure modes that appear on **no Zama documentation page**. Recorded here because
+they are findings about the sponsor's contracts rather than ours, and because our source
+has no path that detects either.
+
+Inside `dispatchBatchCallback`, in the batcher's own comments:
+
+```solidity
+// If wrapper is full, this reverts. Will brick batcher.
+// If output is less than toToken().rate() batch can never be finalized.
+toToken().wrap(address(this), swappedAmount);
+```
+
+The published failure taxonomy is "empty batch, paused, or deadline passed", plus retry on
+a reverting vault call. **A permanently unfinalizable batch is a fourth outcome the state
+diagram does not contain, and a bricked batcher is a fifth.** Our principal is in a
+finalized batch, so nothing is stranded, and `requestUnwind()` is a way out of the share
+leg — the exposure is a future `joinVault()` landing in a batch that cannot finalise.
+
+And a correction to the permissionlessness claim, from the same reading:
+
+> **"Anyone can call it" is true; "anyone can produce the argument it needs" is not.**
+
+Both are in [`docs/threat-model.md`](docs/threat-model.md) §12.2 and §12.4, read from
+`out/batcher-src.txt` rather than from a docs page.
+
+---
+
 ## 🧭 What is not done
+
+### Considered and rejected, so the absence is a decision
+
+- **Per-tier TWAB windows.** V5 scores the grand prize over a longer window than the
+  every-draw tier, which is what makes it reward long-term holding specifically.
+  Implementable at about **+57%** on each accrual — and it is rejected, because each tier
+  would need its own published `totalWeight`, turning one public aggregate per draw into
+  three over overlapping windows. That widens the class of windows the §8 solve can
+  crack, which is a leak we already rate as live.
+- **Sponsorship** (V5's `sponsor()`, forgoing odds to fund prizes). A sponsor's weight
+  must be excluded from the published total or everyone else's odds are understated —
+  and with a single sponsor, the difference between the published total and the pool's
+  true balance-seconds *is* their weight. It reproduces the lone-depositor disclosure in
+  a new place.
+- **The reserve is one-way.** Yield entering it can only leave as a prize or a keeper
+  fee. If every balance is withdrawn, `totalWeight` is zero, nobody can clear a
+  threshold, and harvested yield sits there — irreversibly, after `renounceOwnership`.
+  V5 has a shutdown path; we do not. Principal is never trapped, because `withdraw`
+  needs no draw.
+- **`claim` grows storage permissionlessly.** `_drain` sets `_pending` to a fresh
+  encrypted zero whose handle is non-zero, so `isInitialized` stays true and every later
+  `claim(victim)` pushes two more observations. The caller pays the gas and lookups stay
+  O(log n), but it is unbounded state growth that V5's ring buffer does not have.
+- **The per-user clamp counter.** Would make a silent shortfall countable, at +188,000
+  HCU per accrual — 4.8%, which drops the batch from 5 cold accruals to 4. Deferred for
+  a second reason as well: it changes `accrue`'s operation sequence, which would
+  invalidate the 312-sample indistinguishability study. The one-bit solvency proof in
+  `openDraw` says a shortfall is *coming*, costs nothing per accrual, and is shipped.
+
+
 
 Each of these names the test that pins it, because a limitation nobody can check
 is a claim rather than a disclosure.
@@ -1092,7 +1225,7 @@ is a claim rather than a disclosure.
   behaviour to the ERC, which a reader checking the specification would not find. Nothing is
   lost, and a smaller ask goes through. Both causes are now named in the interface
   before the signature. `test/withdraw-buffer.ts`.
-- **Accrual is O(participants), where PoolTogether is O(winners).** 386,608 gas
+- **Accrual is O(participants), where PoolTogether is O(winners).** the range measured on the deployed pool is **648,832 to 1,043,326 gas** per accrual, varying with the length of that account's observation history. The constant this previously quoted (386,608) has no artifact — see [`docs/NUMBERS.md`](docs/NUMBERS.md) §4.
   each, so a hundred depositors is 38.7M gas per draw — over a block. That is the
   price of unconditional accrual, which is the property this design exists for.
   The lazy-accrual design that fixes it is costed but not built.
@@ -1104,7 +1237,13 @@ is a claim rather than a disclosure.
   `TieredLiquidityDistributor` defines `event ReserveConsumed(uint256 amount)` —
   *"Emitted when the reserve is consumed due to insufficient prize liquidity"* — and V5
   ships a `tierLiquidityUtilizationRate` whose purpose is to make it rarer. Both systems
-  can under-pay and both hold a reserve against it.
+  can under-pay — but the reserves are not comparable, and this used to claim they were.
+  V5 allocates `reserveShares` out of every contribution and holds it back **in addition
+  to** tier liquidity. Ours was one pot doing three jobs: prize money, shortfall backstop
+  and the keeper's wages. The keeper's half is now a separate pot, which is the only
+  division of that pot that changes an outcome — splitting prize money from backstop is
+  arithmetically vacuous, since a clamp happens iff `credit > A + B`, which is
+  `credit > S`.
   **The divergence is observability, and it runs the other way.** They emit an event,
   which costs them nothing because everything else is public. We cannot: announcing a
   shortfall would announce that somebody won. A declined `tryDecrease` credits zero, and
@@ -1117,9 +1256,32 @@ is a claim rather than a disclosure.
   *ordinary loss* — weight at 63.86% of the window against a threshold at 98.9%.
   Closing the plaintext prize itself needs `FHE.div` and a rewrite of what `setTiers`
   means. `docs/tier-derivation.md` §4.
-- **`totalWeight` is published.** The aggregate leaks; individual balances do not.
-  Kept deliberately: encrypting it costs 8.3× and loses public auditability of the
-  draw, which is the thing a lottery most needs to prove. `spikes/a2-encrypted-total.ts`.
+- **`totalWeight` is published, and in a quiet window it can be solved for an
+  individual.** This entry used to read *"the aggregate leaks; individual balances do
+  not"*, which is false by our own measurement and was the worst sentence in the file:
+  it sat in the limitations list, which is the one place a reader goes looking for the
+  worst news.
+
+  Deposits and withdrawals are public events with plaintext timestamps, and the
+  aggregate is published once per draw. So for a window containing exactly one
+  balance-changing event,
+  `totalWeight = prevBalance × window + Δ × (snapshotAt − eventTime)`
+  has one unknown and **solves** rather than bounds. Run against our own deployed pool
+  it recovered **540.000000 cUSDC** for a named depositor, integer-exact, cross-checked
+  against that depositor's own decrypted record.
+
+  **Measured frequency: 12 balance-changing events, 1 solved exactly**
+  (`out/x1-window-solve.json`). It needs a quiet window, a revealed predecessor, and a
+  previous balance that divides evenly — and the first version of the attack, with an
+  incomplete event filter, returned clean integers that were **confidently wrong about
+  real people**. Almost right is indistinguishable from right, which is what makes the
+  naive version more dangerous than the correct one.
+
+  Kept published deliberately: encrypting it costs 8.3× and loses public auditability of
+  the draw, which is the thing a lottery most needs to prove. A randomised house-weight
+  pad in `openDraw` would cost ~0.98M HCU against ~17.8M spare and buy one equation with
+  two unknowns; it is costed and not shipped. `docs/leakage.md` §8,
+  `spikes/a2-encrypted-total.ts`.
 - **The keeper is one process with one key.** `cancelDraw` bounds the damage of it
   dying; it does not decentralise it, and `accrueMany`'s fee is a reimbursement
   rather than a market. `test/phase-b.ts`.

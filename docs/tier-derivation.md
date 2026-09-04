@@ -68,9 +68,27 @@ V5 **does not carry a fixed prize against accumulated liquidity — the prize IS
 the accumulated tier liquidity, divided by the prize count.** Each tier accrues
 its own share and pays what it has, so a shortfall cannot arise. Ours is a
 plaintext `uint64`. That single difference is the whole reason tier sizing is
-delicate here and routine there, and closing it needs `FHE.div` (scalar-only,
-715,000 HCU) plus a rewrite of what `setTiers` and `winningsOf` mean. It is on the
-roadmap, not in this contract.
+delicate here and routine there.
+
+**What blocks closing it is narrower than this used to say.** The old wording blamed
+`FHE.div` being "scalar-only", which is backwards: the library declares
+`div(euint64 a, uint64 b)` and has no `euint64/euint64` form, so a **plaintext divisor
+is exactly the supported shape**. What cannot be expressed is *V5's* denominator — the
+realised winner count — because that is encrypted. V5's literal mechanism does not port.
+
+A fixed plaintext divisor `C_t` does. `prize_t = FHE.div(_reserve, C_t)` computed **once
+per draw** costs three divisions at 715,000 HCU each — about 2.1M against a 20M ceiling,
+depth 715,000 against 5M — and leaves per-accrual cost unchanged, because
+`FHE.select(won, encPrize, credit)` costs the same 55,000 as selecting a plaintext
+constant. Publish `C_t` and the *rule* stays auditable while the level goes private,
+which is V5's structure. It would also reduce leakage: `Δ totalWeight = winners × prize`
+against known prizes 25/5/1 usually decomposes uniquely, and encrypted per-draw-varying
+prizes give that equation more unknowns than equations.
+
+The honest caveat is that one pot plus N simultaneous winners still draws N × prize, so
+this bounds the clamp rather than removing it — `C_0 ≥ 4` makes the *first* clamp
+impossible by construction, which is the 97.3% case. It needs a rewrite of what
+`setTiers` and `winningsOf` mean. On the roadmap, not in this contract.
 
 ### Per-tier reserves were measured and rejected
 

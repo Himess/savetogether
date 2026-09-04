@@ -176,7 +176,7 @@ const SECTIONS: { title: string; blurb: string; rows: Row[] }[] = [
         whereHref: `${GH}/contracts/ConfidentialPrizePool.sol`,
         pinnedBy: "storage-cost.ts — 2,582,192 HCU steady state against a 5,000,000 sequential-depth limit",
         kind: "limited",
-        note: "O(participants) rather than PoolTogether's O(winners): 386,608 gas each, so a hundred depositors is 38.7M gas per draw — over a block. That is the price of unconditional accrual.",
+        note: "O(participants) rather than PoolTogether's O(winners): 648,832 to 1,043,326 gas each, measured on the deployed pool, varying with the length of that account's observation history rather than with the outcome. A constant of 386,608 was cited here for a while and had no artifact behind it — docs/NUMBERS.md §4. The property is unchanged; the arithmetic built on the constant is withdrawn until a measured curve replaces it.",
       },
       {
         need: "ERC-7984 as the settlement token",

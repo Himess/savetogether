@@ -7,6 +7,11 @@ import { shortAddr } from "@/lib/format";
 import { EXPLORER, POOL } from "@/lib/addresses";
 import { POOL_ABI } from "@/lib/abis";
 import { useOnSepolia } from "@/lib/chain";
+import { solveWindows, type BalanceEvent, type DrawRow, type SolveReport } from "@/lib/windowSolve";
+import { keccak256, toHex } from "viem";
+
+/** The topic0 for an event signature. */
+const keccakTopic = (sig: string) => keccak256(toHex(sig));
 
 const ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
@@ -23,6 +28,97 @@ const GAS_PAIR = [
   { draw: 34, outcome: "lost", tx: "0xc22520c2cc537c6277e230b5d9b6d9b029aca48aaabc715a824a9fd30fd92440" },
   { draw: 35, outcome: "won 1 cUSDC", tx: "0x1ef0e39d5d30790963c57030a050fbc480932a86e0527429b449f41ed6bbedc1" },
 ] as const;
+
+/**
+ * Runs §8 against the pool the visitor is looking at, right now.
+ *
+ * Row 4 used to print a solve performed once, in a terminal, against a pool that
+ * has since been redeployed. That is a citation, not an attack — and this page's
+ * whole value is that it attacks rather than cites. Everything needed is public,
+ * so this needs no wallet and no signature.
+ */
+function useWindowSolve() {
+  const client = usePublicClient();
+  const [report, setReport] = useState<SolveReport | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const run = useCallback(async () => {
+    if (!client) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const count = Number(await client.readContract({ abi: POOL_ABI, address: POOL, functionName: "drawCount" }));
+      const ids = Array.from({ length: count }, (_, i) => i + 1);
+      const draws: DrawRow[] = [];
+      for (const id of ids) {
+        const d = (await client.readContract({
+          abi: POOL_ABI, address: POOL, functionName: "drawAt", args: [id],
+        })) as unknown as { periodStart: number | bigint; snapshotAt: number | bigint; status: number; totalWeight: bigint };
+        draws.push({
+          id,
+          periodStart: Number(d.periodStart),
+          snapshotAt: Number(d.snapshotAt),
+          totalWeight: BigInt(d.totalWeight),
+          revealed: Number(d.status) === 2,
+        });
+      }
+
+      // ALL THREE balance-moving events. Omitting Claimed is what made the first
+      // version of this return confidently wrong numbers about real people:
+      // `claim` moves a balance through `_drain` exactly as a deposit does.
+      const SIGS = [
+        { kind: "deposit" as const, ev: "Deposited(address,uint40,uint256)" },
+        { kind: "withdraw" as const, ev: "Withdrawn(address,uint40,uint256)" },
+        { kind: "claim" as const, ev: "Claimed(address,uint40)" },
+      ];
+      const topics = SIGS.map((x) => keccakTopic(x.ev));
+
+      // Chunked at 9,000: the public Sepolia RPC refuses a range over 50,000, and
+      // asking for one is how this failed the first time it ran in a browser.
+      const head = await client.getBlockNumber();
+      const FROM = 11_600_000n;
+      const start = head > FROM ? FROM : 0n;
+      const raw: { topics: readonly string[]; transactionHash: string; blockNumber: bigint }[] = [];
+      for (let f = start; f <= head; f += 9_000n) {
+        const to = f + 8_999n > head ? head : f + 8_999n;
+        const chunk = await client.getLogs({
+          address: POOL,
+          fromBlock: f,
+          toBlock: to,
+        });
+        raw.push(...(chunk as never as typeof raw));
+      }
+
+      // One block read per distinct block, not one per log.
+      const times = new Map<string, number>();
+      const events: BalanceEvent[] = [];
+      for (const l of raw) {
+        const idx = topics.indexOf((l.topics[0] ?? "0x") as `0x${string}`);
+        if (idx < 0) continue;
+        const key = String(l.blockNumber);
+        if (!times.has(key)) {
+          const blk = await client.getBlock({ blockNumber: l.blockNumber });
+          times.set(key, Number(blk.timestamp));
+        }
+        events.push({
+          kind: SIGS[idx]!.kind,
+          who: ("0x" + (l.topics[1] ?? "").slice(26)) as `0x${string}`,
+          t: times.get(key)!,
+          tx: l.transactionHash as `0x${string}`,
+        });
+      }
+            events.sort((a, b) => a.t - b.t);
+      setReport(solveWindows(draws, events));
+    } catch (e) {
+      setErr((e as Error).message.slice(0, 160));
+    } finally {
+      setBusy(false);
+    }
+  }, [client]);
+
+  return { report, busy, err, run };
+}
 
 function useLiveGas() {
   const client = usePublicClient();
@@ -196,6 +292,8 @@ function searchBudget(oracle: (a: bigint) => boolean, hi: bigint): { found: bigi
 export function Break() {
   // Row 3 reads its own receipts rather than quoting remembered numbers.
   const liveGas = useLiveGas();
+  // §8, run against the pool on screen rather than quoted from a terminal.
+  const solve = useWindowSolve();
   const { address } = useAccount();
   const onSepolia = useOnSepolia();
   const client = usePublicClient();
@@ -478,8 +576,55 @@ export function Break() {
             "",
             "  -> delta is the ONLY unknown. It solves.",
           ].join("\n")}</Out>
+          <button
+            onClick={() => void solve.run()}
+            disabled={solve.busy}
+            style={css(`margin-top:12px;padding:10px 16px;border-radius:11px;border:none;background:var(--accent);font:700 12.5px var(--display);color:var(--on-accent);cursor:${solve.busy ? "wait" : "pointer"}`)}
+          >
+            {solve.busy ? "Reading every draw and every balance event…" : "Run it against this pool, now"}
+          </button>
+          <p style={css("margin:6px 0 0;font:400 10.5px/1.5 var(--display);color:var(--ink-3)")}>
+            No wallet, no signature, no transaction. Every input is public: the draw records,
+            the event logs and their block timestamps.
+          </p>
+
+          {solve.err !== null && (
+            <Out>{"error: " + solve.err}</Out>
+          )}
+
+          {solve.report !== null && (
+            <>
+              <Out>{[
+                `scanned            ${solve.report.windows} revealed window(s)`,
+                `balance events     ${solve.report.events}  (deposit + withdraw + claim)`,
+                `single-event       ${solve.report.singleEventWindows}   <- condition 1`,
+                `SOLVED EXACTLY     ${solve.report.solved.length}`,
+                "",
+                ...(solve.report.solved.length === 0
+                  ? ["nothing recoverable on this pool right now.",
+                     "that is a property of how busy it happens to be,",
+                     "not of anything the contract guarantees."]
+                  : solve.report.solved.map(
+                      (r) =>
+                        `draw ${r.draw}  ${r.who.slice(0, 10)}…  ${r.kind.padEnd(8)} ${(Number(r.delta) / 1e6).toFixed(6)} cUSDC  EXACT`,
+                    )),
+              ].join("\n")}</Out>
+
+              {solve.report.rejected.length > 0 && (
+                <Out>{[
+                  "windows that met condition 1 and still would not solve:",
+                  ...solve.report.rejected.map((r) => `  draw ${r.draw}  ${r.why}`),
+                  "",
+                  "this list is the point. an incomplete filter turns these into",
+                  "clean integers that are WRONG, and a wrong answer about a real",
+                  "person is indistinguishable from a right one.",
+                ].join("\n")}</Out>
+              )}
+            </>
+          )}
+
           <Out>{[
-            "Run on this pool, draw 33:",
+            "The run that found it, on the pool this replaced — draw 33:",
             "  carried-in balance    19,000 cUSDC",
             "  totalWeight          142,512,960,000,000",
             "  base if unchanged    142,500,000,000,000",
@@ -487,12 +632,17 @@ export function Break() {
             "",
             "  RECOVERED  540.000000 cUSDC   integer-exact",
             "  that depositor own record: 12,000 -> 12,540. Delta 540. Match.",
+            "",
+            "  measured frequency: 12 balance events, 1 solved.",
           ].join("\n")}</Out>
           <p style={css("margin:10px 0 0;font:400 11.5px/1.6 var(--display);color:var(--ink-3)")}>
-            The honest claim is narrower: the aggregate is underdetermined{" "}
-            <b style={css("font-weight:650")}>only when several people change balance in the same
-            window</b>. With six depositors and a draw every ~44 minutes, most windows carry one
-            event or none. What it recovers is the <i>balance delta</i>, not the deposit — draw
+            The honest claim is narrower in one direction and worse in another. The aggregate is
+            underdetermined <b style={css("font-weight:650")}>only when several people change
+            balance in the same window</b> — but when a window is quiet it does not merely narrow,
+            it <b style={css("font-weight:650")}>solves</b>. Measured over the run that found it:{" "}
+            <b style={css("font-weight:650")}>12 balance events, 1 solved exactly</b>. Rare, and
+            rarity is not a mitigation — nothing in the contract enforces a minimum anonymity set,
+            so the frequency is a property of how busy the pool happens to be. What it recovers is the <i>balance delta</i>, not the deposit — draw
             33&apos;s 540 was a 500 deposit plus a 40 credit the same call drained, and an
             observer cannot split them. Publishing <Mono>totalWeight</Mono> stays deliberate:
             encrypting it costs 8.3× and removes public auditability of the draw. The trade has

@@ -273,8 +273,20 @@ It requires **all** of:
 3. `prevBalance` dividing evenly into the previous window — otherwise integer
    truncation propagates and the answer is close but not exact.
 
-With six depositors and a draw roughly every 44 minutes, most windows carry zero or
-one event, so condition 1 is the common case rather than the rare one.
+With six depositors and a draw roughly every 44 minutes, most windows carry zero or one
+event, so condition 1 is met often.
+
+**But "often" is not the measured number, and the measured number is smaller.** Over the
+run recorded in `out/x1-window-solve.json`: **12 balance-changing events, 1 solved
+exactly.** All three conditions have to hold together, and conditions 2 and 3 — a
+revealed predecessor and a previous balance that divides evenly into the previous window
+— knock out most of the windows condition 1 lets through.
+
+An earlier version of this paragraph said condition 1 being common made the attack
+common. It does not: the attack is rare and *exact when it lands*, which is a different
+and more useful claim. Rarity is also not a mitigation — nothing in the contract enforces
+a minimum anonymity set, so the frequency is a property of how busy the pool happens to
+be rather than of anything it guarantees.
 
 ### What it recovers, precisely
 

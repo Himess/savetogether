@@ -128,7 +128,7 @@ Four further getters (`reserveHandle`, `principal`, `pending`, `inVault`) are un
 anyone but have no caller.
 
 **The HCU limit.** Accrual is `O(participants)` where PoolTogether's claim is `O(winners)`:
-386,608 gas each, so a hundred depositors is 38.7M gas per draw — over a block. That is the
+648,832 to 1,043,326 gas each on the deployed pool, varying with observation-history length (see docs/NUMBERS.md §4 — the 386,608 this used to cite has no artifact behind it). That is the
 price of unconditional accrual, which is the property the design exists for.
 
 ---

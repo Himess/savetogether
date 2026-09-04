@@ -12,7 +12,11 @@
  *
  * THE GAS IS THE CONSTRAINT AND IT IS WHY THERE ARE FOUR AND NOT TEN. Every
  * participant must be accrued every draw — that is the price of unconditional
- * accrual, measured at 386,608 gas each — so headcount and cadence trade against
+ * accrual. NOTE: this comment is where the 386,608 figure that circulated through the
+ * README, rubric.md and the deck came from, and nothing ever produced it — the deployed
+ * pool measures 648,832 to 1,043,326 per accrual. Treat the numbers below as the shape
+ * of the trade rather than as measurements. docs/NUMBERS.md §4.
+ * So headcount and cadence trade against
  * each other directly:
  *
  *     1 participant  @ 1800s   0.17 ETH/day
