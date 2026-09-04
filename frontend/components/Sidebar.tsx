@@ -1,5 +1,5 @@
 "use client";
-import { CSSProperties, ReactNode } from "react";
+import { CSSProperties, ReactNode, useState } from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { css } from "@/lib/css";
 import { useNav, type Route } from "@/lib/nav";
@@ -58,26 +58,31 @@ export function Sidebar() {
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
 
-  // wagmi v2: connect() needs a connector INSTANCE from the config, not a fresh
-  // injected() factory. EIP-6963 discovery populates `connectors` with each
-  // detected wallet, so prefer MetaMask and fall back rather than guessing.
-  const doConnect = () => {
-    if (isConnected) { disconnect(); return; }
-    // The demo connector is only in the list when NEXT_PUBLIC_DEMO_ADDRESS is set
-    // (see lib/wagmi.ts), so this branch cannot be reached in a normal build. It
-    // exists so the per-address, plaintext parts of the UI — the accrual badge
-    // most of all — can be photographed without a browser extension.
-    const demo = connectors.find((c) => c.type === "mock");
-    const injected = connectors.filter(
-      (c) => c.type === "injected" || /injected|metamask|rabby|coinbase|brave/i.test(c.name),
-    );
-    const pick = demo ?? injected.find((c) => /metamask/i.test(c.name)) ?? injected[0] ?? connectors[0];
-    if (pick === undefined) {
-      toast("No wallet detected — install MetaMask, then reload", "err");
-      return;
-    }
+  /**
+   * Which wallet, decided by the person using it.
+   *
+   * This used to pick one and prefer MetaMask when several were installed, which
+   * meant a Rabby user with both got MetaMask and was never asked. EIP-6963
+   * discovery already lists every detected extension separately; the only thing
+   * missing was letting someone choose from that list.
+   *
+   * With exactly one option it still connects straight away — a chooser with one
+   * row is a click for nothing.
+   */
+  const [picking, setPicking] = useState(false);
+
+  const options = connectors.filter((c) => {
+    if (c.type === "mock") return true;
+    // wagmi keeps a generic "Injected" entry alongside the specific ones EIP-6963
+    // found. Showing both offers the same wallet twice under two names.
+    if (c.id === "injected" && connectors.some((o) => o.type === "injected" && o.id !== "injected")) return false;
+    return true;
+  });
+
+  const doConnectWith = (c: (typeof connectors)[number]) => {
+    setPicking(false);
     connect(
-      { connector: pick },
+      { connector: c },
       {
         onError: (e: unknown) => {
           const err = e as { shortMessage?: string; message?: string };
@@ -85,6 +90,16 @@ export function Sidebar() {
         },
       },
     );
+  };
+
+  const doConnect = () => {
+    if (isConnected) { disconnect(); return; }
+    if (options.length === 0) {
+      toast("No wallet found. Any browser wallet works — MetaMask, Rabby, Coinbase, Brave.", "err");
+      return;
+    }
+    if (options.length === 1) { doConnectWith(options[0]!); return; }
+    setPicking(true);
   };
 
   return (
@@ -145,6 +160,51 @@ export function Sidebar() {
             </>
           )}
         </button>
+
+        {/* The chooser. Only when there is a choice: with one wallet installed
+            doConnect() connects straight through and this never renders. */}
+        {picking && (
+          <div
+            onClick={() => setPicking(false)}
+            style={css("position:fixed;inset:0;z-index:50;background:rgba(15,29,42,.42);display:flex;align-items:center;justify-content:center;padding:18px")}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={css("width:100%;max-width:330px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 18px 50px rgba(20,18,12,.18)")}
+            >
+              <div style={css("font:750 14px var(--display);color:var(--ink)")}>Choose a wallet</div>
+              <p style={css("margin:5px 0 12px;font:400 11px/1.5 var(--display);color:var(--ink-3)")}>
+                Any of these works. The app never sees a key — it asks your wallet to sign, and every
+                encrypted value is decrypted in this browser.
+              </p>
+              <div style={css("display:flex;flex-direction:column;gap:7px")}>
+                {options.map((c) => (
+                  <button
+                    key={c.uid}
+                    onClick={() => doConnectWith(c)}
+                    disabled={isPending}
+                    style={css("display:flex;align-items:center;gap:10px;width:100%;padding:11px 13px;border-radius:12px;border:1px solid var(--line-2);background:var(--surface-2);font:650 13px var(--display);color:var(--ink);cursor:pointer;text-align:left")}
+                  >
+                    {c.icon !== undefined && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={c.icon} alt="" width={18} height={18} style={css("border-radius:5px")} />
+                    )}
+                    <span style={css("flex:1;min-width:0")}>{c.name}</span>
+                    {c.type === "mock" && (
+                      <span style={css("font:600 9.5px var(--display);color:var(--ink-3)")}>read-only</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setPicking(false)}
+                style={css("margin-top:11px;width:100%;padding:9px;border-radius:11px;border:none;background:transparent;font:600 12px var(--display);color:var(--ink-3);cursor:pointer")}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );

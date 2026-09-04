@@ -505,7 +505,12 @@ that by not using it.
 
 ## ⚡ Try it — about two minutes, four signatures
 
-1. Connect a wallet on Sepolia.
+1. Connect a wallet on Sepolia. **Any browser wallet** — MetaMask, Rabby, Brave,
+   Coinbase, Zerion, OKX. If more than one is installed the app asks which; if one
+   is, it just connects. Coinbase Smart Wallet works on a phone with a passkey and
+   no extension. WalletConnect is wired but off unless
+    is set — it is the one connector that needs an
+   account somewhere else.
 2. Press **Get 1,000 · 3 txs**. This mints USDC, approves the wrapper, and wraps it
    into cUSDC — three transactions, because the token this pool settles in has no
    mint of its own.

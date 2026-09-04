@@ -1,6 +1,6 @@
 import { http, createConfig } from "wagmi";
 import { sepolia } from "wagmi/chains";
-import { injected, mock } from "wagmi/connectors";
+import { coinbaseWallet, injected, mock, walletConnect } from "wagmi/connectors";
 
 /**
  * A read-only stand-in for a wallet, for screenshots and demos.
@@ -20,10 +20,45 @@ const demoConnector =
     ? [mock({ accounts: [demo as `0x${string}`], features: { defaultConnected: true } })]
     : [];
 
-// Injected (MetaMask) only — the design's single "CONNECT WALLET" button. Public Sepolia RPC.
+/**
+ * WalletConnect, if a project id is configured.
+ *
+ * This is the only connector that needs an account somewhere else: WalletConnect
+ * relays through their infrastructure and will not run without an id from
+ * `cloud.reown.com`. So it is opt-in rather than absent — set
+ * `NEXT_PUBLIC_WALLETCONNECT_ID` and every mobile wallet with a QR scanner works;
+ * leave it unset and the app is exactly as it was.
+ *
+ * It is the biggest single gap for a phone, because a mobile browser has no
+ * injected extension to find.
+ */
+const wcId = process.env.NEXT_PUBLIC_WALLETCONNECT_ID;
+const walletConnectConnector =
+  wcId !== undefined && wcId.length > 0
+    ? [walletConnect({ projectId: wcId, showQrModal: true })]
+    : [];
+
+/**
+ * Which wallets can open this app.
+ *
+ * `injected()` is not "MetaMask only" and never was: EIP-6963 discovery puts every
+ * detected browser extension in the list separately — Rabby, Brave, Coinbase,
+ * Zerion, OKX, Trust. What was MetaMask-only was the SIDEBAR, which picked one for
+ * you and preferred MetaMask when several were installed. It now asks.
+ *
+ * Coinbase Wallet is added because it needs no project id and, unlike an
+ * extension, its Smart Wallet works in a mobile browser through a passkey — which
+ * matters now that the layout is usable on a phone. A responsive app nobody can
+ * connect to on a phone is half a feature.
+ */
 export const wagmiConfig = createConfig({
   chains: [sepolia],
-  connectors: [...demoConnector, injected()],
+  connectors: [
+    ...demoConnector,
+    injected(),
+    coinbaseWallet({ appName: "SaveTogether", preference: "all" }),
+    ...walletConnectConnector,
+  ],
   transports: {
     [sepolia.id]: http("https://ethereum-sepolia-rpc.publicnode.com"),
   },
