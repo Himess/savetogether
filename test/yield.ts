@@ -170,13 +170,18 @@ describe("yield", () => {
   });
 
   it("still clamps an over-withdrawal when the principal is next door", async () => {
+    // The clamp target moved from zero to the balance (FHE.min), and the point
+    // of this test did not: whatever the source does, an over-ask must not
+    // revert, because a revert publishes that the account overreached. With the
+    // principal in the yield source the whole balance now comes back through
+    // redeem() in one transaction.
     await deposit(alice, 1_000_000n);
     await mine(DAY);
 
     const receipt = await withdraw(alice, 9_000_000n);
     expect(receipt!.status, "a revert would publish that the account overreached").to.equal(1);
     expect(await readAs(await pool.confidentialBalanceOf(alice.address), poolAddr, alice)).to.equal(
-      1_000_000n,
+      0n,
     );
   });
 

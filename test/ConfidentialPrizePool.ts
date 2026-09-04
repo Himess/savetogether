@@ -131,19 +131,36 @@ describe("ConfidentialPrizePool", () => {
     expect(await fhevm.userDecryptEuint(FhevmType.euint64, held, tokenAddr, alice)).to.equal(999_400n);
   });
 
-  it("clamps an over-withdrawal instead of reverting", async () => {
+  it("clamps an over-withdrawal to the balance instead of reverting", async () => {
     // A revert is visible on chain. "This account asked for more than it had"
     // is exactly the fact the pool exists to keep private, so the transaction
-    // must succeed and move an encrypted zero.
+    // must succeed.
+    //
+    // What it moves changed. It used to move an encrypted ZERO — tryDecrease
+    // plus select — so an over-ask succeeded and did nothing, which is silent
+    // and indistinguishable from every other clamp on screen. FHE.min clamps to
+    // the BALANCE instead, so asking for more than you hold takes what you hold.
+    // That also makes withdraw(type(uint64).max) mean "all of it", which is the
+    // only reliable full exit: _drain folds pending credit in, so the exact
+    // balance moves under you every time the keeper runs.
     await deposit(alice, 1000n);
     await mine(DAY);
 
     const receipt = await withdraw(alice, 5000n);
     expect(receipt!.status).to.equal(1);
 
-    expect(await readBalance(alice)).to.equal(1000n);
+    expect(await readBalance(alice), "the position is emptied, not left alone").to.equal(0n);
     const held = await token.confidentialBalanceOf(alice.address);
-    expect(await fhevm.userDecryptEuint(FhevmType.euint64, held, tokenAddr, alice)).to.equal(999_000n);
+    expect(await fhevm.userDecryptEuint(FhevmType.euint64, held, tokenAddr, alice)).to.equal(1_000_000n);
+  });
+
+  it("withdraw(max) empties the account without naming the balance", async () => {
+    // The reason (d) is worth its two lines. Before FHE.min this returned zero.
+    await deposit(alice, 1000n);
+    await mine(DAY);
+    const receipt = await withdraw(alice, (1n << 64n) - 1n);
+    expect(receipt!.status).to.equal(1);
+    expect(await readBalance(alice)).to.equal(0n);
   });
 
   it("keeps the aggregate in step with the sum of the parts", async () => {

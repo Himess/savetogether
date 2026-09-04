@@ -108,13 +108,15 @@ describe("G2 — the holder's own handles, decrypted", () => {
   /**
    * The regression this suite exists for.
    *
-   * Marked pending rather than failing: the defect is real, measured on Sepolia
-   * from a fresh key, and its fix is two lines that need a redeploy the sweep
-   * found no other reason for. `bundle/F1-ACL-SWEEP.md` records the decision.
-   * Un-skip this the moment those two lines ship; it will pass and it will keep
-   * passing.
+   * Was pending while the defect stood: real, measured on Sepolia from a fresh
+   * key, and fixable in two lines that needed a redeploy the sweep found no other
+   * reason for. Those two lines shipped with this redeploy — FHE.allow(nextPending,
+   * user) in accrue, and the same after _drain resets it — so this runs now.
+   *
+   * The test that documented the defect is gone, which is what it asked for in
+   * its own failure message.
    */
-  it.skip("pendingOf is readable by its holder — FAILS until the two-line ACL fix ships", async () => {
+  it("pendingOf is readable by its holder", async () => {
     await deposit(alice, 500n * U);
     await drawAndAccrue(alice);
 
@@ -130,29 +132,4 @@ describe("G2 — the holder's own handles, decrypted", () => {
     expect(await readable(await pool.pendingOf!(alice.address), poolAddr, alice), "after a claim").to.not.be.null;
   });
 
-  it("documents the current, defective behaviour so a silent fix is also caught", async () => {
-    await deposit(alice, 500n * U);
-    await drawAndAccrue(alice);
-
-    // Before this second deposit, `_pending` and `_winnings` have accumulated the
-    // identical sequence from zero, so `tryAdd` produced the SAME handle for both
-    // and the `FHE.allow(nextWinnings, user)` grant covers pending too. That is
-    // the coincidence the pre-flight read of "40 cUSDC" was standing on.
-    //
-    // `deposit` calls `_drain`, which sets `_pending` to a fresh zero handle
-    // granted only to the contract. The two diverge here, and the accident ends.
-    const sharedHandle = (await pool.pendingOf!(alice.address)) === (await pool.winningsOf!(alice.address));
-    expect(sharedHandle, "before any drain the two handles coincide").to.equal(true);
-
-    await deposit(alice, 1n * U);
-    const v = await readable(await pool.pendingOf!(alice.address), poolAddr, alice);
-
-    // If this ever starts returning a number, the ACL fix has shipped and the
-    // skipped test above should be enabled and this one deleted.
-    expect(
-      v,
-      "pendingOf is expected to be UNREADABLE by its owner until the ACL fix ships — " +
-        "if this failed, the fix has landed: enable the skipped test above and delete this one",
-    ).to.be.null;
-  });
 });

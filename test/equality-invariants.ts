@@ -84,19 +84,23 @@ describe("equality invariants", () => {
     expect(await pool.observationCount(bob.address)).to.equal(before + 1n);
   });
 
-  it("writes a fresh handle even when the clamp left the value unchanged", async () => {
+  it("writes a fresh handle on every withdrawal, whatever the clamp did", async () => {
+    // The clamp changed shape with FHE.min: an over-ask now takes the whole
+    // balance rather than moving nothing, so this no longer tests "same value,
+    // different handle". The invariant it exists for is unchanged and is what is
+    // asserted below — the storage slot must never let an observer distinguish a
+    // withdrawal that moved funds from one that did not, and a reused handle
+    // would announce exactly that.
     await deposit(bob, 1000n);
     const before = (await pool.observationAt(bob.address, 0)).balance;
 
-    await withdraw(bob, 5000n); // clamped: the VALUE does not move
+    await withdraw(bob, 5000n); // over-ask: clamped to the balance
     const after = (await pool.observationAt(bob.address, 1)).balance;
 
-    // The value is the same...
     const v = await fhevm.userDecryptEuint(FhevmType.euint64, after, poolAddr, bob);
-    expect(v).to.equal(1000n);
+    expect(v, "clamped to the balance, so the account is emptied").to.equal(0n);
 
-    // ...and the handle must not be, or the storage slot itself announces the clamp.
-    expect(after).to.not.equal(before);
+    expect(after, "a reused handle would make the slot itself readable").to.not.equal(before);
   });
 
   it("burns the same gas whether the withdrawal moved funds or nothing", async () => {

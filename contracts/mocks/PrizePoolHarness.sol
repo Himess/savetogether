@@ -3,6 +3,7 @@ pragma solidity ^0.8.27;
 
 import {ConfidentialPrizePool} from "../ConfidentialPrizePool.sol";
 import {IERC7984} from "@openzeppelin/confidential-contracts/interfaces/IERC7984.sol";
+import {FHE} from "@fhevm/solidity/lib/FHE.sol";
 
 /**
  * TEST-ONLY. Reveals a draw without the KMS.
@@ -18,6 +19,21 @@ import {IERC7984} from "@openzeppelin/confidential-contracts/interfaces/IERC7984
  */
 contract PrizePoolHarness is ConfidentialPrizePool {
     constructor(IERC7984 asset_, uint40 minPeriod_) ConfidentialPrizePool(asset_, minPeriod_) {}
+
+    /**
+     * Is this handle decryptable by this address, on chain?
+     *
+     * F1 had to answer this over a network with a real key, and the answer was
+     * no for pendingOf. FHE.isUserDecryptable answers it as a view, so the
+     * invariant becomes a test rather than a sweep — and any getter added later
+     * that forgets its grant fails without anyone remembering to look.
+     *
+     * Harness-only: it takes an arbitrary handle, which production has no reason
+     * to expose.
+     */
+    function isReadableBy(bytes32 handle, address who) external view returns (bool) {
+        return FHE.isUserDecryptable(handle, who, address(this));
+    }
 
     function forceReveal(uint32 drawId, uint64 r, uint128 total) external {
         _applyReveal(drawId, r, total);

@@ -43,13 +43,21 @@ async function dec(handle: string, contract: string, who: any, t = FhevmType.eui
 // ---------------------------------------------------------------------------
 
 describe("B4 — the keeper is paid, and never out of a prize", () => {
-  it("pays the caller a fee from the reserve", async () => {
+  it("pays the caller a fee from the fee pot", async () => {
     const { owner, alice, token, tokenAddr, pool, poolAddr } = await base();
     await setFlatPrize(pool, PRIZE);
     await (await pool.setKeeperFee!(50n)).wait();
 
     const seed = await fhevm.createEncryptedInput(poolAddr, owner!.address).add64(100_000n).encrypt();
     await (await pool.fundReserve!(seed.handles[0], seed.inputProof)).wait();
+
+    // The keeper is paid from its OWN pot now, not from the prize liquidity.
+    // One _reserve used to be prize money, shortfall backstop and wages at once,
+    // so accumulated fees competed with the grand prize across draws. Ordering
+    // the fee after the prize stopped a fee displacing a prize inside a single
+    // call; it did nothing about the pot draining over many of them.
+    const pot = await fhevm.createEncryptedInput(poolAddr, owner!.address).add64(10_000n).encrypt();
+    await (await pool.fundFeePot!(pot.handles[0], pot.inputProof)).wait();
 
     const e = await fhevm.createEncryptedInput(poolAddr, alice!.address).add64(10_000n).encrypt();
     await (await pool.connect(alice!).deposit!(e.handles[0], e.inputProof)).wait();
@@ -209,6 +217,14 @@ describe("tiers pay the tier that was won", () => {
     const seed = await fhevm.createEncryptedInput(poolAddr, owner!.address).add64(100_000n).encrypt();
     await (await pool.fundReserve!(seed.handles[0], seed.inputProof)).wait();
 
+    // The keeper is paid from its OWN pot now, not from the prize liquidity.
+    // One _reserve used to be prize money, shortfall backstop and wages at once,
+    // so accumulated fees competed with the grand prize across draws. Ordering
+    // the fee after the prize stopped a fee displacing a prize inside a single
+    // call; it did nothing about the pot draining over many of them.
+    const pot = await fhevm.createEncryptedInput(poolAddr, owner!.address).add64(10_000n).encrypt();
+    await (await pool.fundFeePot!(pot.handles[0], pot.inputProof)).wait();
+
     const e = await fhevm.createEncryptedInput(poolAddr, alice!.address).add64(10_000n).encrypt();
     await (await pool.connect(alice!).deposit!(e.handles[0], e.inputProof)).wait();
     await ethers.provider.send("evm_increaseTime", [DAY]);
@@ -228,6 +244,14 @@ describe("tiers pay the tier that was won", () => {
     await (await pool.setTiers!([25_000n, 5_000n, 1_000n], [100n, 10n, 1n])).wait();
     const seed = await fhevm.createEncryptedInput(poolAddr, owner!.address).add64(100_000n).encrypt();
     await (await pool.fundReserve!(seed.handles[0], seed.inputProof)).wait();
+
+    // The keeper is paid from its OWN pot now, not from the prize liquidity.
+    // One _reserve used to be prize money, shortfall backstop and wages at once,
+    // so accumulated fees competed with the grand prize across draws. Ordering
+    // the fee after the prize stopped a fee displacing a prize inside a single
+    // call; it did nothing about the pot draining over many of them.
+    const pot = await fhevm.createEncryptedInput(poolAddr, owner!.address).add64(10_000n).encrypt();
+    await (await pool.fundFeePot!(pot.handles[0], pot.inputProof)).wait();
     const e = await fhevm.createEncryptedInput(poolAddr, alice!.address).add64(10_000n).encrypt();
     await (await pool.connect(alice!).deposit!(e.handles[0], e.inputProof)).wait();
     await ethers.provider.send("evm_increaseTime", [DAY]);

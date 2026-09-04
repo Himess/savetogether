@@ -202,6 +202,79 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
      * incremental and visible rather than instant and total.
      */
     uint64 public constant MAX_PRIZE_MULTIPLE = 2;
+
+    /**
+     * How long a yield source stays an operator of the pool's balance.
+     *
+     * Was type(uint48).max and was never revoked on rebinding, so every source
+     * ever configured held an unlimited, permanent grant. A year is long enough
+     * that a running deployment never notices and short enough that an abandoned
+     * source stops being an operator without anyone remembering to say so.
+     */
+    uint48 public constant SOURCE_OPERATOR_WINDOW = 365 days;
+
+    /**
+     * How many grand prizes the reserve must cover for a draw to call itself
+     * solvent.
+     *
+     * Not 1. One winner at exactly one prize leaves nothing for the second, and
+     * a draw can produce several — the winner count is a random variable with
+     * mean 1/k, not a constant. Four is the smallest number that makes the FIRST
+     * clamp impossible by construction, which is the 97.3% case.
+     */
+    uint64 public constant SOLVENCY_COVER = 4;
+
+    /**
+     * One twentieth of each harvest funds the keeper.
+     *
+     * A plaintext divisor, which is the only division FHE offers: FHE.div is
+     * declared as div(euint64, uint64) and there is no euint64/euint64 form. That
+     * is also why PoolTogether V5's floating prize size — tier liquidity divided
+     * by the REALISED winner count — cannot be ported as written: that
+     * denominator is encrypted. A fixed plaintext divisor is expressible; a
+     * measured one is not.
+     */
+    uint64 public constant FEE_SHARE_DIVISOR = 20;
+
+    /**
+     * Whether the reserve covered SOLVENCY_COVER grand prizes when this draw
+     * opened, as a publicly decryptable bit.
+     *
+     * One bit about the POOL. It names nobody, discloses no weight, no odds and
+     * no position, and it is the only mechanism by which "your prize will be
+     * paid" becomes checkable by someone who does not trust the operator.
+     */
+    mapping(uint32 => ebool) public solventAt;
+
+    /**
+     * The keeper's paymaster, held apart from the prize liquidity.
+     *
+     * _reserve was doing three jobs at once: prize liquidity, shortfall
+     * backstop, and the keeper's wages. Ordering the fee after the prize stops a
+     * fee displacing a prize WITHIN one call, but across draws the accumulated
+     * fees still competed with the grand prize for the same pot.
+     *
+     * Note the split that is NOT made here. Dividing _reserve into a prize pot
+     * and a backstop is arithmetically vacuous — a clamp happens iff
+     * credit > A + B, which is credit > S. The keeper fee is the only division
+     * of that pot that changes an outcome, and it is PoolTogether V5's
+     * reserveShares in miniature.
+     */
+    euint64 private _feePot;
+
+    /**
+     * A reward that grows with lateness, for the two functions that wedge the
+     * pool if nobody calls them.
+     *
+     * openDraw and revealDraw carry no incentive today; accrueMany, the one that
+     * can be skipped without blocking anything, is the only paid path. V5 prices
+     * both by auction as a fraction of its reserve — which needs a bidder able
+     * to SEE the reserve, and ours is encrypted, so a fractional auction has no
+     * price discovery here. A plaintext schedule does: it is public, it needs no
+     * view onto the pot, and it costs no FHE.
+     */
+    uint64 public constant LIVENESS_RATE_PER_SEC = 20;      // 0.00002 cUSDC/s
+    uint64 public constant LIVENESS_CAP = 100_000;          // 0.1 cUSDC
     uint40 public constant TIER_CHANGE_INTERVAL = 6 hours;
     uint40 public tiersSetAt;
 
@@ -257,6 +330,7 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
     /// A pending credit was folded into a balance. Says nothing about who won.
     event Claimed(address indexed user, uint40 timestamp);
     event ReserveFunded(uint40 timestamp);
+    event FeePotFunded(uint40 at);
     event YieldSourceSet(address indexed source);
     event Harvested(uint40 timestamp);
 
@@ -283,6 +357,7 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
     /// B4
     event KeeperFeeSet(uint64 fee);
     event KeeperPaid(address indexed keeper, uint32 indexed drawId, uint256 accrued);
+    event LivenessPaid(address indexed caller, uint64 amount);
 
     constructor(IERC7984 asset_, uint40 minPeriod_) {
         asset = asset_;
@@ -350,8 +425,15 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
         euint64 amount = FHE.fromExternal(encAmount, inputProof);
         euint64 balance = _balanceOf(_userObs[msg.sender]);
 
-        (ebool within, euint64 decreased) = FHESafeMath.tryDecrease(balance, amount);
-        euint64 request = FHE.select(within, amount, FHE.asEuint64(0));
+        // Clamp to the BALANCE, not to zero. tryDecrease + select meant an
+        // over-ask moved nothing and still succeeded — silent, and identical on
+        // screen to every other clamp. min also makes withdraw(type(uint64).max)
+        // mean "all of it", which is the only reliable way to exit an account
+        // whose balance moves under it every time the keeper runs, because _drain
+        // folds pending credit in. Cheaper as well: 219,000 + 162,000 against
+        // 152,000 + 162,000 + 55,000 + 55,000.
+        euint64 request = FHE.min(balance, amount);
+        euint64 decreased = FHE.sub(balance, request);
 
         // With a source, the principal is over there and comes back straight to
         // the withdrawer — one transfer rather than two. Without one, the pool
@@ -530,6 +612,9 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
             revert TooSoon(previous + minPeriod);
         }
 
+        // Late is measured from the earliest this draw COULD have opened.
+        _payLiveness(uint40(uint256(previous) + minPeriod));
+
         uint40 periodStart = previous;
         uint40 snapshotAt = uint40(block.timestamp);
 
@@ -557,6 +642,23 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
             r: 0,
             totalWeight: 0
         });
+
+        // Can this draw pay its headline prize?
+        //
+        // A cleared threshold against a short reserve credits ZERO, and on chain
+        // that is indistinguishable from losing — so the pool's central promise
+        // was unfalsifiable from outside, including by the person it happened to.
+        // This publishes one bit about the POOL and never about a participant.
+        //
+        // Derived fresh each draw: makePubliclyDecryptable is permanent for a
+        // handle, so it must never be pointed at a live state variable.
+        //
+        // It lives here rather than in accrue on purpose. openDraw runs once per
+        // draw with ~17.8M HCU spare; accrue runs per participant with none.
+        ebool solvent = FHE.ge(_reserve, uint64(grandPrize) * SOLVENCY_COVER);
+        FHE.allowThis(solvent);
+        FHE.makePubliclyDecryptable(solvent);
+        solventAt[drawId] = solvent;
 
         emit DrawOpened(drawId, periodStart, snapshotAt);
     }
@@ -593,6 +695,10 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
 
         (uint256 r, uint256 total) = abi.decode(cleartexts, (uint256, uint256));
         _applyReveal(drawId, uint64(r), uint128(total));
+
+        // A reveal is late relative to the snapshot it settles. This is the leg
+        // that needs a 12-second KMS round trip and had no incentive at all.
+        _payLiveness(d.snapshotAt);
     }
 
     /**
@@ -725,9 +831,18 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
      * prize would never be funded.
      */
     function setYieldSource(IYieldSource source) external onlyOwner {
+        // The previous source was never revoked, so every address ever set here
+        // kept type(uint48).max — unlimited amount, no expiry — over the pool's
+        // entire cUSDC balance, invisibly and permanently.
+        IYieldSource old = yieldSource;
+        if (address(old) != address(0) && address(old) != address(source)) {
+            asset.setOperator(address(old), 0);
+        }
         yieldSource = source;
         if (address(source) != address(0)) {
-            asset.setOperator(address(source), type(uint48).max);
+            // Bounded. Long enough that no keeper has to think about it, short
+            // enough that a forgotten source stops being an operator on its own.
+            asset.setOperator(address(source), uint48(block.timestamp) + SOURCE_OPERATOR_WINDOW);
         }
         emit YieldSourceSet(address(source));
     }
@@ -742,7 +857,20 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
     function harvest() external {
         if (address(yieldSource) == address(0)) return;
         euint64 got = yieldSource.harvest(address(this));
-        (, euint64 next) = FHESafeMath.tryAdd(_reserve, got);
+
+        // A plaintext slice of every harvest funds the keeper, so keeper payment
+        // and prize solvency stop competing in both directions: a busy keeper
+        // cannot eat a prize, and an empty prize pot cannot strand the keeper.
+        // FHE.div takes an ENCRYPTED numerator and a PLAINTEXT divisor, which is
+        // exactly this shape — see the note on FEE_SHARE_DIVISOR.
+        euint64 fee = FHE.div(got, FEE_SHARE_DIVISOR);
+        euint64 rest = FHE.sub(got, fee);
+
+        (, euint64 nextPot) = FHESafeMath.tryAdd(_feePot, fee);
+        _feePot = nextPot;
+        FHE.allowThis(_feePot);
+
+        (, euint64 next) = FHESafeMath.tryAdd(_reserve, rest);
         _reserve = next;
         FHE.allowThis(_reserve);
         emit Harvested(uint40(block.timestamp));
@@ -837,6 +965,26 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
     }
 
     /// Seeds the reserve the prizes are paid from.
+    /**
+     * Tops up the keeper's pot, separately from the prize reserve.
+     *
+     * A harvest funds this automatically with a plaintext slice, but a pool can
+     * be donated to rather than earn, and one whose keeper cannot be paid stops
+     * opening draws — silently, with every later draw queued behind the open one.
+     *
+     * Deliberately NOT folded into fundReserve. A donation meant as prize money
+     * should go to prize money; someone paying the keeper should have to say so.
+     */
+    function fundFeePot(externalEuint64 encAmount, bytes calldata inputProof) external {
+        euint64 amount = FHE.fromExternal(encAmount, inputProof);
+        FHE.allowTransient(amount, address(asset));
+        euint64 received = asset.confidentialTransferFrom(msg.sender, address(this), amount);
+        (, euint64 next) = FHESafeMath.tryAdd(_feePot, received);
+        _feePot = next;
+        FHE.allowThis(_feePot);
+        emit FeePotFunded(uint40(block.timestamp));
+    }
+
     function fundReserve(externalEuint64 encAmount, bytes calldata inputProof) external {
         euint64 amount = FHE.fromExternal(encAmount, inputProof);
         FHE.allowTransient(amount, address(asset));
@@ -859,11 +1007,14 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
      * Idempotent by a plaintext flag, and the flag leaks nothing because accrual
      * happens for every participant regardless of outcome.
      */
-    function accrue(address user, uint32 drawId) public {
+    /// @return done true when this call actually accrued; false when the address
+    /// was already settled for this draw. The keeper fee is paid per accrual
+    /// PERFORMED, and this is how accrueMany tells the difference.
+    function accrue(address user, uint32 drawId) public returns (bool done) {
         Draw storage d = _draws[drawId];
         if (d.status != DrawStatus.Revealed) revert DrawNotRevealed();
         if (grandPrize == 0) revert PrizeNotSet();
-        if (accrued[drawId][user]) return;
+        if (accrued[drawId][user]) return false;
         accrued[drawId][user] = true;
 
         euint128 weight = FHE.sub(_snapshotCumulative(user, drawId, d.snapshotAt), _windowStart(user, drawId, d));
@@ -900,8 +1051,16 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
         FHE.allowThis(nextPending);
         FHE.allowThis(nextWinnings);
         FHE.allow(nextWinnings, user);
+        // F1's live sweep found pendingOf handing a holder a handle their own key
+        // could not open. It survived 190 tests because every assertion on it
+        // checked the handle was non-zero rather than decrypting it as its
+        // intended reader. FHE.allow is an ACL write, not an FHE operation: no
+        // HCU, and the operation sequence the equality result is measured over is
+        // unchanged.
+        FHE.allow(nextPending, user);
 
         emit Accrued(user, drawId);
+        return true;
     }
 
     /**
@@ -972,9 +1131,18 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
             order[j] = candidate;
         }
 
-        for (uint256 i = 0; i < n; i++) accrue(order[i], drawId);
+        // Only accruals that DID WORK are paid for. Passing `n` meant
+        // accrueMany([alreadySettled], drawId) collected the full fee for an early
+        // return — repeatably, by anyone, since this is external with no modifier
+        // and _payKeeper sends to msg.sender. About 125 calls for a grand prize.
+        // It also inverted the honest keeper's incentive: six single-address calls
+        // earned six times what one six-address call did.
+        uint256 worked;
+        for (uint256 i = 0; i < n; i++) {
+            if (accrue(order[i], drawId)) worked++;
+        }
 
-        _payKeeper(drawId, n);
+        _payKeeper(drawId, worked);
     }
 
     /**
@@ -984,6 +1152,30 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
      * declines the fee exactly as it declines a prize — and because this runs
      * last, everything the batch was going to pay has already been taken.
      */
+    /**
+     * Pays whoever unblocked the pool, scaled by how late it was.
+     *
+     * Plaintext schedule, encrypted pot: the amount owed is public and needs no
+     * view onto the reserve, so it is priceable by a bot without weakening
+     * anything. Zero when it is on time, which is the common case.
+     */
+    function _payLiveness(uint40 due) private {
+        if (block.timestamp <= due) return;
+        uint256 late = block.timestamp - due;
+        uint256 owed = late * LIVENESS_RATE_PER_SEC;
+        if (owed > LIVENESS_CAP) owed = LIVENESS_CAP;
+        if (owed == 0) return;
+
+        euint64 reward = FHE.asEuint64(uint64(owed));
+        (ebool ok, euint64 next) = FHESafeMath.tryDecrease(_feePot, reward);
+        euint64 paid = FHE.select(ok, reward, FHE.asEuint64(0));
+        _feePot = next;
+        FHE.allowThis(_feePot);
+        FHE.allowTransient(paid, address(asset));
+        asset.confidentialTransfer(msg.sender, paid);
+        emit LivenessPaid(msg.sender, uint64(owed));
+    }
+
     function _payKeeper(uint32 drawId, uint256 count) private {
         if (keeperFee == 0 || count == 0) return;
         euint64 fee = FHE.asEuint64(keeperFee);
@@ -993,10 +1185,11 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
         // declined the fee on the books while the tokens left anyway, so a
         // keeper could be paid out of a prize after all. `tryDecrease` is an
         // accounting result; the effect has to be gated on it.
-        (ebool ok, euint64 next) = FHESafeMath.tryDecrease(_reserve, fee);
+        // From the fee pot, not from the prize liquidity.
+        (ebool ok, euint64 next) = FHESafeMath.tryDecrease(_feePot, fee);
         euint64 paid = FHE.select(ok, fee, FHE.asEuint64(0));
-        _reserve = next;
-        FHE.allowThis(_reserve);
+        _feePot = next;
+        FHE.allowThis(_feePot);
         FHE.allowTransient(paid, address(asset));
         asset.confidentialTransfer(msg.sender, paid);
         emit KeeperPaid(msg.sender, drawId, count);
@@ -1016,6 +1209,7 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
         (, euint64 newBalance) = FHESafeMath.tryAdd(_balanceOf(_userObs[user]), pending);
         _pending[user] = FHE.asEuint64(0);
         FHE.allowThis(_pending[user]);
+        FHE.allow(_pending[user], user);
         _push(_userObs[user], newBalance, user);
         (, euint64 newTotal) = FHESafeMath.tryAdd(_balanceOf(_totalObs), pending);
         _push(_totalObs, newTotal, address(0));

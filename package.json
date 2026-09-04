@@ -11,7 +11,7 @@
     "keeper": "hardhat run scripts/keeper.ts --network sepolia",
     "build:packages": "npm run build -w @savetogether/sdk && npm run build -w @savetogether/console && npm run build -w @savetogether/mcp-server && npm run build -w @savetogether/hosted",
     "test:session": "hardhat test test/SaveTogetherSession.ts test/mcp.ts test/mcp-protocol.ts",
-    "test:pool": "hardhat test test/ConfidentialPrizePool.ts test/access-control.ts test/frozen-surface.ts test/equality-invariants.ts test/draw-ordering.ts test/accrual.ts test/yield.ts test/replica-source.ts test/withdraw-buffer.ts test/reserve-order.ts test/phase-b.ts test/c1-indistinguishability.ts test/aa1-weight-leak.ts test/aa2-cancel-window.ts test/ab1-display.ts test/storage-cost.ts test/g1-can-afford-oracle.ts test/g2-pending-acl.ts test/m1-confidential-display.ts",
+    "test:pool": "hardhat test test/ConfidentialPrizePool.ts test/access-control.ts test/frozen-surface.ts test/equality-invariants.ts test/draw-ordering.ts test/accrual.ts test/yield.ts test/replica-source.ts test/withdraw-buffer.ts test/reserve-order.ts test/phase-b.ts test/c1-indistinguishability.ts test/aa1-weight-leak.ts test/aa2-cancel-window.ts test/ab1-display.ts test/storage-cost.ts test/g1-can-afford-oracle.ts test/g2-pending-acl.ts test/m1-confidential-display.ts test/cd-keeper-fee-and-acl.ts",
     "test:sepolia": "hardhat test test/d1-wrapper-revert.ts test/e1-wrap-path.ts test/sepolia-deposit.ts --network sepolia",
     "build:sdk": "npm run build -w @savetogether/sdk",
     "hosted": "node packages/hosted/dist/cli.js",
