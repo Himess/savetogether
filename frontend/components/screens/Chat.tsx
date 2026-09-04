@@ -281,12 +281,13 @@ export function ChatScreen() {
               </table>
             </div>
             <p style={css("margin:12px 0 0;font:400 11.5px/1.65 var(--display);color:var(--ink-3)")}>
-              <strong>The leak was never in the cryptography.</strong> <span style={css("font-family:var(--mono);font-size:11px")}>can_afford</span>{" "}
-              always decrypted the budget to answer it, so the ciphertext never gave way. What
-              leaked was the <em>shape of the answer</em> crossing to the model: a free,
-              repeatable, caller-chosen predicate is an oracle whatever it is computed over.
-              Forty probes recovered an exact budget. It now answers against a 50-token bucket —
-              run the attack yourself on <strong>Try to break it</strong>, row 5.
+              <strong>Claude does not know. The chain does not know. The server does.</strong> That
+              is the trade — a sentence instead of six screens, in exchange for some trust in an
+              operator, bounded by the encrypted budget, the allowlist and the 24-hour expiry.
+            </p>
+            <p style={css("margin:8px 0 0;font:400 11.5px/1.65 var(--display);color:var(--ink-3)")}>
+              Splitting the session client across MPC shares would widen this — a version where the
+              server cannot see it either. Not built.
             </p>
           </div>
 

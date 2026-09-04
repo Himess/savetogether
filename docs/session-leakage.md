@@ -119,8 +119,10 @@ Separate from the chain, and the reason the two principals are named distinctly 
 | amounts                    | never             | a click on the local console, per call                      |
 | balance                    | never             | a click, and only if the session was opened with delegation |
 | remaining budget           | never             | a click                                                     |
-| whether an amount fits     | yes, as a boolean | —                                                           |
+| whether an amount fits     | yes, as a boolean, against a 50-token bucket | —                                |
 | recipients, tokens, timing | yes               | —                                                           |
+
+That boolean was an oracle: free, repeatable and caller-chosen, so forty calls binary-searched the exact budget. It now answers against the budget rounded down to a 50-token bucket, which is why the row says "bucket" rather than "yes". Written up in `docs/leakage.md` §9.
 
 There is no configuration option that disables the reveal confirmation. Adding one would remove the only thing standing between "the model can ask" and "the model has it".
 
@@ -185,6 +187,13 @@ the chain, and the model was never given it.
 - the recipient allowlist bounds where value can go
 - the expiry bounds how long, at a 24-hour ceiling
 - the owner closes the session from their own wallet, needing nothing from us
+
+**Claude does not know. The chain does not know. The server does.** That is the trade —
+a sentence instead of six screens, in exchange for some trust in an operator, bounded by
+the encrypted budget, the allowlist and the 24-hour expiry. Splitting the session client
+across MPC shares would widen this: a version where the server cannot see it either. Not
+built, and "widen" is the honest verb — encrypting an amount requires somebody to hold it
+in the clear, so shares divide the knowledge rather than removing it.
 
 **A compromised server can spend up to the remaining budget, to the allowlisted
 addresses, until the owner revokes.** It cannot exceed the budget, cannot send

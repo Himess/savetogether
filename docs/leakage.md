@@ -313,4 +313,46 @@ deposit enters as `euint64` and is never decrypted, which is precisely why Zama
 batches and we do not need to. And against this finding it fails for Zama's own
 documented reason: *"a lone depositor is fully revealed; the sum of one value is the
 value."* A single-participant batch is a single-event window. Batching schedules
-co-participants; it does not create them.
+co-participants; it does not create them, and on that batcher **nine of the last ten
+batches had exactly one participant** (§7). What fixes this is people, not delay: at
+mainnet volume most windows carry several balance changes and stop being determined.
+
+This is the general cost of publishing an aggregate on a confidential chain, and it is
+not specific to this pool — Zama's own deposit batcher carries the same property, for
+the same reason. It is worth being exact about one thing, because it is checkable:
+`totalWeight` is **not** part of ERC-7984. ERC-7984 is a token standard and says
+nothing about draws or weights. `totalWeight` is an aggregate **this pool publishes
+deliberately**, so that the draw stays auditable by anyone — measured at 8.3× to
+encrypt, with public auditability lost. The shared property is *publishing an
+aggregate*, not a shared standard.
+
+---
+
+## 9. `can_afford` was a budget oracle, and forty calls emptied it
+
+Found and closed. This is the session leak that used to be written up on the **Try to
+break it** screen at length; the screen now states it in one sentence and the detail
+lives here.
+
+**What it was.** `can_afford(amount)` answers one boolean about the caller's encrypted
+session budget: does the budget cover this. One call leaks almost nothing. The predicate
+is free, repeatable and caller-chosen, which makes it a binary search: **forty calls
+recovered the exact budget.**
+
+**Why rate-limiting would not have fixed it.** The hosted server allows sixty calls a
+minute, so a forty-call search completes inside a single window. A limit would have
+slowed the attack, not stopped it.
+
+**The leak was never in the cryptography.** The budget was an `euint64` throughout and
+`can_afford` decrypted it to answer — the ciphertext never gave way. What leaked was the
+*shape of the answer* as it crossed the boundary to the model. That is why a bucket fixed
+it and a stronger cipher would not have.
+
+**The fix.** The predicate now answers against the budget rounded **down to a 50-token
+bucket**. Every budget inside one bucket answers identically to every probe, so the
+search converges on the bucket and then has nothing left to divide. Measured in
+`test/g1-can-afford-oracle.ts`; reproducible live against the deployed server from row 5
+of the **Try to break it** screen.
+
+The residual is the bucket itself: an attacker learns which 50-token band the budget is
+in, and no number of further calls narrows it.

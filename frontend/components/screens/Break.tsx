@@ -603,11 +603,6 @@ export function Break() {
           claim="The aggregate weight is published at every reveal. Solve it for one depositor."
           status="disclosed"
         >
-          <div style={css("padding:11px 13px;border-radius:11px;background:var(--red-bg);border:1px solid #e0c4c4;font:600 12px/1.6 var(--display);color:var(--red)")}>
-            This row used to say <i>one equation, six unknowns</i>. That is true of one draw and
-            false across several, and it is corrected here rather than quietly, because the
-            correction is the more interesting fact.
-          </div>
           <Out>{[
             "ONE draw, alone:",
             "  w1 + ... + w6 = totalWeight        one equation, six unknowns",
@@ -681,19 +676,14 @@ export function Break() {
             "  measured frequency: 12 balance events, 1 solved.",
           ].join("\n")}</Out>
           <p style={css("margin:10px 0 0;font:400 11.5px/1.6 var(--display);color:var(--ink-3)")}>
-            The honest claim is narrower in one direction and worse in another. The aggregate is
-            underdetermined <b style={css("font-weight:650")}>only when several people change
-            balance in the same window</b> — but when a window is quiet it does not merely narrow,
-            it <b style={css("font-weight:650")}>solves</b>. Measured over the run that found it:{" "}
-            <b style={css("font-weight:650")}>12 balance events, 1 solved exactly</b>. Rare, and
-            rarity is not a mitigation — nothing in the contract enforces a minimum anonymity set,
-            so the frequency is a property of how busy the pool happens to be. What it recovers is the <i>balance delta</i>, not the deposit — draw
-            33&apos;s 540 was a 500 deposit plus a 40 credit the same call drained, and an
-            observer cannot split them. Publishing <Mono>totalWeight</Mono> stays deliberate:
-            encrypting it costs 8.3× and removes public auditability of the draw. The trade has
-            not changed; the description of it has. Written up in{" "}
-            <Mono>docs/leakage.md</Mono> §8, reproduced by{" "}
-            <Mono>scripts/x1-window-solve.ts</Mono>.
+            Publishing an aggregate on a confidential chain costs this, and it is not specific to
+            us — <b style={css("font-weight:650")}>Zama&apos;s own deposit batcher carries the same
+            property</b>, and their docs say so: <i>&ldquo;a lone depositor is fully
+            revealed.&rdquo;</i> What fixes it is people, not delay:{" "}
+            <b style={css("font-weight:650")}>nine of their last ten batches had exactly one
+            participant</b>, so batching alone would not help. Here it solved 1 window in 12, and at
+            mainnet volume most windows carry several balance changes and stop being determined.{" "}
+            <Mono>docs/leakage.md</Mono> §8.
           </p>
         </Card>
 
@@ -705,10 +695,8 @@ export function Break() {
           status={result ? "closed" : "idle"}
         >
           <div style={css("padding:11px 13px;border-radius:11px;background:var(--red-bg);border:1px solid #e0c4c4;font:600 12px/1.6 var(--display);color:var(--red)")}>
-            This attack worked and it IS closed — found, measured at 40 calls, and fixed by
-            coarsening. Two runs below: the first sends real calls to the deployed server and is
-            the one that proves anything; the second is a simulation against a number you pick,
-            kept because it lets you watch the search fail without holding a session.
+            Forty calls recovered an exact encrypted budget. Measured, closed by coarsening to a
+            50-token bucket, and this row still says it worked. Written up in docs/leakage.md §9.
           </div>
 
           {/* THE LIVE RUN. Everything below this block is a simulation and is
@@ -816,16 +804,6 @@ export function Break() {
             </>
           )}
 
-          <p style={css("margin:10px 0 0;font:400 11.5px/1.6 var(--display);color:var(--ink-3)")}>
-            The description used to say it &ldquo;leaks neither the budget nor anything
-            else&rdquo;. True of one call, false of forty — and the hosted server&apos;s
-            sixty-per-minute limit clears forty inside a single window, so rate-limiting would
-            have slowed the attack rather than stopped it. Coarsening removes the signal
-            instead. <strong>The leak was never in the cryptography</strong>: the budget was
-            encrypted the whole time. It was in the shape of the answer as it crossed the
-            boundary to the model, which is why a bucket fixed it and a cipher would not have.
-            Measured in <Mono>test/g1-can-afford-oracle.ts</Mono>.
-          </p>
         </Card>
       </div>
 
