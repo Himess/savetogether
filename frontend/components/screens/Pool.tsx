@@ -169,7 +169,7 @@ export function PoolScreen() {
       tab === "deposit" ? "Depositing" : "Withdrawing",
       tab === "deposit"
         ? "Your position is in the pool, encrypted, and starts earning weight now."
-        : "The transaction landed — check your position to see whether it moved. A withdrawal is all-or-nothing: if the amount is more than you hold, or more than the pool has liquid, nothing moves and nothing is lost. A smaller amount goes through.",
+        : "The transaction landed — check your position to see whether it moved. Asking for more than you hold takes what you hold. If the pool's liquid buffer is short, nothing moves and nothing is lost; a smaller amount goes through.",
       async () => {
         const enc = await encrypt({
           contractAddress: POOL,
@@ -734,8 +734,12 @@ export function PoolScreen() {
               </div>
             ) : (
               <p style={css("margin:10px 0 0;font:400 11px/1.5 var(--display);color:var(--ink-3)")}>
-                Withdrawals are all-or-nothing — an amount larger than your position, or than the
-                pool&apos;s liquid buffer, moves nothing and still succeeds. Nothing is lost either way.
+                Ask for more than you hold and you get what you hold —{" "}
+                <span style={css("font-family:var(--mono);font-size:10.5px")}>withdraw</span> clamps
+                to your balance rather than reverting, because a revert would publish that you
+                overreached. The pool&apos;s liquid buffer is the part that is still
+                all-or-nothing: while principal sits in the vault between batches, a large request
+                can move nothing and still succeed. Nothing is lost either way.
               </p>
             ))}
 

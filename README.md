@@ -134,8 +134,8 @@ branching on anything encrypted.
 
 | Contract | Address | Purpose | Etherscan |
 |---|---|---|---|
-| **ConfidentialPrizePool** | [`0xa9B69D…6631`](https://sepolia.etherscan.io/address/0xa9B69Dc9F9f4C4512c926ba9eA432eBcF0026631#code) | TWAB, the draw, three encrypted prize tiers | **Exact Match** |
-| **SteakhouseReplicaSource** | [`0xDa596e…3695`](https://sepolia.etherscan.io/address/0xDa596e47029839eA7E1990f97F106fd6d2e33695#code) | the yield, and both directions into Zama's vault | **Similar Match** ⚠ |
+| **ConfidentialPrizePool** | [`0x894F64…87BE`](https://sepolia.etherscan.io/address/0x894F6492357277CF36e9973787663AE9F73387BE#code) | TWAB, the draw, three encrypted prize tiers | **Exact Match** |
+| **SteakhouseReplicaSource** | [`0xB16EB9…11Ba`](https://sepolia.etherscan.io/address/0xB16EB979231A95C2Ad454Ebd456b4c5AD23811Ba#code) | the yield, and both directions into Zama's vault | **Similar Match** ⚠ |
 | **SaveTogetherSession** | [`0xE5c667…6Cf6`](https://sepolia.etherscan.io/address/0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6#code) | encrypted, on-chain-bounded session budgets | **Exact Match** |
 
 All three are verified and all three show their source. Two are Exact Matches;
@@ -150,7 +150,7 @@ input and the build that was deployed, and it is not the same claim as the other
 | Contract | Address | |
 |---|---|---|
 | cUSDC | [`0x7c5BF4…3639`](https://sepolia.etherscan.io/address/0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639) | what the pool settles in |
-| Deposit batcher | [`0x487585…F53b`](https://sepolia.etherscan.io/address/0x48758559c14d4d92b4C74A99660B6a8dbe85F53b) | cUSDC → shares · our principal is in [batch 286](https://sepolia.etherscan.io/address/0xDa596e47029839eA7E1990f97F106fd6d2e33695) |
+| Deposit batcher | [`0x487585…F53b`](https://sepolia.etherscan.io/address/0x48758559c14d4d92b4C74A99660B6a8dbe85F53b) | cUSDC → shares · our principal is in [batch 286](https://sepolia.etherscan.io/address/0xB16EB979231A95C2Ad454Ebd456b4c5AD23811Ba) |
 | Redeem batcher | [`0xe94E9a…BEb0`](https://sepolia.etherscan.io/address/0xe94E9afdDd43a19C2914739e9279cb6Fe287BEb0) | shares → cUSDC, the way back out |
 | csteakcUSDC | [`0x13F7d3…28c4`](https://sepolia.etherscan.io/address/0x13F7d34A4f0102734F19E3Ff16e068Fe194B28c4) | the vault share |
 | Steakhouse Confidential Prime USDC | [`0x6AB549…864C`](https://sepolia.etherscan.io/address/0x6AB54988261AEC573a2CA13cF802d3B1114f864C) | the ERC-4626 both batchers settle against |
@@ -602,7 +602,7 @@ thing a lottery really has to prove.
 ## 🎁 Claiming announces nothing
 
 > **What `claim` is, because the name misleads.** There *is* a `claim(address)`, it is
-> deployed, and it has moved real cUSDC on Sepolia — [`0x42743cf9…e3e0`](https://sepolia.etherscan.io/tx/0x42743cf9421110ad11a8a81c783d1926bc2a2fbc62907d409510ba776eb7e3e0). Nothing is missing.
+> deployed, and it has moved real cUSDC on Sepolia — [`0x39b75a19…e3e0`](https://sepolia.etherscan.io/tx/0x39b75a19c05278aef95c44831296a4d2074471406206655e404d375609f07fe8). Nothing is missing.
 > But "claim" in every other lottery means *collect your prize*, and here it means
 > *fold an already-credited balance in*:
 >
@@ -1074,11 +1074,17 @@ is a claim rather than a disclosure.
   ordinary tier is won with certainty, so it is **97.3%**, not 3%. Fixed by
   sequencing — the keeper holds the first draw until the source has a full period —
   and not by prize sizing, which cannot touch it.
-- **Withdrawal is all-or-nothing.** A confidential token cannot revert on an
-  insufficient balance without leaking the comparison, so OpenZeppelin's `ERC7984._update`
-  clamps instead — `transferred = FHE.select(success, amount, FHE.asEuint64(0))`. Asking
-  for more than you hold *or* more than the pool has liquid moves **nothing** and the
-  transaction still succeeds.
+- **Withdrawal clamps rather than reverting, and half of it is still all-or-nothing.**
+  A confidential token cannot revert on an insufficient balance without leaking the
+  comparison, so OpenZeppelin's `ERC7984._update` clamps instead —
+  `transferred = FHE.select(success, amount, FHE.asEuint64(0))`.
+  Against **your own position** the pool now clamps to your balance rather than to zero:
+  `FHE.min(balance, amount)`, so an over-ask takes what you hold and
+  `withdraw(type(uint64).max)` means all of it. It used to move **nothing**, which was
+  silent and identical on screen to every other clamp, and which made a full exit require
+  naming a balance that drifts every time the keeper runs.
+  Against **the pool's liquid buffer** it is still all-or-nothing: if the principal is in
+  the vault between batches, a large request moves nothing and still succeeds.
   The standard does not require this: ERC-7984 says a transfer *"MAY revert if the
   caller's balance does not have enough tokens to spend"*, eight times, once per transfer
   variant. Clamping is the implementation's choice inside that latitude — a forced one,

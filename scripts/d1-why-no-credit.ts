@@ -18,7 +18,7 @@ import { ethers, fhevm } from "hardhat";
 import { FhevmType } from "@fhevm/hardhat-plugin";
 import * as fs from "fs";
 
-const POOL = "0xa9B69Dc9F9f4C4512c926ba9eA432eBcF0026631";
+const POOL = "0x894F6492357277CF36e9973787663AE9F73387BE";
 
 async function main(): Promise<void> {
   await fhevm.initializeCLIApi();

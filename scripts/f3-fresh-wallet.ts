@@ -20,7 +20,7 @@ import type { ContractTransactionResponse, Signer, TransactionResponse } from "e
 import { FhevmType } from "@fhevm/hardhat-plugin";
 import * as fs from "fs";
 
-const POOL = "0xa9B69Dc9F9f4C4512c926ba9eA432eBcF0026631";
+const POOL = "0x894F6492357277CF36e9973787663AE9F73387BE";
 const CUSDC = "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639";
 
 const GAS_FUND = ethers.parseEther("0.05");

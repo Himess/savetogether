@@ -52,6 +52,9 @@ const KEEPER_FEE = 200_000n;
 /** The replica's pot. Wrapped, because cUSDC has no mint of its own. */
 const POT = 900_000n * U;
 
+/** The keeper's wages, so it is never waiting on a first harvest. */
+const FEE_POT = 200n * U;
+
 /** Seed principal, so the pool is not empty on arrival. */
 const SEED = 12_000n * U;
 
@@ -114,6 +117,20 @@ async function main(): Promise<void> {
   await (await wrapper.setOperator!(poolAddr, Math.floor(Date.now() / 1000) + 365 * 24 * 3600)).wait();
   const enc = await fhevm.createEncryptedInput(poolAddr, me).add64(SEED).encrypt();
   await (await pool.deposit!(enc.handles[0], enc.inputProof)).wait();
+
+  // The keeper has its own pot now, so wages and prize money stop competing.
+  // Seeded here rather than left to the first harvest, because an unpaid keeper
+  // stops opening draws and every later draw queues behind the open one — a
+  // silent failure at exactly the moment a fresh deployment is being watched.
+  //
+  // This does NOT pre-fund the reserve. That still starts empty and fills from
+  // harvest() alone, which is what the paired test in replica-source.ts proves.
+  console.log(`\nseeding the keeper fee pot: ${FEE_POT / U} cUSDC`);
+  await (await usdc.mint!(me, FEE_POT)).wait();
+  await (await usdc.approve!(CUSDC, FEE_POT)).wait();
+  await (await wrapper.wrap!(me, FEE_POT)).wait();
+  const encFee = await fhevm.createEncryptedInput(poolAddr, me).add64(FEE_POT).encrypt();
+  await (await pool.fundFeePot!(encFee.handles[0], encFee.inputProof)).wait();
 
   const harvest = (SEED * RATE_BPS * 1800n) / (10_000n * 31_536_000n);
   const expected = TIER_PRIZES.reduce((a, p, i) => a + p / TIER_K[i]!, 0n);

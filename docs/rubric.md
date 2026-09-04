@@ -17,8 +17,8 @@ across two live runs fill the *shown by* column: twelve from
 [`scripts/f3-fresh-wallet.ts`](../scripts/f3-fresh-wallet.ts), both reproducible.
 
 Everything below was measured on **2026-09-03**. Contracts:
-pool `0xa9B69Dc9F9f4C4512c926ba9eA432eBcF0026631`,
-source `0xDa596e47029839eA7E1990f97F106fd6d2e33695`,
+pool `0x894F6492357277CF36e9973787663AE9F73387BE`,
+source `0xB16EB979231A95C2Ad454Ebd456b4c5AD23811Ba`,
 session `0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6`.
 
 ---
@@ -29,26 +29,31 @@ session `0xE5c667c0C58242f89ee59f9269111A3EfB836Cf6`.
 
 | requirement | where | pinned by | shown by | |
 |---|---|---|---|---|
-| **Deposit** | `ConfidentialPrizePool.deposit` | `ConfidentialPrizePool.ts`, `accrual.ts` | [`0xf6fbd169…`](https://sepolia.etherscan.io/tx/0xf6fbd169e117cefda236d71c4e0e827d01ea769f42ff70eee88eb48ecda01109) — 500 cUSDC in | met |
-| **Draw** | `openDraw` → `revealDraw`, `FHE.randEuint64` + KMS proof | `draw-ordering.ts`, `equality-invariants.ts` | [`0x3f804883…`](https://sepolia.etherscan.io/tx/0x3f804883b402eb1ed6b27800a06518a3a822fec20fb5dbada76cf6aa6e62d499) — draw 35 revealed | met |
-| **Claim** | `claim(user)`, permissionless, anyone for anyone | `g2-pending-acl.ts`, `phase-b.ts` | [`0x42743cf9…`](https://sepolia.etherscan.io/tx/0x42743cf9421110ad11a8a81c783d1926bc2a2fbc62907d409510ba776eb7e3e0) — moved exactly 1.000000 cUSDC | met |
-| **Withdraw** | `withdraw(externalEuint64, proof)` | `withdraw-buffer.ts` | [`0x2d7ded28…`](https://sepolia.etherscan.io/tx/0x2d7ded28c6ec1e23cef248754b0c9321a996108813e9ea3d0ee7295dea410c0b) — 250 out, balanced to the unit | **met, with a limit** |
-| **…from an unprivileged address** | a key generated for the run, funded with gas and cUSDC only | `f3-fresh-wallet.ts` | [`0xda54ff98…`](https://sepolia.etherscan.io/tx/0xda54ff98d06224cd5dc8a19ac9111eb61d04a132bb8286c78aa2bb7b9fd2df00) — fresh wallet deposits | met |
+| **Deposit** | `ConfidentialPrizePool.deposit` | `ConfidentialPrizePool.ts`, `accrual.ts` | [`0xe78dd9c2…`](https://sepolia.etherscan.io/tx/0xe78dd9c203e4b94854d924dae61ed28665e4f3271218fe4e6ee39177ee3e241d) — 500 cUSDC in | met |
+| **Draw** | `openDraw` → `revealDraw`, `FHE.randEuint64` + KMS proof | `draw-ordering.ts`, `equality-invariants.ts` | [`0x541848cd…`](https://sepolia.etherscan.io/tx/0x541848cd40ae219a965a379c42192a04db68198d150c65ee8df5f03754ba169c) — draw 3 revealed, on the redeployed pool | met |
+| **Claim** | `claim(user)`, permissionless, anyone for anyone | `g2-pending-acl.ts`, `phase-b.ts` | [`0x39b75a19…`](https://sepolia.etherscan.io/tx/0x39b75a19c05278aef95c44831296a4d2074471406206655e404d375609f07fe8) — moved exactly 1.000000 cUSDC | met |
+| **Withdraw** | `withdraw(externalEuint64, proof)` | `withdraw-buffer.ts` | [`0x0ce067d7…`](https://sepolia.etherscan.io/tx/0x0ce067d756710b16e12c860668a7010bcac9fcdb7f356e8201508a593806eb25) — 250 out, balanced to the unit | **met, with a limit** |
+| **…from an unprivileged address** | a key generated for the run, funded with gas and cUSDC only | `f3-fresh-wallet.ts` | [`0xc503cf8f…`](https://sepolia.etherscan.io/tx/0xc503cf8fc8801998ce1e2b1e1d7e07ad6ee707b76af61ae83df685df9b35d606) — fresh wallet deposits | met |
 
-**On the claim.** The first `claim` we ran succeeded while doing nothing: `deposit` calls
-`_drain`, so the credit had already been folded in three steps earlier. A transaction that
-succeeds while doing nothing is not evidence, so it is not the one cited. The hash above is
-the second attempt, run after actually winning draw 35, and it moved the position from
-12,290 to 12,291.
+**On the claim.** The first `claim` we ever ran succeeded while doing nothing: `deposit`
+calls `_drain`, so the credit had already been folded in three steps earlier. A transaction
+that succeeds while doing nothing is not evidence, which is why this step is checked by what
+it MOVED rather than by whether it reverted. The hash above is from the cycle re-run on the
+redeployed pool, and it moved a pending credit of 1.000000 cUSDC to zero.
 
-**On the withdrawal limit.** All-or-nothing: asking for more than you hold, or more than the
-pool has liquid, moves nothing and the transaction still succeeds. A confidential token
-cannot revert on an insufficient balance without leaking the comparison — see §4 of the
-README's limitations.
+**On the withdrawal limit.** A confidential token cannot revert on an insufficient balance
+without leaking the comparison, so this clamps instead of reverting. What it clamps TO
+changed: against your own position it is now `FHE.min(balance, amount)`, so asking for more
+than you hold takes what you hold, and `withdraw(type(uint64).max)` means all of it. It used
+to move nothing — silent, and indistinguishable from every other clamp — which also made a
+full exit require naming a balance that drifts every time the keeper runs.
+The pool's liquid buffer is the half that is still all-or-nothing: while principal sits in
+Zama's vault between batches, a large request can move nothing and still succeed. See §4 of
+the README's limitations.
 
 **On the unprivileged run.** The first live cycle used the deployer, which is also the pool
 owner and the keeper. That proved the paths work; it did not prove they work for a stranger.
-The fresh wallet `0x93e8195537e624B15c3993e0f448B260FddefB62` sent `accrue` and `claim` for
+The fresh wallet `0xC8f71821CDEaefA58e3a932261EbA26569a70344` sent `accrue` and `claim` for
 itself, which is the permissionlessness the design claims, demonstrated rather than argued.
 
 ---
@@ -101,7 +106,7 @@ affordable at this size.
 
 | requirement | where | pinned by | shown by | |
 |---|---|---|---|---|
-| On-chain randomness | `FHE.randEuint64()` in `openDraw`, then made publicly decryptable | `draw-ordering.ts` | [`0xcc6712d7…`](https://sepolia.etherscan.io/tx/0xcc6712d72a35142539bfce0a2ee0b4a708ba7adb75f8474ed72d8bbd91503e97) — R revealed with a KMS proof | met |
+| On-chain randomness | `FHE.randEuint64()` in `openDraw`, then made publicly decryptable | `draw-ordering.ts` | [`0x541848cd…`](https://sepolia.etherscan.io/tx/0x541848cd40ae219a965a379c42192a04db68198d150c65ee8df5f03754ba169c) — R revealed with a KMS proof | met |
 | Decryption via the KMS, verified on chain | `FHE.checkSignatures` in `revealDraw`, status checked first | `draw-ordering.ts` | same | met |
 | ACL | `FHE.allow` / `allowThis` / `allowTransient` throughout | `aa1-weight-leak.ts` (over-granting), `g2-pending-acl.ts` (under-granting) | `scripts/f1-acl-sweep.ts` | **met, with a limit** |
 | Within the HCU budget | `accrue`, 7 participants per transaction | `storage-cost.ts` — 2,582,192 HCU against a 5,000,000 sequential-depth limit | — | **met, with a limit** |

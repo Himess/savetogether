@@ -18,7 +18,7 @@ import type { ContractTransactionResponse, TransactionResponse } from "ethers";
 import { FhevmType } from "@fhevm/hardhat-plugin";
 import * as fs from "fs";
 
-const POOL = "0xa9B69Dc9F9f4C4512c926ba9eA432eBcF0026631";
+const POOL = "0x894F6492357277CF36e9973787663AE9F73387BE";
 const CUSDC = "0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639";
 const USDC = "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF";
 
@@ -153,7 +153,7 @@ async function main(): Promise<void> {
   // --------------------------------------------------------------- 4. withdraw
   {
     const { handle, proof } = await encrypt(WITHDRAW, POOL);
-    await send("4. withdraw 250 cUSDC", async () => pool.withdraw!(handle, proof), "clamped: asking for more than held moves nothing");
+    await send("4. withdraw 250 cUSDC", async () => pool.withdraw!(handle, proof), "within the balance; an over-ask now clamps to the balance rather than to zero");
     await snapshot("after withdraw");
   }
 

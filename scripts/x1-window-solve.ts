@@ -23,7 +23,7 @@
 import { ethers } from "hardhat";
 import * as fs from "fs";
 
-const POOL = "0xa9B69Dc9F9f4C4512c926ba9eA432eBcF0026631";
+const POOL = "0x894F6492357277CF36e9973787663AE9F73387BE";
 const FROM_BLOCK = 11_620_350;
 
 const DEPOSITED = ethers.id("Deposited(address,uint40,uint256)");
