@@ -17,20 +17,24 @@ the keeper. Not the pool.**
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.27-363636?style=for-the-badge&labelColor=1a1a1a)](https://soliditylang.org/)
 [![Zama Developer Program S4](https://img.shields.io/badge/Zama%20Dev%20Program%20S4-Bounty%20Track-C9A227?style=for-the-badge&labelColor=1a1a1a)](https://www.zama.org/)
 
-[![Live](https://img.shields.io/badge/▶%20Live-savetogether--himess.vercel.app-2fbf7a?style=flat-square)](https://savetogether-himess.vercel.app)
+[![Live](https://img.shields.io/badge/▶%20Live-savetogether--fhe.vercel.app-2fbf7a?style=flat-square)](https://savetogether-fhe.vercel.app)
 [![Contracts](https://img.shields.io/badge/contracts-2%20exact%20·%201%20similar-success?style=flat-square)](#-deployed-sepolia)
 [![Tests](https://img.shields.io/badge/tests-207%20passing-brightgreen?style=flat-square)](#-testing)
 [![Composed with](https://img.shields.io/badge/composed%20with-Zama's%20Confidential%20Vault-5c9bff?style=flat-square)](https://app.zama.org/earn)
 [![License](https://img.shields.io/badge/license-BSD--3--Clause--Clear-blue?style=flat-square)](./LICENSE)
 
-**[🌐 Live app](https://savetogether-himess.vercel.app) · [💬 Talk to it](#-talking-to-it) · [📜 Contracts](#-deployed-sepolia) · [🧠 How the draw works](#-the-idea-and-the-one-thing-that-makes-it-hard)**
+**[🌐 Live app](https://savetogether-fhe.vercel.app) · [💬 Talk to it](#-talking-to-it) · [📜 Contracts](#-deployed-sepolia) · [🧠 How the draw works](#-the-idea-and-the-one-thing-that-makes-it-hard)**
 
 </div>
 
 ---
 
-> **On the name.** The project is **SaveTogether**, and it lives at
-> **[savetogether-himess.vercel.app](https://savetogether-himess.vercel.app)**.
+> **On the name.** The project is **SaveTogether**. The app is at
+> **[savetogether-fhe.vercel.app](https://savetogether-fhe.vercel.app)** and the deck at
+> **[savetogether-deck.vercel.app](https://savetogether-deck.vercel.app)**.
+>
+> A bare `savetogether.vercel.app` was already taken by someone else, which is why
+> there is a suffix at all.
 >
 > `ghostpool` was its working name and it survives in three places on purpose:
 > the Vercel project (whose name Vercel stamps into every per-deployment hostname,

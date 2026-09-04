@@ -212,7 +212,7 @@ export class HostedServer {
         {
           service: "ghostpool-hosted",
           what: "The server behind SaveTogether's conversational layer. There is no page here.",
-          openASession: "https://savetogether-himess.vercel.app",
+          openASession: "https://savetogether-fhe.vercel.app",
           endpoints: {
             "GET /api/health": "liveness",
             "POST /api/session/prepare": "generate a session key and return the calls your wallet signs",
