@@ -603,6 +603,14 @@ export function Break() {
           claim="The aggregate weight is published at every reveal. Solve it for one depositor."
           status="disclosed"
         >
+          {/* One sentence, not the four it was. The page closes on "a defence
+              that names the version it replaced is worth more than one that does
+              not" — and with this gone, only row 5 earned it. Row 4 was a
+              correction too. */}
+          <div style={css("padding:9px 12px;border-radius:11px;background:var(--red-bg);border:1px solid #e0c4c4;font:600 11.5px/1.55 var(--display);color:var(--red)")}>
+            This row used to say <i>one equation, six unknowns</i> — true of one draw, false across
+            several.
+          </div>
           <Out>{[
             "ONE draw, alone:",
             "  w1 + ... + w6 = totalWeight        one equation, six unknowns",

@@ -37,6 +37,11 @@ export function Keepable({ compact = false }: { compact?: boolean }) {
     abi: POOL_ABI, address: POOL, functionName: "drawCount", query: { refetchInterval: 15_000 },
   });
   const { data: minPeriod } = useReadContract({ abi: POOL_ABI, address: POOL, functionName: "minPeriod" });
+  // DI. The late-draw reward, read from the chain rather than restated here. It
+  // belongs on this panel and nowhere else: this is the only screen where a
+  // visitor is in a position to earn it.
+  const { data: livenessCap } = useReadContract({ abi: POOL_ABI, address: POOL, functionName: "LIVENESS_CAP" });
+  const { data: livenessRate } = useReadContract({ abi: POOL_ABI, address: POOL, functionName: "LIVENESS_RATE_PER_SEC" });
   const round = Number(drawCount ?? 0);
   const { data: draw, refetch: refetchDraw } = useReadContract({
     abi: POOL_ABI, address: POOL, functionName: "drawAt", args: [round],
@@ -132,6 +137,22 @@ export function Keepable({ compact = false }: { compact?: boolean }) {
       {!address && (
         <p style={css("margin:6px 0 0;font:400 10.5px/1.55 var(--display);color:var(--ink-3)")}>
           Connect a wallet to send one — you pay the gas, which is the only thing the keeper was ever doing.
+        </p>
+      )}
+      {/* Why anyone but us would send one. The schedule is plaintext on purpose:
+          a bot can price this without any view onto the encrypted pot, which is
+          what makes the liveness guarantee something other than a promise. */}
+      {livenessCap !== undefined && livenessRate !== undefined && (
+        <p style={css("margin:8px 0 0;font:400 10.5px/1.55 var(--display);color:var(--ink-3)")}>
+          <b style={css("font-weight:650")}>Unblocking a late draw pays.</b>{" "}
+          <span style={css("font-family:var(--mono)")}>{(Number(livenessRate) / 1e6).toFixed(5)} cUSDC</span>{" "}
+          per second late, capped at{" "}
+          <span style={css("font-family:var(--mono)")}>{(Number(livenessCap) / 1e6).toFixed(2)} cUSDC</span>{" "}
+          — <span style={css("font-family:var(--mono)")}>LIVENESS_RATE_PER_SEC</span> and{" "}
+          <span style={css("font-family:var(--mono)")}>LIVENESS_CAP</span>, read from the contract.
+          Zero when the draw is on time, which is the common case. The schedule is public and the
+          pot it comes from is encrypted, so a bot can price this without being able to see the
+          reserve.
         </p>
       )}
       <TxStatus state={state} />

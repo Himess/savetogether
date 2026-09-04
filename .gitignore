@@ -46,6 +46,7 @@ bundle/*
 !out/d1-preflight.json
 !out/d1-why-no-credit.json
 !out/d1-wrapper.json
+!out/dh-claim-for-another.json
 !out/deployment-cusdc.json
 !out/deployment.json
 !out/draw-hcu.json

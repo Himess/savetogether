@@ -7,6 +7,7 @@ import { fmtUnits6, shortAddr, showConfidential } from "@/lib/format";
 import { oddsPct, thresholdFor } from "@/lib/draw";
 import { DEPOSIT_BATCHER, EXPLORER, POOL, TOKEN, USDC, YIELD_SOURCE } from "@/lib/addresses";
 import { ERC20_ABI, ERC7984_ABI, POOL_ABI, YIELD_ABI } from "@/lib/abis";
+import { isAddress } from "viem";
 import { useOnSepolia } from "@/lib/chain";
 import { useAction } from "@/lib/tx";
 import { TxStatus } from "@/components/TxStatus";
@@ -14,6 +15,15 @@ import { TokenIcon } from "@/components/TokenIcon";
 import { Solvency } from "@/components/Solvency";
 
 const ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+/** "one twentieth of every harvest" reads; "one 20 of every harvest" does not. */
+const ORDINALS: Record<number, string> = {
+  4: "quarter", 5: "fifth", 8: "eighth", 10: "tenth",
+  16: "sixteenth", 20: "twentieth", 25: "twenty-fifth", 50: "fiftieth", 100: "hundredth",
+};
+function ordinal(n: number): string {
+  return ORDINALS[n] ?? `1/${n}`;
+}
 const STATUS = ["none", "open", "revealed"] as const;
 
 /** h/m/s, so a countdown reads as one. */
@@ -103,6 +113,9 @@ export function PoolScreen() {
 
   const [tab, setTab] = useState<"deposit" | "withdraw">("deposit");
   const [amount, setAmount] = useState("100");
+  // DH. The address to settle on someone else's behalf. Empty is the resting
+  // state, not an error — the control is an offer, not a required field.
+  const [claimFor, setClaimFor] = useState("");
 
   const enabled = !!address;
   // cUSDC is six decimals. Typing 200 must send 200_000_000, and the version of
@@ -214,6 +227,12 @@ export function PoolScreen() {
     abi: POOL_ABI, address: POOL, functionName: "keeperFee",
   });
 
+  // DI. Read, not typed in. What funds the fee the row below quotes is a
+  // contract constant, and a copy of it in this file is where the next drift
+  // between the docs and the chain starts.
+  const { data: feeDivisor } = useReadContract({
+    abi: POOL_ABI, address: POOL, functionName: "FEE_SHARE_DIVISOR",
+  });
   const { data: minPeriod } = useReadContract({
     abi: POOL_ABI, address: POOL, functionName: "minPeriod",
   });
@@ -1024,6 +1043,72 @@ export function PoolScreen() {
               )}
             </p>
 
+            {/* DH. The demonstration of the sentence above.
+
+                Every surface here says `claim` is permissionless and behaves
+                identically whether the target won, and until now the only address
+                you could send it for was your own. A claim you can only make for
+                yourself does not show the property; it asserts it.
+
+                Nothing about this is a favour to the target: they were credited by
+                `accrue` already and their next deposit or withdrawal would fold it
+                in. What the caller buys with their gas is that it happens sooner —
+                and a pending credit earns no weight until it is folded in. */}
+            <div style={css("margin-top:12px;padding:11px 12px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line-2)")}>
+              <div style={css("font:650 11.5px var(--display);color:var(--ink-2)")}>
+                Or settle someone else&apos;s round.
+              </div>
+              <p style={css("margin:5px 0 0;font:400 10.5px/1.5 var(--display);color:var(--ink-3)")}>
+                <span style={css("font-family:var(--mono);font-size:10px")}>claim(address)</span> takes
+                any address and behaves identically whether that address won or not. If claiming were
+                voluntary, only winners would bother — and <i>who claimed</i> would become{" "}
+                <i>who won</i>. That is why this is here and why it is safe.
+              </p>
+              <div style={css("margin-top:9px;display:flex;gap:7px;flex-wrap:wrap")}>
+                <input
+                  value={claimFor}
+                  onChange={(e) => setClaimFor(e.target.value.trim())}
+                  placeholder="0x…"
+                  spellCheck={false}
+                  style={css("flex:1 1 200px;min-width:0;padding:8px 10px;border-radius:9px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink);font:500 11.5px var(--mono)")}
+                />
+                <button
+                  onClick={() => {
+                    void run(
+                      "Settling",
+                      "Settled. Whatever that address had pending is now part of its balance — and you learned nothing by sending it.",
+                      async () =>
+                        writeContractAsync({
+                          abi: POOL_ABI, address: POOL, functionName: "claim",
+                          args: [claimFor as `0x${string}`],
+                        }),
+                    ).then(refresh);
+                  }}
+                  disabled={busy || !onSepolia || !isAddress(claimFor)}
+                  style={css("padding:8px 13px;border-radius:9px;border:1px solid var(--line-2);background:var(--surface);font:650 11.5px var(--display);color:var(--ink);cursor:pointer;flex:none")}
+                >
+                  Claim for this address
+                </button>
+              </div>
+              {/* Checked here rather than by the chain, because a malformed address
+                  should cost a sentence and not a reverted transaction. */}
+              {claimFor.length > 0 && !isAddress(claimFor) && (
+                <p style={css("margin:6px 0 0;font:600 10.5px/1.5 var(--display);color:var(--amber)")}>
+                  That is not a valid address — 42 characters starting <span style={css("font-family:var(--mono)")}>0x</span>.
+                </p>
+              )}
+              <p style={css("margin:7px 0 0;font:400 10px/1.5 var(--display);color:var(--ink-3)")}>
+                <b style={css("font-weight:650")}>What it costs, exactly.</b> You pay the gas; that
+                address gets its pending credit folded into its balance. No{" "}
+                <span style={css("font-family:var(--mono)")}>keeperFee</span> is involved — that is
+                paid by <span style={css("font-family:var(--mono)")}>accrueMany</span> alone, and this
+                call earns you nothing.{" "}
+                <b style={css("font-weight:650")}>It reveals nothing either:</b> the transaction is
+                byte-identical whether that address won or lost, which is the property being
+                demonstrated rather than described.
+              </p>
+            </div>
+
             {/* M1. The order of these two matters and it was wrong.
                 A zero HANDLE means no ciphertext exists — nothing was ever
                 deposited — and that fact is public, so it needs no permit to
@@ -1092,9 +1177,13 @@ export function PoolScreen() {
                   </span>
                 </div>
                 <p style={css("margin:4px 0 0;font:400 10.5px/1.5 var(--display);color:var(--ink-3)")}>
-                  Paid from the same reserve the prizes come from, to whoever sends the
-                  transaction. It is the only cost this pool charges you, and it competes with
-                  a prize rather than being taken from your principal.
+                  Paid to whoever sends the transaction, from a pot funded by{" "}
+                  <b style={css("font-weight:650")}>
+                    one {feeDivisor === undefined ? "share" : ordinal(Number(feeDivisor))} of every harvest
+                  </b>{" "}
+                  — <span style={css("font-family:var(--mono);font-size:10px")}>FEE_SHARE_DIVISOR</span>,
+                  read from the contract. It is the only cost this pool charges you, and it
+                  competes with a prize rather than being taken from your principal.
                 </p>
                 <p style={css("margin:6px 0 0;font:400 10.5px/1.5 var(--display);color:var(--ink-3)")}>
                   {clock.medianGap === null ? (

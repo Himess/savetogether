@@ -183,6 +183,23 @@ spent a week removing everywhere else.
 | **A liveness reward on the two functions that wedge the pool** | [`0x580d60af…`](https://sepolia.etherscan.io/tx/0x580d60af609b01f744520d6d8c5dab6ea5e1916f6361a80d031792e69e49d429) `openDraw`, [`0x31ce709c…`](https://sepolia.etherscan.io/tx/0x31ce709cf7dbbdd28c987837b07803ca9004d062eca33053f77fa52266533e5c) `revealDraw` | 2 `LivenessPaid` events, **12,240** and **1,200** units, both under the cap |
 | **`withdraw(type(uint64).max)` empties an account** | [`0xb883d112…`](https://sepolia.etherscan.io/tx/0xb883d1122d7af2b5f7731f6249737e5c0389bf71449440c7713621d9fb9f09f2) | **12,000 → 0 cUSDC**. Impossible before: the clamp went to zero, so an over-ask moved nothing |
 
+### And one older claim that had never been sent
+
+`claim(address)` is permissionless — anyone may call it for anyone — and that sentence
+is the justification for the entire no-claim design: if only winners bothered to claim,
+*who claimed* would become *who won*. The site said it on four surfaces and the screen
+let you call it only for **yourself**, so nothing demonstrated it.
+
+| what | shown by | result |
+|---|---|---|
+| **`claim(address)` sent by one account for another** | [`0x3beb075f…`](https://sepolia.etherscan.io/tx/0x3beb075fbb9912b5e97c7e89b3bfa39ce054d1f4ccce05eff19125cd82899260) — sender `0xF505e2E7…E5ae`, target `0xF46b0357…316F` | `pendingOf(target)` handle changed; `Claimed(user, at)` emitted with **no amount in it**; 654,223 gas |
+
+The sender is not the target and cannot read what moved — the pending value is an
+`euint64` grantable only to its owner, so an outside observer sees that *somebody was
+settled* and never *for how much*. That is the property, sent rather than described.
+Reproduce with `scripts/dh-claim-for-another.ts`; the screen control is under
+**Claim my winnings** on the pool.
+
 **On the solvency bit reading `false`.** That is the first honest thing it said. A fresh
 pool has one harvest in the reserve and the bar is four grand prizes; a bit that read
 `true` there would have been the bug. It is one bit about the **pool**, never about a
