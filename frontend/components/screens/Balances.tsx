@@ -141,8 +141,14 @@ export function BalancesScreen() {
               Every confidential row above is a <b style={css("font-weight:650")}>real zero, not a
               hidden number</b> — this address holds none of these tokens and has never deposited, so
               no encrypted value exists to read. A hidden value would show{" "}
-              <span style={css("font-family:var(--mono)")}>••••••</span> instead, and there would be
-              something here to decrypt.
+              <span style={css("font-family:var(--mono)")}>••••••</span> instead.
+              <br />
+              <br />
+              <b style={css("font-weight:650")}>There is no decrypt button here because there is
+              nothing to decrypt.</b> Wrap or deposit anything and it appears by itself, above this
+              line — one signature, and the figures resolve in this browser and nowhere else. It is
+              hidden rather than disabled because a button offering to decrypt nothing is worse than
+              no button: it implies something is being withheld from you.
             </p>
           ) : hasPermit !== true ? (
             <>

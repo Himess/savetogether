@@ -121,6 +121,14 @@ export function WrapScreen() {
     [address, cHandle, hasPermit, isFetching, clear],
   );
 
+  /** The decrypted cUSDC balance, or null while it is hidden or absent. */
+  const clearC = useMemo(() => {
+    if (!cHandle || cHandle === ZERO || hasPermit !== true) return null;
+    const v = clear?.[cHandle as `0x${string}`];
+    if (v === undefined || v === null) return null;
+    try { return BigInt(v as string | number | bigint); } catch { return null; }
+  }, [cHandle, hasPermit, clear]);
+
   const refresh = async () => {
     await refetchUsdc();
     await refetchAllowance();
@@ -202,7 +210,9 @@ export function WrapScreen() {
             <div style={css("display:flex;flex-direction:column;gap:5px")}>
               <span style={css("font:650 10.5px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)")}>cUSDC · confidential</span>
               <span style={css("font:800 34px var(--display);letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1")}>{confidential}</span>
-              <span style={css("font:500 11.5px var(--display);color:var(--green)")}>only you can</span>
+              <span style={css("font:500 11.5px var(--display);color:var(--green)")}>
+                {cHandle === undefined || cHandle === ZERO ? "a real zero — nothing to decrypt" : "only you can"}
+              </span>
             </div>
           </div>
 
@@ -259,6 +269,18 @@ export function WrapScreen() {
                 inputMode="decimal"
                 style={css("border:none;outline:none;background:none;font:750 28px var(--display);color:var(--ink);flex:1;min-width:0;padding:0;font-variant-numeric:tabular-nums")}
               />
+              {/* MAX. The public USDC balance is already on screen above; making
+                  somebody read it and retype it was work the page could do. Only
+                  offered when there is a balance to take — a MAX that fills in
+                  zero is a button that lies about being useful. */}
+              {usdc !== undefined && (usdc as bigint) > 0n && (
+                <button
+                  onClick={() => setAmount((Number(usdc as bigint) / 1e6).toString())}
+                  style={css("padding:5px 10px;border-radius:8px;border:1px solid var(--line-2);background:var(--surface-2);font:650 11px var(--display);color:var(--ink-2);cursor:pointer;flex:none")}
+                >
+                  MAX
+                </button>
+              )}
               <span style={css("display:inline-flex;align-items:center;gap:7px;padding:6px 11px 6px 7px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line-2);font:650 12.5px var(--mono);color:var(--ink);flex:none")}>
                 <TokenIcon token="USDC" size={20} />USDC
               </span>
@@ -384,6 +406,18 @@ export function WrapScreen() {
                   inputMode="decimal"
                   style={css("border:none;outline:none;background:none;font:750 28px var(--display);color:var(--ink);flex:1;min-width:0;padding:0;font-variant-numeric:tabular-nums")}
                 />
+                {/* MAX here needs the DECRYPTED balance, which only exists once a
+                    permit has been signed. Offering it against a hidden figure would
+                    mean filling in a number the page cannot read, so it appears with
+                    the number and not before. */}
+                {clearC !== null && clearC > 0n && (
+                  <button
+                    onClick={() => setOutAmount((Number(clearC) / 1e6).toString())}
+                    style={css("padding:5px 10px;border-radius:8px;border:1px solid var(--line-2);background:var(--surface-2);font:650 11px var(--display);color:var(--ink-2);cursor:pointer;flex:none")}
+                  >
+                    MAX
+                  </button>
+                )}
                 <span style={css("display:inline-flex;align-items:center;gap:7px;padding:6px 11px 6px 7px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line-2);font:650 12.5px var(--mono);color:var(--ink);white-space:nowrap;flex:none")}>
                   <TokenIcon token="USDC" size={20} />USDC
                 </span>
