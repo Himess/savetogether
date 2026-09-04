@@ -3,6 +3,11 @@
 Read from the source on 31 August 2026, not from memory. Every load-bearing claim
 carries a file and line. Nothing was built in this pass.
 
+> **This is a dated snapshot, and parts of it have been acted on.** Section 4 described
+> a missing-access-control vulnerability that is now fixed; it carries a SUPERSEDED
+> banner rather than being deleted, because deleting a finding you acted on is how a
+> record stops being one. Read that banner before reading the section.
+
 ---
 
 ## 1. `ConfidentialPrizePool.sol`
@@ -86,6 +91,43 @@ covers "refuses supply and redeem from anyone but the pool".
 ---
 
 ## 4. Admin surface — and the finding
+
+> ## ⛔ SUPERSEDED — this section describes a vulnerability that was fixed
+>
+> **Everything below §4 was true on 31 August 2026 and is false now.** It is kept
+> because deleting a finding you acted on is how a record stops being one, and
+> because the fix is more legible next to what it fixed.
+>
+> `ConfidentialPrizePool` has an owner and a modifier:
+>
+> ```solidity
+> // contracts/ConfidentialPrizePool.sol:294
+> modifier onlyOwner() {
+>     if (msg.sender != owner) revert NotTheOwner();
+>     _;
+> }
+> ```
+>
+> applied at `:727` `setYieldSource`, `:769` `setTiers`, `:797` `setKeeperFee`
+> and `:810` `renounceOwnership`.
+>
+> Point by point against what follows:
+>
+> | claim below | status now |
+> |---|---|
+> | "no access control of any kind" | **false** — five `onlyOwner` sites |
+> | `setYieldSource` is "a live drain path" callable by anyone | **false** — `onlyOwner` at `:727` |
+> | `setPrize(:563)` may be set by anyone | **the function no longer exists** — replaced by `setTiers`, `onlyOwner` at `:769` |
+> | "Neither function has a test asserting a stranger cannot call it" | **false** — `test/access-control.ts` |
+>
+> One thing below is still worth reading rather than dismissing: the pool is
+> *centralised on an owner key*, which is a different exposure from the one this
+> section describes and is not fixed by a modifier. The answer to it is
+> `renounceOwnership` at `:810`, which is built. What has **not** been closed is
+> that `setYieldSource` never revokes the previous source and still grants
+> `type(uint48).max` — see `docs/AUDIT-2026-09.md` §0.5.
+>
+> Superseded 4 September 2026.
 
 **`ConfidentialPrizePool` has no access control of any kind.** No `Ownable`, no
 owner, no modifier, no `msg.sender` comparison anywhere in the file. Two of its

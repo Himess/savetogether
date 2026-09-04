@@ -66,6 +66,17 @@ b{font-weight:600}
 .led{grid-template-columns:1.15fr 1fr .72fr}
 
 /* AG — one source, two destinations */
+/* the boundary, compressed into a footer strip */
+.bnd{display:flex;gap:clamp(8px,1vw,14px);margin-top:clamp(9px,1.1vw,15px)}
+.bnd>div{flex:1;min-width:0;border-radius:11px;padding:clamp(8px,1vw,13px) clamp(11px,1.3vw,17px)}
+.bnd .h{font:600 clamp(8px,.78vw,10.5px)/1 'JetBrains Mono',monospace;letter-spacing:.13em;margin-bottom:6px}
+.bnd .l{font:400 clamp(8.5px,.86vw,11.5px)/1.65 'Archivo'}
+.bnd .e{background:var(--navy-l);border:1px solid var(--navy-b)}
+.bnd .e .h{color:var(--navy)}
+.bnd .e .l{color:#22364A}
+.bnd .p{background:var(--card2);border:1px solid var(--line)}
+.bnd .p .h{color:#7E837F}
+.bnd .p .l{color:var(--mute)}
 .split{display:flex;align-items:stretch;gap:0;margin-top:clamp(13px,1.7vw,24px)}
 .src{flex:0 0 34%;min-width:0;background:var(--card);border:1px solid var(--line);
   border-radius:12px;padding:clamp(11px,1.35vw,19px) clamp(13px,1.6vw,23px);
@@ -200,22 +211,22 @@ b{font-weight:600}
   </div>
   <h1>Save into a prize pool where nobody sees your balance, your odds, or whether you won.</h1>
   <div class="sub">A confidential PoolTogether on Zama's FHEVM, composed with the same vault Zama already ships.</div>
-  <div class="pills"><span class="pill live">Live on Sepolia</span><span class="pill">Real cUSDC</span><span class="pill">3 contracts verified</span><span class="pill">207 tests</span></div>
+  <div class="pills"><span class="pill live">Live on Sepolia</span><span class="pill">Zama's deployed cUSDC</span><span class="pill">3 contracts verified</span><span class="pill">207 tests</span></div>
 </section>
 
 <section class="slide">
   <div class="k hot">THE PROBLEM</div>
   <h2>Someone is reading your savings right now.</h2>
-  <div class="sub">Not hacking. Just looking. Both tables below are the same call, on the same chain, one block apart.</div>
+  <div class="sub">Not hacking. Just looking. Left: what a transparent prize pool returns to anyone with an RPC endpoint. Right: the same call against SaveTogether, on Sepolia.</div>
   <div class="two" style="margin-top:clamp(13px,1.7vw,24px)">
     <div class="card">
       <div class="ch" style="background:var(--hot-bg);color:var(--hot)"><span>A public prize pool</span><span class="tag t-hot">ALL READABLE</span></div>
       <div class="rw led hd"><div>address</div><div>balance</div><div>odds</div></div>
-      <div class="rw led"><div class="addr">0xF505…E5Ae</div><div class="num">12,540.00</div><div class="num">68.5%</div></div>
-      <div class="rw led"><div class="addr">0x12Ee…9BF1</div><div class="num">3,200.00</div><div class="num">17.5%</div></div>
-      <div class="rw led"><div class="addr">0xc5F4…9568</div><div class="num">1,860.00</div><div class="num">10.2%</div></div>
-      <div class="rw led"><div class="addr">0x9926…fbB9</div><div class="num">697.00</div><div class="num">3.8%</div></div>
-      <div class="foot-note" style="background:var(--hot-bg);color:var(--hot)">One wallet holds <b>two thirds</b> of the pool. Their size, to the cent. Enough to target them.</div>
+      <div class="rw led"><div class="addr">0x7A31…C0d2</div><div class="num">12,540.00</div><div class="num">68.5%</div></div>
+      <div class="rw led"><div class="addr">0x4Be9…81F7</div><div class="num">3,200.00</div><div class="num">17.5%</div></div>
+      <div class="rw led"><div class="addr">0xD182…5A4c</div><div class="num">1,860.00</div><div class="num">10.2%</div></div>
+      <div class="rw led"><div class="addr">0x2fC6…9e03</div><div class="num">697.00</div><div class="num">3.8%</div></div>
+      <div class="foot-note" style="background:var(--hot-bg);color:var(--hot)">One wallet holds <b>two thirds</b> of the pool. Their size, to the cent. Enough to target them. <span style="opacity:.75">Illustrative addresses; the shape is what PoolTogether V5 publishes.</span></div>
     </div>
     <div class="card">
       <div class="ch" style="background:var(--navy-l);color:var(--navy)"><span>SaveTogether</span><span class="tag t-navy">SAME CALL</span></div>
@@ -327,17 +338,6 @@ b{font-weight:600}
   </div>
 </section>
 
-<section class="slide dark">
-  <div class="k">THE PROOF</div>
-  <div class="hero">684,273</div>
-  <div class="card" style="max-width:900px;margin-top:clamp(13px,1.7vw,24px)">
-    <div class="rw hd" style="grid-template-columns:.55fr 1.4fr 1fr 1.2fr"><div>draw</div><div>outcome</div><div>gas</div><div>transaction</div></div>
-    <div class="rw" style="grid-template-columns:.55fr 1.4fr 1fr 1.2fr"><div class="m">34</div><div>lost</div><div class="num">684,273</div><div class="addr" style="color:#7FA0C4">0xc22520c2…</div></div>
-    <div class="rw" style="grid-template-columns:.55fr 1.4fr 1fr 1.2fr"><div class="m">35</div><div style="color:#8FB4D8;font-weight:600">won 1 cUSDC</div><div class="num">684,273</div><div class="addr" style="color:#7FA0C4">0x1ef0e39d…</div></div>
-  </div>
-  <div class="fine">Same address, consecutive draws, identical calldata. One paid a prize and the other paid nothing, and they cost the same to the gas unit. Across 312 live accruals — 81 winners, 231 losers, 26 draws — there is zero within-draw separation.</div>
-</section>
-
 <section class="slide">
   <div class="k">WHERE THE PRIZE COMES FROM</div>
   <h2>Yield, and nothing else.</h2>
@@ -353,6 +353,17 @@ b{font-weight:600}
     <div class="fb"><div class="ft">The reserve</div><div class="fd">starts empty, fills from harvest() alone</div><div class="fx">one prize per draw</div></div>
   </div>
   <div class="fine">A paired test proves it: two runs where the only difference is whether <span class="m">harvest()</span> was called. With it a prize is paid; without it nothing is. The composition through Zama's vault is real and on chain — the rate is ours, because their Sepolia vault is idle-only, and every screen that shows a rate says so.</div>
+</section>
+
+<section class="slide dark">
+  <div class="k">THE PROOF</div>
+  <div class="hero">684,273</div>
+  <div class="card" style="max-width:900px;margin-top:clamp(13px,1.7vw,24px)">
+    <div class="rw hd" style="grid-template-columns:.55fr 1.4fr 1fr 1.2fr"><div>draw</div><div>outcome</div><div>gas</div><div>transaction</div></div>
+    <div class="rw" style="grid-template-columns:.55fr 1.4fr 1fr 1.2fr"><div class="m">34</div><div>lost</div><div class="num">684,273</div><div class="addr" style="color:#7FA0C4">0xc22520c2…</div></div>
+    <div class="rw" style="grid-template-columns:.55fr 1.4fr 1fr 1.2fr"><div class="m">35</div><div style="color:#8FB4D8;font-weight:600">won 1 cUSDC</div><div class="num">684,273</div><div class="addr" style="color:#7FA0C4">0x1ef0e39d…</div></div>
+  </div>
+  <div class="fine">Same address, consecutive draws, identical calldata. One paid a prize and the other paid nothing, and they cost the same to the gas unit. Across 312 accruals — 81 winners, 231 losers, 26 draws — there is zero within-draw separation. The pair above is on Sepolia; the 312-sample study runs locally at full size, because the same run on Sepolia costs about 0.33 ETH at tiered accrual cost.</div>
 </section>
 
 <section class="slide">
@@ -380,7 +391,7 @@ b{font-weight:600}
       </div>
       <div class="chb">
         <div><span class="u">you</span>open a session with a 500 cUSDC budget</div>
-        <div><span class="a">↳ one signature · expires in 24h</span></div>
+        <div><span class="a">↳ opened · 4 wallet prompts, then none</span></div>
         <div style="margin-top:7px"><span class="u">you</span>put half my balance in the pool</div>
         <div><span class="a">↳ deposited · <code>bal_1:half</code> · 3 txs · 71s</span></div>
         <div style="margin-top:7px"><span class="u">you</span>how much do I have in there?</div>
@@ -418,7 +429,7 @@ b{font-weight:600}
       </div>
     </div>
   </div>
-  <div class="fine">Wrap, approve, deposit, sign, wait, decrypt — confidential DeFi loses people at the interface, not at the cryptography. One signature, one pasted URL, and after that you just say what you want.</div>
+  <div class="fine">Wrap, approve, deposit, sign, wait, decrypt — six screens and a mental model before anything happens. Four prompts once, a pasted URL, and after that you just say what you want.</div>
 </section>
 
 <section class="slide">
@@ -432,26 +443,51 @@ b{font-weight:600}
     <div class="rw" style="grid-template-columns:2.1fr 1.5fr auto"><div>Solve totalWeight for one depositor</div><div style="color:var(--hot)">works in a single-event window</div><div><span class="tag t-hot">disclosed</span></div></div>
     <div class="rw" style="grid-template-columns:2.1fr 1.5fr auto"><div>Binary-search the session budget</div><div style="color:var(--hot)">recovered it in 40 calls</div><div><span class="tag t-navy">closed</span></div></div>
   </div>
-  <div class="fine">Three fail because of the design. Two worked — we found them, measured them, and put them on the page rather than quietly patching. The budget search is closed by coarsening to a 50-token bucket; the aggregate one is disclosed with both mitigations costed and neither affordable at this size. A defence that names the version it replaced is worth more than one that does not.</div>
+  <div class="fine">Three fail because of the design. Two worked — we found them, measured them, and put them on the page rather than quietly patching. The budget search is closed by coarsening to a 50-token bucket; the aggregate one is disclosed with both mitigations costed and neither affordable at this size.</div>
+  <div class="bnd">
+    <div class="e">
+      <div class="h">ENCRYPTED</div>
+      <div class="l">Your balance and position · your time-weighted odds · whether you won and which tier · everything ever credited to you · the session budget, from everyone</div>
+    </div>
+    <div class="p">
+      <div class="h">PUBLIC, DELIBERATELY</div>
+      <div class="l">Who deposited and when — not a mixer · every threshold for every address, so the draw is auditable · totalWeight once per draw, because encrypting it costs 8.3&times; · the prize and the tier shape</div>
+    </div>
+  </div>
+  <div class="fine">Privacy that hides its own boundary is a claim rather than a property. Every limitation names the test that pins it &mdash; including the two attacks that worked.</div>
 </section>
 
 <section class="slide">
-  <div class="k">THE HONEST BOUNDARY</div>
-  <h2>We state it instead of hiding it.</h2>
-  <div class="cols" style="margin-top:clamp(13px,1.7vw,24px)">
-    <div class="col a"><h3>Encrypted</h3>
-      <li>Your balance and position</li>
-      <li>Your time-weighted odds</li>
-      <li>Whether you won, and which tier</li>
-      <li>Everything ever credited to you</li>
-      <li>The session budget — from everyone</li></div>
-    <div class="col b"><h3>Public, deliberately</h3>
-      <li>Who deposited, and when<span class="v">not a mixer</span></li>
-      <li>Every threshold, every address<span class="v">so the draw is auditable</span></li>
-      <li>totalWeight, once per draw<span class="v">encrypting costs 8.3×</span></li>
-      <li>The prize and the tier shape<span class="v">on screen</span></li></div>
+  <div class="k hot">THE LEAK WE FOUND IN OUR OWN POOL</div>
+  <h2>We turned our measurement technique on ourselves, and it worked.</h2>
+  <div class="sub">Not a closed bug and not somebody else's. Live on this deployment, and the reason the aggregate is the honest part of the boundary rather than the safe part.</div>
+  <div class="two" style="margin-top:clamp(11px,1.4vw,20px)">
+    <div class="card">
+      <div class="ch" style="background:var(--hot-bg);color:var(--hot)"><span>The equation</span><span class="tag t-hot">OPEN &middot; DISCLOSED</span></div>
+      <div style="padding:clamp(10px,1.2vw,16px) clamp(12px,1.4vw,19px)">
+        <div style="font:500 clamp(9px,.9vw,12px)/1.7 'JetBrains Mono',monospace;color:var(--ink)">
+          totalWeight&#8202;&#8339;<br>
+          &nbsp;&nbsp;= prevBalance &times; window<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;+ &Delta; &times; (snapshotAt &minus; eventTime)
+        </div>
+        <div style="font:400 clamp(8.5px,.86vw,11.5px)/1.55 'Archivo';color:var(--mute);margin-top:9px">
+          Deposits and withdrawals are public events with plaintext timestamps, and
+          <span class="m">totalWeight</span> is published once per draw. One unknown, one equation
+          &mdash; so a window containing exactly one balance change <b>solves</b> rather than bounds.
+        </div>
+      </div>
+      <div class="foot-note" style="background:var(--hot-bg);color:var(--hot)">Draw 33: recovered <b>540.000000 cUSDC</b>, to the unit, cross-checked against that depositor's own decrypted record.</div>
+    </div>
+    <div class="card">
+      <div class="ch" style="background:var(--navy-l);color:var(--navy)"><span>The near-miss, which is the real finding</span></div>
+      <div class="rw hd" style="grid-template-columns:.6fr 1.1fr .8fr auto"><div>draw</div><div>solved</div><div>true</div><div></div></div>
+      <div class="rw" style="grid-template-columns:.6fr 1.1fr .8fr auto"><div class="m">33</div><div class="num">540.000000</div><div class="num">540</div><div><span class="tag t-ok">exact</span></div></div>
+      <div class="rw" style="grid-template-columns:.6fr 1.1fr .8fr auto"><div class="m">34</div><div class="num">543.242947</div><div class="num">250</div><div><span class="tag t-hot">wrong</span></div></div>
+      <div class="rw" style="grid-template-columns:.6fr 1.1fr .8fr auto"><div class="m">36</div><div class="num">219.000000</div><div class="num">200</div><div><span class="tag t-hot">wrong</span></div></div>
+      <div class="foot-note" style="background:var(--navy-l);color:var(--navy)">An incomplete event filter returns clean integers that are <b>confidently wrong about real people</b>. Almost right is indistinguishable from right &mdash; which is why the naive version of this attack is more dangerous than the correct one.</div>
+    </div>
   </div>
-  <div class="fine">Privacy that hides its own boundary is a claim rather than a property. Every limitation in this project names the test that pins it — including the two attacks that worked.</div>
+  <div class="fine"><b>Measured, not asserted: 12 balance-changing events, 1 solved exactly.</b> It needs a window with a single mover, and at six depositors that is uncommon rather than typical &mdash; nothing in the contract enforces a minimum anonymity set, so the frequency is a property of how busy the pool is. Encrypting <span class="m">totalWeight</span> costs 8.3&times; and destroys the public audit; a randomised house-weight pad in <span class="m">openDraw</span> costs ~0.98M HCU against 17.8M spare and is priced in expected prize value. Both are costed and neither is shipped.</div>
 </section>
 
 <section class="slide dark">
@@ -459,8 +495,8 @@ b{font-weight:600}
   <h2>Zama shipped the rails. PoolTogether has the mechanic. What was missing was a reason to show up.</h2>
   <div class="fine" style="font-size:clamp(12px,1.25vw,18px);max-width:66ch">Confidential DeFi loses people at the interface, not at the cryptography. An agent that can spend but cannot read collapses six screens into one sentence — and every deposit it makes lands in Zama's vault, and in a prize pool that pays out of real yield.</div>
   <div class="stats">
-    <div class="st"><div class="n">1 signature</div><div class="l">to open a session</div></div>
-    <div class="st"><div class="n">0 clicks</div><div class="l">to deposit after that</div></div>
+    <div class="st"><div class="n">1 paste</div><div class="l">a URL into Claude, then you just talk</div></div>
+    <div class="st"><div class="n">0 clicks</div><div class="l">to deposit, for the rest of the session</div></div>
     <div class="st"><div class="n">36 draws</div><div class="l">run live on Sepolia, by 6 real wallets</div></div>
   </div>
 </section>
@@ -492,11 +528,11 @@ const N=[
 ["This is the pivot. Slow down.","Because yield has no winner. Everyone earns in proportion, so there is no 'who' to hide. Turn that same yield into a prize and two new secrets appear — who won, and what each person's odds were. Neither exists on the left. Neither survives a public chain."],
 ["Point at the bars, then the lines.","The filled bar is your weight — encrypted, and only you can read it. The line is your threshold, and anyone can compute it, for any address, in any draw. Three tiers, three lines, same weight. An observer holds one half of that comparison and can never get the other. This is PoolTogether V5's own construction, and it's the only shape that survives FHE."],
 ["The idea nobody else has. Take your time.","And there's no claim step, deliberately — note the box at the bottom, because people ask: claim exists, it's deployed, it has moved real cUSDC. It just doesn't mean what the word means everywhere else. Winnings are credited by accrue whether you act or not; claim only folds them into your spendable balance, and a deposit does the same thing on the way past. The threshold is public, so you can work out your own result with no transaction. Which means a loser never claims — why pay gas for zero? Only winners would, and 'who claimed' becomes 'who won'. So accrual runs for everyone, winner or loser. PoolTogether removed the user's burden; we removed the signal."],
-["Let the number land. Then read the two rows.","And it's measurable. Same address, two consecutive draws. One lost, one won a prize. Both cost exactly 684,273 gas. Across 312 live accruals — 81 winners and 231 losers — there is no execution cost that separates them."],
 ["Trace it left to right.","The prize comes from yield and nothing else. Public USDC becomes confidential cUSDC, that enters the pool encrypted, half the principal also routes through Zama's deployed vault — real batch, real shares — and harvest fills the reserve. A paired test proves it: with harvest a prize is paid, without it nothing is."],
+["Let the number land. Then read the two rows.","And it's measurable. Same address, two consecutive draws. One lost, one won a prize. Both cost exactly 684,273 gas. Across 312 accruals — 81 winners and 231 losers — there is no execution cost that separates them. If they ask: the pair is on Sepolia, the 312-sample study is local, because that run costs a third of an ETH on chain."],
 ["Change energy. This is the product argument.","Now the part I actually care about. Wrap, approve, deposit, sign, wait, decrypt — confidential DeFi loses people at that step, not at the cryptography. One signature opens a session, you paste a URL into Claude, and then you say what you want. Look at the panel on the right: three parties, not two. The model sees a reference and never the figure. The session client does see it, because it builds the ciphertext — that's a real cost and the slide says so. The chain sees a ciphertext and a budget nobody can read."],
 ["Confident, not defensive. This is the strongest slide.","There's a page on the site that asks you to attack it, with your own wallet, against the live pool. Three fail because of the design. Two worked — I found them, measured them, and left them on the page instead of quietly patching. Forty calls binary-searched an encrypted budget. It's closed now, and the row still says it worked."],
-["Straight and unhurried.","Privacy that hides its own boundary is a claim, not a property. Here's exactly what's encrypted and exactly what isn't — including the aggregate, which stays public deliberately, because it's what makes the draw auditable and encrypting it costs 8.3 times."],
+["Slow. This is the one they will remember.","And here is a leak we did not close. Not somebody else's, not a bug we fixed — ours, live, on this pool. Deposits and withdrawals are public with plaintext timestamps, and we publish totalWeight once per draw. So a window with exactly one balance change solves rather than bounds, and on draw 33 that recovered five hundred and forty cUSDC to the unit. Now look right, because this is the actual finding: the first version of this attack returned clean integers that were confidently wrong about real people. Almost right is indistinguishable from right. Twelve events, one solved — it needs a quiet window, and nothing in the contract enforces a minimum anonymity set. Both mitigations are costed. Neither is shipped, and I would rather tell you that than have you find it."],
 ["The closing argument. Slow.","Zama shipped the rails. PoolTogether has the mechanic. What was missing was a reason to show up — and confidential DeFi loses people at the interface. An agent that can spend but cannot read collapses that into a sentence, and every deposit it makes lands in Zama's vault and in a pool that pays out of real yield."],
 ["End on the invitation, not a thank-you.","It's live on Sepolia — deposit, draw, claim, withdraw, all of it works today. 207 tests, three verified contracts, and every limitation named with the test that pins it. Go break it."]];
 const S=[...document.querySelectorAll('.slide')];let i=0;

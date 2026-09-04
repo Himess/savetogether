@@ -35,6 +35,20 @@ export const USDC = "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF" as const;
 export const EXPLORER = "https://sepolia.etherscan.io";
 
 /**
+ * The keeper's wallet.
+ *
+ * Public on purpose. When it runs out of gas the pool does not fail loudly — the
+ * current draw stays Open and every later one queues behind it — so the balance
+ * is the difference between "the next draw is late" and "there is no next draw".
+ * Drawing and accrual are both permissionless, so a reader who can see this can
+ * also do something about it, which is why it belongs on the audit screen rather
+ * than in an ops doc.
+ */
+export const KEEPER = "0xF505e2E71df58D7244189072008f25f6b6aaE5ae" as const;
+/** Measured over the deployed keeper's own spend — bundle/STATE-NOW.md §6. */
+export const KEEPER_ETH_PER_DRAW = 0.005915;
+
+/**
  * Zama's confidential vault, which the pool's yield source is wired into — in
  * BOTH directions, the way the mainnet product works.
  *

@@ -19,7 +19,7 @@ the keeper. Not the pool.**
 
 [![Live](https://img.shields.io/badge/▶%20Live-ghostpool--himess.vercel.app-2fbf7a?style=flat-square)](https://ghostpool-himess.vercel.app)
 [![Contracts](https://img.shields.io/badge/contracts-2%20exact%20·%201%20similar-success?style=flat-square)](#-deployed-sepolia)
-[![Tests](https://img.shields.io/badge/tests-200%20passing-brightgreen?style=flat-square)](#-testing)
+[![Tests](https://img.shields.io/badge/tests-207%20passing-brightgreen?style=flat-square)](#-testing)
 [![Composed with](https://img.shields.io/badge/composed%20with-Zama's%20Confidential%20Vault-5c9bff?style=flat-square)](https://app.zama.org/earn)
 [![License](https://img.shields.io/badge/license-BSD--3--Clause--Clear-blue?style=flat-square)](./LICENSE)
 
@@ -110,7 +110,7 @@ branching on anything encrypted.
 - [Deployed (Sepolia)](#-deployed-sepolia)
 - [Composed with Zama's vault, both directions](#-composed-with-zamas-vault-both-directions)
 - [Talking to it](#-talking-to-it)
-- [Try it in thirty seconds](#-try-it-in-thirty-seconds)
+- [Try it](#-try-it--about-two-minutes-four-signatures)
 - [The idea, and the one thing that makes it hard](#-the-idea-and-the-one-thing-that-makes-it-hard)
 - [Prize tiers, derived rather than chosen](#-prize-tiers-derived-rather-than-chosen)
 - [Anyone can audit the draw](#-anyone-can-audit-the-draw)
@@ -233,8 +233,14 @@ you    what's the draw status?
 you    put half my balance in the pool
 ```
 
-Connect a wallet, sign once, paste a URL into Claude's connector settings. No
-terminal, no npm, no tab kept open.
+Connect a wallet, approve the four calls that open a session — `setOperator` per
+token, `openSession`, and an ACL delegation — then paste a URL into Claude's
+connector settings. No terminal, no npm, no tab kept open.
+
+It was described here as "sign once" for a while, which was the intention rather
+than the build: the one-approval EIP-5792 batch exists in `packages/sdk` and is
+**not verified against a live wallet**, so the product sends the calls one at a
+time. Four prompts once, then none for the life of the session.
 
 ### Three principals, and the claim lives in the gaps between them
 
@@ -441,26 +447,39 @@ that by not using it.
 
 ---
 
-## ⚡ Try it in thirty seconds
+## ⚡ Try it — about two minutes, four signatures
 
 1. Connect a wallet on Sepolia.
-2. Press **Get 1,000** — the demo token has a public `mint`, so you fund yourself.
-3. Press **Authorise**, then **Deposit**.
+2. Press **Get 1,000 · 3 txs**. This mints USDC, approves the wrapper, and wraps it
+   into cUSDC — three transactions, because the token this pool settles in has no
+   mint of its own.
+3. Press **Approve the pool** once, then **Confirm confidential deposit**.
 4. Press **Decrypt my balances** and sign once. Your position is readable by you and
    by nobody else.
 
-### About the demo token
+Two things you will not have to do, and both are the point: you never claim a prize,
+and you never learn whether you won by sending a transaction.
 
-**The pool takes any ERC-7984 token.** The one deployed here is our own mock,
-chosen so a first-time visitor can fund themselves in a single click.
+### About the token
 
-The production path is Zama's deployed cUSDC
-(`0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639`, with its underlying at
-`0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF`), and both addresses are wired into
-`frontend/lib/addresses.ts`. That path needs mint, approve and wrap before anything
-happens — and we measured what it does when a precondition is missing: a bare
-`execution reverted` with no reason attached. That is a poor first thirty seconds,
-so it is not what the demo puts in front of you. The deposit screen supports it.
+**The pool takes any ERC-7984 token, and it settles in Zama's deployed cUSDC** —
+`0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639`, with its underlying USDC at
+`0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF`.
+
+An earlier build used our own whole-unit mock, because a public `mint` funds a first
+visitor in one click and that made a genuinely thirty-second demo. **We moved off it,
+and it cost the demo ninety seconds.** The reason is on the Verify screen: Zama's
+cUSDC is what its deployed vault batcher accepts, so composing with the real thing
+requires holding the real thing. A mock would have made step 2 one transaction and
+made the composition proof impossible.
+
+The cost is honest and worth stating: cUSDC is a wrapper with no mint, so funding is
+three transactions rather than one, and a full deposit measures at **70–90 seconds**
+across two proofs and three Sepolia confirmations (`docs/hosting.md`). It is also
+six-decimal rather than whole-unit, which is a live footgun — the same code that
+deposits 1,000 units of a whole-unit token deposits a millionth of what the box says
+here, silently rather than loudly. `frontend/lib/addresses.ts` carries that warning
+where the decimals are declared.
 
 ---
 
@@ -658,9 +677,10 @@ version is sharper:
 **What that costs us, measured.** Their claim is `O(winners)` because only winners
 are claimed for. Ours is `O(participants)` because everybody must be accrued
 whether they won or not: 386,608 gas each, so a hundred participants is 38.7M gas
-per draw — over a block. That is the price of the property, and
-[`docs/inventory.md`](docs/inventory.md) records the lazy-accrual design that
-would fix it.
+per draw — over a block. That is the price of the property. The design that would
+fix it is lazy accrual: settle a participant on their next interaction rather than
+pushing to everyone, which trades the keeper's O(n) sweep for an O(1) cost the user
+pays. It is not built, and it moves the cost rather than removing it.
 
 ### We hide amounts, not identities
 
@@ -892,7 +912,7 @@ replaced is worth more than one that does not.** `test/g1-can-afford-oracle.ts`.
 ## ✅ Testing
 
 ```bash
-npm test          # 200 passing, 1 pending
+npm test          # 207 passing, 1 pending
 ```
 
 | suite | what it pins |
@@ -919,8 +939,9 @@ expect(held).to.not.equal(ethers.ZeroHash);     // test/replica-source.ts:83
 
 A non-zero handle proves a value was **written**. It proves nothing about **who may read
 it**, and who may read it is the entire security surface of an ACL. That blind spot let
-`pendingOf` hand every holder a handle their own key cannot open, through 190 passing
-tests, until a live sweep decrypted it.
+`pendingOf` hand every holder a handle their own key cannot open, through the 190 tests
+passing at the time, until a live sweep decrypted it. (The suite is 207 now; the point
+is that the count was never what was missing.)
 
 So the principle now is: **an encrypted getter is tested by decrypting it as its intended
 reader, not by asserting that a handle exists.** `g2-pending-acl.ts` does that, and it also
@@ -964,7 +985,7 @@ outcomes and the reserve stay encrypted.
 
 ```bash
 npm install
-npm test                      # 154 tests, local
+npm test                      # 207 passing, 1 pending — local, no network
 npx hardhat run scripts/deploy-composed.ts --network sepolia
 POOL=0x... npm run keeper     # harvests, reveals draws, accrues everyone
 
@@ -1004,11 +1025,21 @@ keeper run past round 10, and only then record anything.** Do not pre-fund the
 reserve to shorten this; a hand-funded pot is what the paired test in
 `test/replica-source.ts` exists to rule out.
 
-**Gas.** A full keeper round — harvest, open, reveal, accrue — is roughly 1.5M gas.
-At 2 gwei that is ~0.003 ETH, so a 300-second cadence costs **~0.95 ETH a day** and
-a 1800-second cadence **~0.16 ETH**. The deployed keeper runs at 1800s for exactly
-this reason. Fund the keeper wallet accordingly: it stops silently when it runs
-out, leaving the current draw Open and every later one blocked behind it.
+**Gas — measured, not estimated.** A full keeper round (harvest, open, reveal,
+accrue) costs **0.005915 ETH**, read off the deployed keeper's own spend in
+`bundle/STATE-NOW.md` §6. This figure used to read "roughly 1.5M gas… ~0.003 ETH",
+which was about half the truth and smaller than a single `accrueMany(6)` transaction
+— an estimate left in place while a measurement of the same thing sat in the repo.
+
+At the **observed** cadence — ~41 minutes, not the configured 300s floor, because
+the keeper waits on Zama's batcher — that is **~0.21 ETH a day**, or about 35 draws.
+
+Fund the keeper accordingly, and watch the balance rather than assuming it: **it
+stops silently when it runs out, leaving the current draw Open and every later one
+blocked behind it.** The Verify screen shows the live balance and the draws of
+runway remaining, because a keeper that has stopped is a public fact about a
+permissionless function — anyone may call `openDraw` and `accrueMany`, so a reader
+who can see the runway can also do something about it.
 
 Sepolia credentials go in `probe/secrets.json` (git-ignored) as
 `{ "privateKey": "0x…", "sepoliaRpcUrl": "https://…" }`.

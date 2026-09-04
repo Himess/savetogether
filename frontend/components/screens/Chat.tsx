@@ -192,7 +192,7 @@ export function ChatScreen() {
         Talk to it <span style={css("color:var(--ink-3);font-weight:700")}>· MCP</span>
       </h1>
       <p style={css("margin:9px 0 0;font:400 16px var(--display);color:var(--ink-2);max-width:72ch")}>
-        Sign once, paste a URL into Claude, then just say what you want. No terminal, no npm, and
+        Approve four calls once, paste a URL into Claude, then just say what you want. No terminal, no npm, and
         nothing running on your machine.
       </p>
       <div style={css("height:1px;background:var(--line);margin:22px 0 26px")} />

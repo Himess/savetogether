@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount, usePublicClient, useReadContract } from "wagmi";
 import { useDecryptValues, useGrantPermit, useHasPermit } from "@zama-fhe/react-sdk";
 import { css } from "@/lib/css";
@@ -9,6 +9,43 @@ import { POOL_ABI } from "@/lib/abis";
 import { useOnSepolia } from "@/lib/chain";
 
 const ZERO = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+/**
+ * The two accruals whose gas is compared.
+ *
+ * Both on Sepolia, same address, consecutive draws, one a loss and one a win. The
+ * numbers used to be typed into the table; they are now read from the chain, so
+ * this row cannot drift away from what the receipts say and cannot be accused of
+ * being a screenshot. If the RPC is unavailable the row says so rather than
+ * falling back to a remembered figure.
+ */
+const GAS_PAIR = [
+  { draw: 34, outcome: "lost", tx: "0xc22520c2cc537c6277e230b5d9b6d9b029aca48aaabc715a824a9fd30fd92440" },
+  { draw: 35, outcome: "won 1 cUSDC", tx: "0x1ef0e39d5d30790963c57030a050fbc480932a86e0527429b449f41ed6bbedc1" },
+] as const;
+
+function useLiveGas() {
+  const client = usePublicClient();
+  const [gas, setGas] = useState<(bigint | null)[] | null>(null);
+  useEffect(() => {
+    if (!client) return;
+    let alive = true;
+    void Promise.all(
+      GAS_PAIR.map((g) =>
+        client
+          .getTransactionReceipt({ hash: g.tx as `0x${string}` })
+          .then((r) => r.gasUsed as bigint)
+          .catch(() => null),
+      ),
+    ).then((r) => {
+      if (alive) setGas(r);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [client]);
+  return gas;
+}
 const FROM_BLOCK = 11_600_000n;
 
 /**
@@ -24,8 +61,10 @@ const FROM_BLOCK = 11_600_000n;
  * Etherscan. A mocked defeat would be worse than no screen at all, because it
  * would make the one honest thing on the page indistinguishable from theatre.
  *
- * The budget row is the one that matters most, and it is the only row that
- * describes an attack which WORKED. `can_afford` was a clean monotone predicate
+ * TWO rows describe attacks that worked, and they are not the same kind. The
+ * budget search is CLOSED — coarsening removed the oracle. The totalWeight window
+ * solve is OPEN, and leakage.md §8 declines to mitigate it because the disclosure
+ * is the mitigation at this size. Do not collapse them into one badge again. `can_afford` was a clean monotone predicate
  * over an encrypted budget with no counter and no cooldown: forty probes
  * recovered an exact figure, inside the hosted server's sixty-per-minute
  * allowance. It is closed now, by coarsening rather than by rate-limiting, and
@@ -33,7 +72,7 @@ const FROM_BLOCK = 11_600_000n;
  * converge and then stop short.
  */
 
-type Status = "idle" | "running" | "defeated" | "failed" | "closed";
+type Status = "idle" | "running" | "defeated" | "failed" | "closed" | "disclosed";
 
 function Card({
   n,
@@ -49,7 +88,9 @@ function Card({
   children: React.ReactNode;
 }) {
   const badge =
-    status === "closed"
+    status === "disclosed"
+      ? { t: "open · disclosed", c: "background:var(--red-bg);border:1px solid #e0c4c4;color:var(--red)" }
+      : status === "closed"
       ? { t: "worked once · now closed", c: "background:var(--accent-soft);border:1px solid var(--accent-line);color:var(--accent)" }
       : status === "failed"
       ? { t: "attack failed", c: "background:var(--green-bg);border:1px solid #c3ddcf;color:var(--green)" }
@@ -153,6 +194,8 @@ function searchBudget(oracle: (a: bigint) => boolean, hi: bigint): { found: bigi
 }
 
 export function Break() {
+  // Row 3 reads its own receipts rather than quoting remembered numbers.
+  const liveGas = useLiveGas();
   const { address } = useAccount();
   const onSepolia = useOnSepolia();
   const client = usePublicClient();
@@ -259,14 +302,18 @@ export function Break() {
       </h1>
       <p style={css("margin:12px 0 0;max-width:74ch;font:400 14px/1.65 var(--display);color:var(--ink-2)")}>
         Every other page on this site asks you to believe something. This one asks you to
-        attack it. Five attempts against the live pool, run with your own wallet — four of
-        them fail, and the fifth is an attack that <strong>worked</strong> until it was
-        measured and closed.
+        attack it. Five attempts against this pool. <strong>Three fail because of the
+        design. Two worked</strong> — one is closed, and one is still open and disclosed
+        here rather than anywhere more comfortable.
       </p>
       <p style={css("margin:8px 0 0;max-width:74ch;font:400 12.5px/1.6 var(--display);color:var(--ink-3)")}>
-        Nothing here is staged. The refusals come from Zama&apos;s relayer, the handles from
-        the deployed contract, and the gas figures from two transactions you can open on
-        Etherscan.
+        Nothing here is invented, and the page says which rows you are running versus
+        reading. <strong>Rows 1 and 2 execute in your browser now</strong> — the refusal comes
+        from Zama&apos;s relayer and the handles from the deployed contract. <strong>Rows 3
+        and 4 are measurements you can re-run yourself</strong>: row 3 reads its two
+        transactions from the chain live, and row 4 shows a solve performed against this pool
+        with the script in the repo. Row 5 reproduces the closed oracle locally against the
+        same bucketing the server ships.
       </p>
 
       {!onSepolia && (
@@ -366,35 +413,35 @@ export function Break() {
                 </tr>
               </thead>
               <tbody>
-                <tr style={css("border-top:1px solid var(--line-2)")}>
-                  <td style={css("padding:8px")}>34</td>
-                  <td style={css("padding:8px")}>lost</td>
-                  <td style={css("padding:8px;font-family:var(--mono);font-weight:700")}>684,273</td>
-                  <td style={css("padding:8px")}>
-                    <a href={`${EXPLORER}/tx/0xc22520c2cc537c6277e230b5d9b6d9b029aca48aaabc715a824a9fd30fd92440`} target="_blank" rel="noreferrer" style={css("color:var(--accent-ink);text-decoration:underline")}>
-                      0xc22520c2…
-                    </a>
-                  </td>
-                </tr>
-                <tr style={css("border-top:1px solid var(--line-2)")}>
-                  <td style={css("padding:8px")}>35</td>
-                  <td style={css("padding:8px")}>
-                    <strong>won 1 cUSDC</strong>
-                  </td>
-                  <td style={css("padding:8px;font-family:var(--mono);font-weight:700")}>684,273</td>
-                  <td style={css("padding:8px")}>
-                    <a href={`${EXPLORER}/tx/0x1ef0e39d5d30790963c57030a050fbc480932a86e0527429b449f41ed6bbedc1`} target="_blank" rel="noreferrer" style={css("color:var(--accent-ink);text-decoration:underline")}>
-                      0x1ef0e39d…
-                    </a>
-                  </td>
-                </tr>
+                {GAS_PAIR.map((g, i) => (
+                  <tr key={g.tx} style={css("border-top:1px solid var(--line-2)")}>
+                    <td style={css("padding:8px")}>{g.draw}</td>
+                    <td style={css("padding:8px")}>
+                      {g.outcome === "lost" ? "lost" : <strong>{g.outcome}</strong>}
+                    </td>
+                    <td style={css("padding:8px;font-family:var(--mono);font-weight:700")}>
+                      {liveGas === null
+                        ? "reading…"
+                        : liveGas[i] === null
+                          ? "RPC unavailable"
+                          : Number(liveGas[i]).toLocaleString("en-US")}
+                    </td>
+                    <td style={css("padding:8px")}>
+                      <a href={`${EXPLORER}/tx/${g.tx}`} target="_blank" rel="noreferrer" style={css("color:var(--accent-ink);text-decoration:underline")}>
+                        {g.tx.slice(0, 10)}…
+                      </a>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
           <Out>
             same address, consecutive draws, identical 68-byte calldata
             {"\n"}
-            684273 - 684273 = 0
+            {liveGas === null || liveGas[0] === null || liveGas[1] === null
+              ? "reading both receipts from Sepolia…"
+              : `${liveGas[0]} - ${liveGas[1]} = ${liveGas[0]! - liveGas[1]!}`}
           </Out>
           <p style={css("margin:10px 0 0;font:400 11.5px/1.6 var(--display);color:var(--ink-3)")}>
             One of those accruals paid a prize and the other paid nothing, and they cost the
@@ -411,7 +458,7 @@ export function Break() {
           n={4}
           title="Recover an individual from totalWeight"
           claim="The aggregate weight is published at every reveal. Solve it for one depositor."
-          status="closed"
+          status="disclosed"
         >
           <div style={css("padding:11px 13px;border-radius:11px;background:var(--red-bg);border:1px solid #e0c4c4;font:600 12px/1.6 var(--display);color:var(--red)")}>
             This row used to say <i>one equation, six unknowns</i>. That is true of one draw and
@@ -463,7 +510,7 @@ export function Break() {
           status={result ? "closed" : "idle"}
         >
           <div style={css("padding:11px 13px;border-radius:11px;background:var(--red-bg);border:1px solid #e0c4c4;font:600 12px/1.6 var(--display);color:var(--red)")}>
-            This attack worked. It is the only row on this page that describes a real defect
+            This attack worked, and unlike the budget row below it, it is not closed. It is one of two rows describing a real defect
             in shipped code — found, measured at 40 calls, and closed. What runs below is the
             same search against the rule that closed it.
           </div>
@@ -522,10 +569,11 @@ export function Break() {
       </div>
 
       <p style={css("margin:22px 0 0;max-width:74ch;font:400 12.5px/1.7 var(--display);color:var(--ink-3)")}>
-        Four of these fail because of a property of the design. The fifth failed because
-        somebody went looking for it, and it is on this page rather than quietly patched
-        because a defence that names the version it replaced is worth more than one that
-        does not.
+        Three of these fail because of a property of the design. Two worked because somebody
+        went looking, and both are on this page rather than quietly patched — one closed by
+        coarsening, one still open with both mitigations costed and neither affordable at this
+        size. A defence that names the version it replaced is worth more than one that does
+        not, and a page that hides its own open leak is worth nothing at all.
       </p>
     </div>
   );

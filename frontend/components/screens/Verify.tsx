@@ -1,10 +1,10 @@
 "use client";
 import { useMemo, useState } from "react";
-import { useAccount, usePublicClient, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useBalance, usePublicClient, useReadContract, useWriteContract } from "wagmi";
 import { useDecryptValues, useGrantPermit, useHasPermit } from "@zama-fhe/react-sdk";
 import { css } from "@/lib/css";
 import { shortAddr } from "@/lib/format";
-import { DEPOSIT_BATCHER, EXPLORER, POOL, REDEEM_BATCHER, VAULT_4626, VAULT_SHARE } from "@/lib/addresses";
+import { DEPOSIT_BATCHER, EXPLORER, KEEPER, KEEPER_ETH_PER_DRAW, POOL, REDEEM_BATCHER, VAULT_4626, VAULT_SHARE } from "@/lib/addresses";
 import { POOL_ABI } from "@/lib/abis";
 import { useOnSepolia } from "@/lib/chain";
 import { oddsPct, rejectionFloor, thresholdFor } from "@/lib/draw";
@@ -491,6 +491,15 @@ export function VerifyScreen() {
         <span style={css("font-family:var(--mono);font-size:11px")}>scripts/verify-draw.ts</span>.
       </p>
 
+      {/* The keeper's runway.
+          Every other figure on this screen is about whether a past draw was fair.
+          This one is about whether the next draw happens at all, and it is the
+          only operational fact in the product that a reader can act on: openDraw
+          and accrueMany are both permissionless. It needs no wallet and no permit
+          — a wallet balance is public — so it renders for a visitor who has
+          connected nothing. */}
+      <KeeperRunway />
+
       {/* V2. The composition proof, moved here from the retired Vault tab.
           It belongs on the evidence page: its reader wants it, and on the Pool
           screen it sat next to a button that moved the POOL's principal while
@@ -551,3 +560,74 @@ export function VerifyScreen() {
 }
 
 export default VerifyScreen;
+
+
+/**
+ * How many more draws the keeper can pay for.
+ *
+ * Deliberately not alarming when it is healthy and deliberately unmissable when
+ * it is not: the failure this warns about is silent, and a silent failure with a
+ * quiet warning is just a slower silence.
+ */
+function KeeperRunway() {
+  const { data: bal } = useBalance({ address: KEEPER, query: { refetchInterval: 30_000 } });
+  const eth = bal === undefined ? null : Number(bal.value) / 1e18;
+  const draws = eth === null ? null : Math.floor(eth / KEEPER_ETH_PER_DRAW);
+  // ~41 minutes is the observed cadence, not the 300s floor: the keeper waits on
+  // Zama's batcher between rounds. Using minPeriod here would triple the answer.
+  const hours = draws === null ? null : (draws * 41) / 60;
+  const level = draws === null ? "ok" : draws < 12 ? "bad" : draws < 40 ? "warn" : "ok";
+  const tone =
+    level === "bad" ? "var(--red)" : level === "warn" ? "var(--amber)" : "var(--green)";
+  const bg =
+    level === "bad" ? "var(--red-bg)" : level === "warn" ? "var(--amber-bg)" : "var(--surface-2)";
+
+  return (
+    <div style={css(`margin-top:18px;padding:13px 15px;border-radius:12px;background:${bg};border:1px solid var(--line-2)`)}>
+      <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap")}>
+        <span style={css("font:650 10px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)")}>
+          Keeper runway
+        </span>
+        <a
+          href={`${EXPLORER}/address/${KEEPER}`}
+          target="_blank"
+          rel="noreferrer"
+          style={css("font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-decoration:none")}
+        >
+          {KEEPER.slice(0, 6)}…{KEEPER.slice(-4)} ↗
+        </a>
+      </div>
+      <div style={css("margin-top:8px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap")}>
+        <span style={css(`font:800 22px var(--display);font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:${tone}`)}>
+          {draws === null ? "—" : `${draws} draws`}
+        </span>
+        <span style={css("font:400 11.5px var(--display);color:var(--ink-2)")}>
+          {eth === null
+            ? "reading the keeper's balance…"
+            : `${eth.toFixed(4)} ETH at a measured ${KEEPER_ETH_PER_DRAW} per round`}
+          {hours !== null && ` · about ${hours < 48 ? `${Math.round(hours)} hours` : `${(hours / 24).toFixed(1)} days`}`}
+        </span>
+      </div>
+      <p style={css("margin:7px 0 0;font:400 10.5px/1.55 var(--display);color:var(--ink-3)")}>
+        {level === "bad" ? (
+          <>
+            <b style={css("font-weight:650;color:var(--red)")}>This is nearly out.</b> When it
+            empties the current draw stays Open and every later one queues behind it — no error,
+            no event, just a clock that stops. Nothing is lost and no deposit is stuck:{" "}
+            <span style={css("font-family:var(--mono);font-size:10px")}>withdraw</span> needs no
+            draw at all.
+          </>
+        ) : (
+          <>
+            The keeper is not privileged — it pays gas, and that is all it does.{" "}
+            <span style={css("font-family:var(--mono);font-size:10px")}>openDraw</span> and{" "}
+            <span style={css("font-family:var(--mono);font-size:10px")}>accrueMany</span> are
+            permissionless, so if this reaches zero the pool is stalled rather than broken and
+            anyone may restart it. The rate is measured from this keeper's own spend, and the
+            round count uses the observed ~41-minute cadence rather than the 300s floor.
+          </>
+        )}
+      </p>
+    </div>
+  );
+}

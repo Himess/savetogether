@@ -169,7 +169,11 @@ const SECTIONS: { title: string; blurb: string; rows: Row[] }[] = [
       {
         need: "Within the HCU budget",
         where: "accrue, 7 participants per transaction",
-        whereHref: `${GH}/docs/inventory.md`,
+        // Was docs/inventory.md. That file is a dated snapshot whose §4 describes an
+        // access-control vulnerability that has since been fixed, and sending a reviewer
+        // to it from a scorecard row about HCU means they land on a superseded finding
+        // about something else. The banner there is not a reason to keep the link.
+        whereHref: `${GH}/contracts/ConfidentialPrizePool.sol`,
         pinnedBy: "storage-cost.ts — 2,582,192 HCU steady state against a 5,000,000 sequential-depth limit",
         kind: "limited",
         note: "O(participants) rather than PoolTogether's O(winners): 386,608 gas each, so a hundred depositors is 38.7M gas per draw — over a block. That is the price of unconditional accrual.",
