@@ -293,7 +293,7 @@ export function WrapScreen() {
 
           <div style={css("margin-top:12px;border:1px solid var(--line);border-radius:14px;padding:4px 14px")}>
             <div style={css("display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)")}>
-              <span style={css("font:500 12.5px var(--display);color:var(--ink-2)")}>Test USDC</span>
+              <span style={css("font:500 12.5px var(--display);color:var(--ink-2)")}><b style={css("font-weight:700;color:var(--ink)")}>1</b> · Get test USDC</span>
               <button
                 onClick={() => {
                   if (address === undefined) return;
@@ -325,7 +325,7 @@ export function WrapScreen() {
               </div>
             )}
             <div style={css("display:flex;align-items:center;justify-content:space-between;padding:10px 0")}>
-              <span style={css("font:500 12.5px var(--display);color:var(--ink-2)")}>Wrapper may take them</span>
+              <span style={css("font:500 12.5px var(--display);color:var(--ink-2)")}><b style={css("font-weight:700;color:var(--ink)")}>2</b> · Approve the wrapper</span>
               {approved && units > 0n ? (
                 <span style={css("font:650 11.5px var(--display);color:var(--green)")}>approved</span>
               ) : (
@@ -358,7 +358,7 @@ export function WrapScreen() {
             disabled={busy || units === 0n || !approved || !holds || !onSepolia || !address}
             style={css(`width:100%;margin-top:14px;padding:14px;border-radius:13px;border:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,#24507d,#1b3a5c);color:var(--on-accent);font:700 14px var(--display);box-shadow:0 5px 15px rgba(27,58,92,.28);cursor:pointer;opacity:${busy || units === 0n || !approved || !holds || !onSepolia ? ".55" : "1"}`)}
           >
-            Wrap into cUSDC
+            3 · Wrap into cUSDC
           </button>
 
           {onSepolia && !holds && units > 0n && (

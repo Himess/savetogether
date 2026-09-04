@@ -346,6 +346,14 @@ export function PoolScreen() {
   // Five states, one of which is a number. See `lib/format.ts` — every screen
   // used to carry its own version of this and every one rendered an undecrypted
   // ciphertext as `0`, which asserts a number the page cannot know.
+  /** A decrypted amount for a handle, or null while it is hidden or absent. */
+  const clearOf = (h: unknown): bigint | null => {
+    if (!h || h === ZERO || hasPermit !== true) return null;
+    const v = clear?.[h as `0x${string}`];
+    if (v === undefined || v === null) return null;
+    try { return BigInt(v as string | number | bigint); } catch { return null; }
+  };
+
   const show = (h: unknown): string =>
     showConfidential({
       connected: !!address,
@@ -712,6 +720,27 @@ export function PoolScreen() {
                 inputMode="decimal"
                 style={css("border:none;outline:none;background:none;font:750 28px var(--display);color:var(--ink);flex:1;min-width:0;padding:0;font-variant-numeric:tabular-nums")}
               />
+              {/* MAX on both sides — the wallet balance when depositing, the
+                  position when withdrawing. Both are confidential, so it appears
+                  only once a permit has been signed: filling MAX from a ••• would
+                  mean writing in a number the page cannot read.
+
+                  On the withdraw side it is also the honest way to empty an
+                  account. withdraw(max) clamps to the balance, and the exact
+                  figure drifts every time the keeper accrues, so typing it by hand
+                  is aiming at a moving target. */}
+              {(() => {
+                const bal = clearOf(tab === "deposit" ? walletHandle : poolHandle);
+                if (bal === null || bal <= 0n) return null;
+                return (
+                  <button
+                    onClick={() => setAmount((Number(bal) / 1e6).toString())}
+                    style={css("padding:5px 10px;border-radius:8px;border:1px solid var(--line-2);background:var(--surface-2);font:650 11px var(--display);color:var(--ink-2);cursor:pointer;flex:none")}
+                  >
+                    MAX
+                  </button>
+                );
+              })()}
               <span style={css("display:inline-flex;align-items:center;gap:7px;padding:6px 11px 6px 7px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line-2);font:650 12.5px var(--mono);color:var(--ink);white-space:nowrap;flex:none")}>
                 <TokenIcon token="cUSDC" size={20} />cUSDC
               </span>
