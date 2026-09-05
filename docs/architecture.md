@@ -205,4 +205,6 @@ The SDK importing nothing from the MCP server is deliberate and enforced by revi
 | Hardhat                                | 2.28.x (the FHEVM plugin peer-requires ^2, not 3) |
 | solc                                   | 0.8.27, optimizer 800, viaIR, cancun              |
 
-Sepolia system contracts, cross-verified between the Solidity config and the JS SDK, are listed in [`../findings.md`](../findings.md) §4.
+Sepolia system contract addresses come from `SepoliaConfig` in `@fhevm/solidity` and from the JS
+SDK's own `SepoliaConfig`; they are not written down here, so the two cannot drift apart.
+This was previously cited to `findings.md` §4, which never contained them.

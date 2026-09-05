@@ -3,8 +3,8 @@
  *
  * `contracts/ConfidentialPrizePool.sol` withdraws by handing the token an amount
  * that may be an encrypted zero, and relies on the token moving zero rather than
- * reverting. OpenZeppelin's v0.5.1 `ERC7984` base does clamp. GhostLend's
- * PROBE-RESULTS P4 recorded that the wrappers deployed on Sepolia instead revert
+ * reverting. OpenZeppelin's v0.5.1 `ERC7984` base does clamp. An earlier probe
+ * of ours recorded that the wrappers deployed on Sepolia instead revert
  * `ERC7984ZeroBalance` on a never-funded `from` — and that error string does not
  * appear anywhere in the v0.5.1 source installed here, which is itself evidence
  * that the deployed code is not the code in node_modules.

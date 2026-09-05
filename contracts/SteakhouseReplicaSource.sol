@@ -35,8 +35,8 @@ interface IRedeemBatcher {
  *
  * WHAT THIS IS. On mainnet, confidential USDC earns in a Steakhouse x Morpho
  * vault. That vault is mainnet-only, so this is a replica of its shape on
- * Sepolia — and it is a replica in the same sense GhostLend's was: our contract,
- * our rate, labelled as a stand-in everywhere it is shown. It is NOT the live
+ * Sepolia: our contract, our rate, labelled as a stand-in everywhere it is
+ * shown. It is NOT the live
  * mainnet vault and is not affiliated with Steakhouse Financial or Morpho.
  *
  * WHY IT IS NOT SIMPLY A MOCK. Principal deposited here does not sit in a

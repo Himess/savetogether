@@ -22,9 +22,8 @@ interface IVaultBatcher {
 /**
  * Sits SaveTogether on Zama's own confidential vault instead of beside it.
  *
- * The composition is the point. GhostLend made the same argument one product
- * earlier: use the ecosystem's real confidential primitive rather than a
- * lookalike. Here that means the pool's principal reaches
+ * The composition is the point: use the ecosystem's real confidential primitive
+ * rather than a lookalike. Here that means the pool's principal reaches
  * `DepositVaultBatcherConfidential` on Sepolia and comes back as confidential
  * vault shares.
  *

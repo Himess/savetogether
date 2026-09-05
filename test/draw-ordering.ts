@@ -70,8 +70,8 @@ describe("draw ordering", () => {
   });
 
   it("refuses to open a draw on an empty pool rather than handing the KMS a null handle", async () => {
-    // GhostLend lost an epoch machine to exactly this: makePubliclyDecryptable
-    // on a handle that was never initialised, rejected by the KMS, unrecoverable.
+    // An epoch machine can be lost to exactly this: makePubliclyDecryptable on a
+    // handle that was never initialised, rejected by the KMS, unrecoverable.
     await expect(pool.openDraw()).to.be.revertedWithCustomError(pool, "NothingStaked");
   });
 

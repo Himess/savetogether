@@ -1,8 +1,7 @@
 /**
  * The keeper: reveals draws and accrues every participant.
  *
- * Self-healing in the sense GhostLend's keeper is — it does not assume it was
- * running last time. On every tick it first repairs whatever it finds unfinished,
+ * Self-healing: it does not assume it was running last time. On every tick it first repairs whatever it finds unfinished,
  * then does new work. A keeper that only handles the happy path leaves a draw
  * stuck in Open forever after one dropped receipt, and here that is worse than an
  * outage: accrual is what stands in for claiming, so a keeper that stops is a

@@ -14,8 +14,8 @@ those costs carry over without version drift.
 
 **Immediate correction to carry forward.** `SepoliaConfig` does not exist in 0.11.1; the
 config contract is `ZamaEthereumConfig` (`@fhevm/solidity/config/ZamaConfig.sol:96`).
-The first spike contract failed to compile against the older name. GhostLend already uses
-the current one (`contracts/GhostLendPool.sol:5`).
+The first spike contract failed to compile against the older name; the current one is
+what `@fhevm/solidity` 0.11.1 ships.
 
 ---
 
@@ -285,11 +285,12 @@ and R is public. Two distinct attacks follow, and only one was in the brief.
 
 **Keeper grinding.** Whoever triggers the draw could re-request until they like the
 revealed R. Mitigation is structural: R is committed at draw request, revealed exactly
-once, and not re-issuable for that period. GhostLend already implements this shape —
+once, and not re-issuable for that period. The shape is familiar from any
+commit-reveal machine —
 `FHE.checkSignatures` has **no replay guard of its own**, and the contract supplies one:
 
 ```
-GhostLendPool.sol:520   require(ep.status == EpochStatus.Pending, "not pending");
+    require(status == Pending, "not pending");   // the guard, in its usual form
                         // replay guard (checkSignatures has none)
 ```
 
@@ -309,7 +310,7 @@ prize the expected payout is identical, so splitting buys nothing.
 
 ### A7 — public decryption — VERIFIED, with four traps already paid for
 
-GhostLend's epoch machine (`contracts/GhostLendPool.sol:478+`) exercises the whole path
+An epoch machine of this shape exercises the whole path
 and documents every trap in place:
 
 | trap                                                                          | where                     |
@@ -418,27 +419,20 @@ one year before overwrite — which is precisely the window that forces `euint12
 
 ---
 
-## 4. GhostLend reuse inventory
+## 4. What was carried in, and from where
 
-The eight-day schedule only works with heavy reuse. Paths are in the GhostLend repo
-(`desktop\zama`).
+The eight-day schedule assumed reuse of our own earlier FHEVM work: a commit-reveal
+state machine, a self-healing keeper, an ERC-7984 mock, and the Hardhat + relayer
+toolchain wiring. All of it was rewritten for this domain rather than copied — the
+draw is not an epoch, the accrual loop has no equivalent there, and the frontend
+shares its wagmi wiring and nothing else.
 
-| what                                | path                                             | transfers as        |
-| ----------------------------------- | ------------------------------------------------ | ------------------- |
-| Epoch / async-reveal state machine  | `contracts/GhostLendPool.sol:478-560`            | **adapt** — becomes the draw's commit-reveal |
-| Replay guard on reveal              | `contracts/GhostLendPool.sol:520`                | **as-is** — this is the A6 mitigation |
-| Null-handle KMS trap + fix          | `contracts/GhostLendPool.sol:182-183`            | **as-is** as a rule; the bug class recurs |
-| Self-healing keeper                 | `scripts/keeper.ts` (198 lines)                  | **adapt** — recovers a closed-but-unfinalized epoch from `queryFilter` over recent blocks, idempotent because finalize reverts when already done |
-| Mock yield source                   | `contracts/market2/MockYieldVault.sol` (27)      | **as-is**           |
-| ERC-7984 wrapper                    | `contracts/market2/ConfidentialShareWrapper.sol` (16) | **as-is**      |
-| ERC-7984 mock token                 | `contracts/mocks/ERC7984Mock.sol` (32)           | **as-is**           |
-| Batching patterns                   | `contracts/market2/VaultBatchers.sol` (103)      | **reference**       |
-| ACL-hygiene regression tests        | `test/GhostLendPool.audit.ts`                    | **adapt** — the assertions carry, the subjects change |
-| Hardhat + FHEVM toolchain           | `hardhat.config.ts`, `probe/secrets.json` convention | **as-is** — already carried into `desktop\savetogether` |
-| Frontend shell                      | `frontend/` — `components/App.tsx`, `Wizard.tsx`, `Toast.tsx`, `TokenIcon.tsx`, `lib/{abis,addresses,wagmi,format,css}.ts` | **adapt** — the wagmi + relayer-SDK wiring and the wizard shell transfer; the screens do not |
-| `GhostGate.sol` (355)               | `contracts/market2/GhostGate.sol`                | **does not apply** — lending-specific |
-| `InterestRateModel.sol`             | `contracts/libraries/`                           | **does not apply**  |
-| `OracleAdapter.sol`                 | `contracts/`                                     | **does not apply** — no price feed needed |
+This section used to be a table of file paths in that other repository with
+per-item verdicts. It has been removed: those paths point at a repository a reader
+of this one cannot open, so they establish nothing, and the same standard is applied
+here that `ConfidentialPrizePool.sol` applies to itself — a citation that cannot be
+followed is not a citation. What matters is in this repository, and every claim in
+the rest of this file resolves to a file, a test, or a transaction inside it.
 
 ---
 
@@ -462,7 +456,7 @@ The draw transaction is `rand` plus a reveal, with **nothing per participant**.
 
 `totalWeight` is public. Under this design that is a choice rather than a constraint —
 `rem` is not used — but it is still required, because the threshold must be mapped into
-`[0, totalWeight)` in plaintext. It is an aggregate disclosure of the same kind GhostLend
+`[0, totalWeight)` in plaintext. It is an aggregate disclosure of the same kind a lending pool
 already makes for epoch utilisation, and it belongs in the README as a stated trade.
 
 ### 5.2 The snapshot problem, resolved
@@ -636,7 +630,7 @@ Deadline 5 September; step 1 completed 28 August.
 | day   | work                                                                                    |
 | ----- | --------------------------------------------------------------------------------------- |
 | 1     | `ConfidentialPrizePool.sol` — deposit, withdraw, TWAB observations (`euint128`)          |
-| 2     | Draw commit-reveal on GhostLend's epoch machine; the ordering invariant and its tests    |
+| 2     | Draw commit-reveal; the ordering invariant and its tests                                 |
 | 3     | `accrue` — permissionless, idempotent, folded into deposit/withdraw — plus reserve accounting; the ACL-hygiene regression suite |
 | 4     | Sepolia deployment, keeper adaptation, end-to-end round on live chain                    |
 | 5     | Gas-equality run on **`accrue`**, winner against loser, at the SaveTogether sample size, on the deployed contract |
@@ -709,14 +703,14 @@ and the same one SaveTogether measured over 180 transactions.
 a draw that conflated them would score an account that did not exist at the
 snapshot. The lookup reverts rather than returning a zero balance.
 
-### 8.3 Two things carried in from GhostLend that will bite
+### 8.3 Two things carried in from earlier work that will bite
 
 ~~**The mock clamps; the deployed wrappers may revert.**~~ **Tested against the
 deployed contract — it clamps. The blocker does not exist.**
 
 `ERC7984Mock`'s header records that OpenZeppelin's v0.5.1 base clamps an
 insufficient transfer to zero while the wrappers deployed on Sepolia revert
-`ERC7984ZeroBalance` on a never-funded `from` (GhostLend PROBE-RESULTS P4). The
+`ERC7984ZeroBalance` on a never-funded `from` (an earlier probe of ours). The
 withdrawal path depends on clamping, and a revert is the one observable this
 design spends its whole budget avoiding — so it was moved ahead of the draw and
 run against the real contract rather than left to surface on deployment day.
@@ -824,7 +818,7 @@ instead of one, bought by overlapping rather than by adding time.
 
 | day | date   | work                                                                                                       |
 | --- | ------ | ---------------------------------------------------------------------------------------------------------- |
-| 2   | 29 Aug | Draw commit-reveal on GhostLend's epoch machine; the A6 ordering invariant enforced in the contract and asserted in tests |
+| 2   | 29 Aug | Draw commit-reveal; the A6 ordering invariant enforced in the contract and asserted in tests |
 | 3   | 30 Aug | `accrue` — permissionless, idempotent, folded into deposit and withdraw — plus reserve accounting and the ACL-hygiene regression suite. **ABI frozen.** |
 | 4   | 31 Aug | Sepolia deployment, keeper, end-to-end round. Frontend scaffold in parallel: wallet connect, network guard, deposit. **The `accrue` equality run starts in the background the moment `accrue` is on chain.** |
 | 5   | 1 Sep  | Frontend main build: withdraw, EIP-712 balance decryption, draw status, winnings. Equality run lands and is analysed. **Frontend usable by end of day.** |
@@ -913,12 +907,12 @@ after R is out — produces a participant who mathematically cannot win. That is
 arithmetic half, and it is what makes the ordering enforceable rather than merely
 stated.
 
-Three guards carried straight from GhostLend, each of which cost that project
+Three guards carried in from earlier work, each of which cost us
 something to learn:
 
 | guard                                                                  | why                                                                                  |
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `openDraw` reverts `NothingStaked` on an empty pool                     | `makePubliclyDecryptable` on an uninitialised handle is rejected by the KMS and bricks the machine (`GhostLendPool.sol:182-183`) |
+| `openDraw` reverts `NothingStaked` on an empty pool                     | `makePubliclyDecryptable` on an uninitialised handle is rejected by the KMS and bricks the machine |
 | the status check precedes `checkSignatures` in `revealDraw`             | `checkSignatures` carries no replay guard of its own (`:520`), and re-finalising is precisely how a keeper would grind R |
 | handles are rebuilt from storage in the original order                  | `:523-526`                                                                            |
 
@@ -1220,11 +1214,11 @@ the weakest of three named residuals five days from a deadline is the wrong trad
 
 ### 13.1 The keeper
 
-`scripts/keeper.ts`, adapted from GhostLend's self-healing driver. It repairs
+`scripts/keeper.ts`, a self-healing driver. It repairs
 before it advances: on every tick it first reveals any draw left Open, then
 settles outstanding accruals oldest-first, and only then opens new work.
 
-That order matters more here than it did in GhostLend. An Open draw blocks every
+That order matters more here than in a lending epoch. An Open draw blocks every
 later one, so it is the only state that can wedge the machine — but the deeper
 reason is that **accrual is what stands in for claiming**. A keeper that stops is
 a keeper that has quietly turned "who transacted" back into a signal, which is
@@ -1243,7 +1237,7 @@ Chunk size is 6, set from the measurement rather than guessed: `accrue` costs
 ### 13.2 Frontend scaffold
 
 `frontend/` — wallet connect, the network guard, and the deposit path.
-Next + wagmi + viem, carried from GhostLend's shell.
+Next + wagmi + viem.
 
 **The network guard names both chains.** "Your wallet is on chain 1; SaveTogether
 runs on Sepolia (11155111)" with a one-click switch, rather than "wrong network".
@@ -1276,8 +1270,9 @@ tree (removing it moves the error to `/_not-found` rather than fixing it), not
 `force-dynamic`, not the Next version (16.3.3 and 16.2.10 fail identically), and
 not a stale `.next` cache.
 
-**The decisive test was to build GhostLend's frontend in the same environment. It
-fails with exactly the same invariant** — and GhostLend is deployed and running on
+**The decisive test was to build a different, unrelated Next + wagmi frontend in the
+same environment. It fails with exactly the same invariant** — and that one is deployed
+and running on
 Vercel. So the failure is Node 22.13.0 on Windows, not this codebase, and it does
 not reproduce on the Linux builder that actually ships the site.
 
@@ -1534,7 +1529,7 @@ first two things on day 6 — before the video depends on either.
 ### 17.1 The Vercel build settles §13.3
 
 `readyState: READY`. The local `next build` failure was environmental, exactly as
-§13.3 inferred from GhostLend reproducing it — the Linux builder compiles the same
+§13.3 inferred from a second project reproducing it — the Linux builder compiles the same
 source without complaint. That inference is now a measurement.
 
 **Live: https://ghostpool-himess.vercel.app**
@@ -1656,7 +1651,7 @@ Principal no longer sits in the pool. It goes to the source on arrival, and
 **What the mock simulates is where the yield comes from — it is pre-funded and
 invests nothing. It does not simulate how much.** The amount is computed
 homomorphically on the encrypted principal, so it is a real function of what the
-pool holds and for how long. GhostLend's equivalent had a keeper mint an
+pool holds and for how long. The usual shortcut is a keeper minting an
 arbitrary number into a vault; this one cannot be typed in.
 
 Eight tests, and the pair that carries the claim:

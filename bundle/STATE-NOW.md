@@ -231,11 +231,11 @@ currently disclosed anywhere in the repository.
     Not distinguished by the README badge and not asserted by `scripts/verify-all.sh`.
     → § 1 above
 14. **The test badge is stale.** 176 claimed, 190 actual. → § 8 above
-15. **A code comment cites a file that does not exist in this repository.**
-    `contracts/ConfidentialPrizePool.sol:570` justifies the ordering of the status check
-    before `checkSignatures` with "`GhostLendPool.sol:520` says so in as many words".
-    There is no `GhostLendPool.sol` anywhere in the tree. The reasoning is sound and the
-    guard is correct; the citation is unfollowable.
+15. **RESOLVED — code comments cited a file that does not exist in this repository.**
+    Several comments justified their reasoning against a file in a different repository,
+    which a reader of this one cannot open. The reasoning was sound and the guards are
+    correct; the citations were unfollowable. Every one has been rewritten to state the
+    property directly, and the tests that pin it are named instead.
 16. **We build against `@fhevm/solidity` 0.11.1; Zama's deployed batcher was compiled
     against 0.13.0.** Read from the batcher's own verified metadata in
     `out/batcher-src.txt`. Two minor versions apart, across a contract boundary we call

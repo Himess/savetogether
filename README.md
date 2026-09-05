@@ -19,7 +19,7 @@ the keeper. Not the pool.**
 
 [![Live](https://img.shields.io/badge/▶%20Live-savetogether--fhe.vercel.app-2fbf7a?style=flat-square)](https://savetogether-fhe.vercel.app)
 [![Contracts](https://img.shields.io/badge/contracts-2%20exact%20·%201%20similar-success?style=flat-square)](#-deployed-sepolia)
-[![Tests](https://img.shields.io/badge/tests-207%20passing-brightgreen?style=flat-square)](#-testing)
+[![Tests](https://img.shields.io/badge/tests-225%20passing-brightgreen?style=flat-square)](#-testing)
 [![Composed with](https://img.shields.io/badge/composed%20with-Zama's%20Confidential%20Vault-5c9bff?style=flat-square)](https://app.zama.org/earn)
 [![License](https://img.shields.io/badge/license-BSD--3--Clause--Clear-blue?style=flat-square)](./LICENSE)
 
@@ -874,8 +874,8 @@ half:
 | **The vault composition** | **Real.** `joinVault()` sends the pool's principal into Zama's deployed deposit batcher and real shares come back when their keeper dispatches the batch. |
 | **The rate** | **Ours.** Zama's Sepolia vault has no yield adapter — measured, not assumed — so nothing about it appreciates. The APY is the replica's, and every screen that shows it says so. |
 
-It is a replica in the same sense GhostLend's was: our contract, our rate,
-labelled as a stand-in everywhere it appears. It is **not** the live mainnet
+It is a replica: our contract, our rate, labelled as a stand-in everywhere it
+appears. It is **not** the live mainnet
 vault and is not affiliated with Steakhouse Financial or Morpho.
 
 ### The composition, on chain
@@ -1061,7 +1061,7 @@ replaced is worth more than one that does not.** `test/g1-can-afford-oracle.ts`.
 ## ✅ Testing
 
 ```bash
-npm test          # 207 passing, 1 pending
+npm test          # 225 passing
 ```
 
 | suite | what it pins |
@@ -1089,7 +1089,7 @@ expect(held).to.not.equal(ethers.ZeroHash);     // test/replica-source.ts:83
 A non-zero handle proves a value was **written**. It proves nothing about **who may read
 it**, and who may read it is the entire security surface of an ACL. That blind spot let
 `pendingOf` hand every holder a handle their own key cannot open, through the 190 tests
-passing at the time, until a live sweep decrypted it. (The suite is 207 now; the point
+passing at the time, until a live sweep decrypted it. (The suite is 225 now; the point
 is that the count was never what was missing.)
 
 So the principle now is: **an encrypted getter is tested by decrypting it as its intended
@@ -1134,7 +1134,7 @@ outcomes and the reserve stay encrypted.
 
 ```bash
 npm install
-npm test                      # 207 passing, 1 pending — local, no network
+npm test                      # 225 passing — local, no network
 npx hardhat run scripts/deploy-composed.ts --network sepolia
 POOL=0x... npm run keeper     # harvests, reveals draws, accrues everyone
 
@@ -1201,8 +1201,9 @@ Sepolia credentials go in `probe/secrets.json` (git-ignored) as
 | `scripts/demo-round.ts` | seeds six participants and runs one full round |
 | `test/sepolia-*.ts` | the live measurements |
 
-Built on GhostLend (Season 3, Builder Track second place) — its epoch reveal
-machine, its self-healing keeper, and four KMS traps it paid to discover.
+The reveal machine, the self-healing keeper and the four KMS traps this walks
+past are described where they are implemented, and pinned by the tests named
+above.
 
 ---
 

@@ -2,7 +2,7 @@
  * E1 — does `ERC7984ZeroBalance` live on the wrap path rather than the transfer path?
  *
  * D1 exercised three transfer cases against deployed cUSDC and all three clamped.
- * That leaves a third explanation for GhostLend's PROBE-RESULTS P4 open: the error
+ * That leaves a third explanation for the earlier probe result open: the error
  * may belong to `ERC7984ERC20Wrapper` rather than the `ERC7984` base, in which
  * case both observations are correct and describe different functions.
  *

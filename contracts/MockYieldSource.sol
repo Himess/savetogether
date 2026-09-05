@@ -20,8 +20,8 @@ import {IYieldSource} from "./interfaces/IYieldSource.sol";
  *              amount is a genuine function of what the pool holds and how long
  *              it has held it — not a number a keeper types in.
  *
- * GhostLend's equivalent simulated yield by having a keeper mint into the vault,
- * which makes the amount arbitrary. This computes it, and that is the part worth
+ * The usual shortcut is to have a keeper mint into the vault, which makes the
+ * amount arbitrary. This computes it instead, and that is the part worth
  * demonstrating: the prize really is proportional to deposits over time.
  *
  * The pot runs out eventually. `confidentialTransfer` clamps rather than

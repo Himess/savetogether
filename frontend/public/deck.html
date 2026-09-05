@@ -216,7 +216,7 @@ b{font-weight:600}
   </div>
   <h1>Save into a prize pool where nobody sees your balance, your odds, or whether you won.</h1>
   <div class="sub">A confidential PoolTogether on Zama's FHEVM, composed with the same vault Zama already ships.</div>
-  <div class="pills"><span class="pill live">Live on Sepolia</span><span class="pill">Zama's deployed cUSDC</span><span class="pill">3 contracts verified</span><span class="pill">207 tests</span></div>
+  <div class="pills"><span class="pill live">Live on Sepolia</span><span class="pill">Zama's deployed cUSDC</span><span class="pill">3 contracts verified</span><span class="pill">225 tests</span></div>
 </section>
 
 <section class="slide">
@@ -524,7 +524,7 @@ b{font-weight:600}
     <div class="rw" style="grid-template-columns:.42fr 1.58fr"><div style="color:var(--dim)">code</div><div class="m">github.com/Himess/savetogether</div></div>
     <div class="rw" style="grid-template-columns:.42fr 1.58fr"><div style="color:var(--dim)">pool</div><div class="m">0x894F6492357277CF36e9973787663AE9F73387BE</div></div>
   </div>
-  <div class="pills"><span class="pill">207 tests</span><span class="pill">3 contracts verified</span><span class="pill">21 measurement spikes</span><span class="pill">every limit named with its test</span></div>
+  <div class="pills"><span class="pill">225 tests</span><span class="pill">3 contracts verified</span><span class="pill">21 measurement spikes</span><span class="pill">every limit named with its test</span></div>
 </section>
 
 <div class="foot"><span id="fl"></span><span id="fr"></span></div>
@@ -544,7 +544,7 @@ const N=[
 ["Confident, not defensive. This is the strongest slide.","There's a page on the site that asks you to attack it, with your own wallet, against the live pool. Three fail because of the design. Two worked — I found them, measured them, and left them on the page instead of quietly patching. Forty calls binary-searched an encrypted budget. It's closed now, and the row still says it worked."],
 ["Slow. This is the one they will remember.","And here is a leak we did not close. Not somebody else's, not a bug we fixed — ours, live, on this pool. Deposits and withdrawals are public with plaintext timestamps, and we publish totalWeight once per draw. So a window with exactly one balance change solves rather than bounds, and on draw 33 that recovered five hundred and forty cUSDC to the unit. Now look right, because this is the actual finding: the first version of this attack returned clean integers that were confidently wrong about real people. Almost right is indistinguishable from right. Twelve events, one solved — it needs a quiet window, and nothing in the contract enforces a minimum anonymity set. Both mitigations are costed. Neither is shipped, and I would rather tell you that than have you find it."],
 ["The closing argument. Slow.","Zama shipped the rails. PoolTogether has the mechanic. What was missing was a reason to show up — and confidential DeFi loses people at the interface. An agent that can spend but cannot read collapses that into a sentence, and every deposit it makes lands in Zama's vault and in a pool that pays out of real yield."],
-["End on the invitation, not a thank-you.","It's live on Sepolia — deposit, draw, claim, withdraw, all of it works today. 207 tests, three verified contracts, and every limitation named with the test that pins it. Go break it."]];
+["End on the invitation, not a thank-you.","It's live on Sepolia — deposit, draw, claim, withdraw, all of it works today. 225 tests, three verified contracts, and every limitation named with the test that pins it. Go break it."]];
 const S=[...document.querySelectorAll('.slide')];let i=0;
 const nb=document.getElementById('nb'),nt=document.getElementById('notes'),
  fr=document.getElementById('fr'),fl=document.getElementById('fl'),ft=document.querySelector('.foot');

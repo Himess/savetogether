@@ -34,8 +34,8 @@ import {IYieldSource} from "../interfaces/IYieldSource.sol";
  *     `[0, totalWeight)`, but a running total that is public at all times would
  *     publish every deposit as its own delta — the confidentiality claim would
  *     die on the first deposit. The aggregate is therefore revealed once per
- *     draw, alongside R, through the same KMS path GhostLend uses for epoch
- *     utilisation. What leaks is the change between consecutive draws, which is
+ *     draw, alongside R, through the public-decryption KMS path. What leaks is
+ *     the change between consecutive draws, which is
  *     an anonymity-set question rather than a per-user disclosure.
  *
  * Withdrawal clamps rather than reverts, for the same reason the claim path
@@ -356,8 +356,7 @@ contract PoolPreV2 is ZamaEthereumConfig {
      * Freezes the weights and draws the randomness, in that order, atomically.
      *
      * Both handles are marked publicly decryptable here and read back by
-     * `revealDraw`. GhostLend paid for the traps this walks past
-     * (`GhostLendPool.sol:182-183, :503-520`) and they all apply:
+     * `revealDraw`. Four traps sit on this path and all of them apply:
      *
      *   - `makePubliclyDecryptable` is permanent and irrevocable, so it is used
      *     only on the aggregate and on R, never on anything per-user.
@@ -408,7 +407,7 @@ contract PoolPreV2 is ZamaEthereumConfig {
      *
      * The status check comes BEFORE `checkSignatures`, and that ordering is the
      * point: `checkSignatures` carries no replay guard of its own
-     * (`GhostLendPool.sol:520` says so in as many words), so without this a
+     * carries no replay guard of its own, so without this a
      * draw could be finalised repeatedly. Re-finalising is also how a keeper
      * would grind R, which makes this guard the A6 mitigation rather than
      * housekeeping.

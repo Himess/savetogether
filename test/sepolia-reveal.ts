@@ -3,7 +3,7 @@
  *
  * This is the largest untested thing in the system. `revealDraw` cannot be
  * exercised locally because it needs real KMS signatures, and A7 lists four traps
- * on this path, every one of which cost GhostLend something to find:
+ * on this path, every one of which is expensive to find in production:
  *
  *   - `makePubliclyDecryptable` is permanent, and a null handle bricks the machine
  *   - `checkSignatures` carries no replay guard of its own

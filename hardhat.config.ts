@@ -9,7 +9,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 // Signer and RPC, in order: env, then probe/secrets.json (git-ignored).
-// Same convention as GhostLend so the funded probe wallet carries over.
+// One funded probe wallet, named by env var so it is never in the repository.
 type Secrets = { privateKey?: string; sepoliaRpcUrl?: string };
 let fileSecrets: Secrets = {};
 try {

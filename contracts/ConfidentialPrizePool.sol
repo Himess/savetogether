@@ -34,8 +34,8 @@ import {IYieldSource} from "./interfaces/IYieldSource.sol";
  *     `[0, totalWeight)`, but a running total that is public at all times would
  *     publish every deposit as its own delta — the confidentiality claim would
  *     die on the first deposit. The aggregate is therefore revealed once per
- *     draw, alongside R, through the same KMS path GhostLend uses for epoch
- *     utilisation. What leaks is the change between consecutive draws, which is
+ *     draw, alongside R, through the public-decryption KMS path. What leaks is
+ *     the change between consecutive draws, which is
  *     an anonymity-set question rather than a per-user disclosure.
  *
  * Withdrawal clamps rather than reverts, for the same reason the claim path
@@ -574,8 +574,7 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
      * Freezes the weights and draws the randomness, in that order, atomically.
      *
      * Both handles are marked publicly decryptable here and read back by
-     * `revealDraw`. GhostLend paid for the traps this walks past
-     * (`GhostLendPool.sol:182-183, :503-520`) and they all apply:
+     * `revealDraw`. Four traps sit on this path and all of them apply:
      *
      *   - `makePubliclyDecryptable` is permanent and irrevocable, so it is used
      *     only on the aggregate and on R, never on anything per-user.
@@ -674,10 +673,10 @@ contract ConfidentialPrizePool is ZamaEthereumConfig {
      * a keeper would grind R, which makes this guard the A6 mitigation rather than
      * housekeeping.
      *
-     * An earlier version of this comment cited `GhostLendPool.sol:520` for the
-     * replay claim. That file is from a different project and does not exist in
-     * this repository, so the citation was unfollowable. The property is stated
-     * directly above instead, and `test/draw-ordering.ts` pins it.
+     * An earlier version of this comment cited a file in a different repository
+     * for the replay claim, which a reader of this one cannot open. A citation
+     * that cannot be followed is not a citation, so the property is stated
+     * directly above instead and `test/draw-ordering.ts` pins it.
      */
     function revealDraw(
         uint32 drawId,
