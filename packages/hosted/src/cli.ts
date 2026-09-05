@@ -45,7 +45,13 @@ async function main(): Promise<void> {
   // URL that 404s, which is a confusing failure to debug from a chat client.
   const publicUrl = flag("--public-url") ?? process.env["PUBLIC_URL"] ?? `http://localhost:${port}`;
 
+  // The deployment overrides this with ALLOWED_ORIGINS, so the default is what
+  // somebody gets who runs this without one — and it was two hostnames behind the
+  // product's own aliases. A default that does not include the canonical URL is a
+  // default that fails on first use.
   const allowedOrigins = list("--allowed-origins", [
+    "https://savetogether-fhe.vercel.app",
+    "https://savetogether-himess.vercel.app",
     "https://ghostpool-himess.vercel.app",
     "https://ghostpool-himess-projects.vercel.app",
     "http://localhost:3000",

@@ -114,7 +114,15 @@ export class HostedServer {
         process.stderr.write(
           `[hosted] ${req.method} ${req.url} failed: ${(e as Error).stack ?? String(e)}\n`,
         );
-        if (!res.headersSent) this.json(res, 500, { error: (e as Error).message });
+        // The CORS headers belong on the FAILURE too, and their absence cost an
+        // hour. A 500 without them is reported by every browser as "No
+        // 'Access-Control-Allow-Origin' header is present on the requested
+        // resource" — so an exhausted RPC quota, which the server states plainly in
+        // its body, reached the console disguised as a CORS misconfiguration and
+        // sent the reader to check an allowlist that was correct. The preflight
+        // succeeded the whole time, which is exactly what makes the disguise
+        // convincing.
+        if (!res.headersSent) this.json(res, 500, { error: (e as Error).message }, this.cors(req));
         else res.end();
       });
     });

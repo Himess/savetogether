@@ -64,12 +64,43 @@ afterwards; a backup of the vhost sits in `/root/`.
 
 ## CORS is an allowlist, not a wildcard
 
-Two origins exist, so they are named:
+The origins are named, never wildcarded, and the live list is `ALLOWED_ORIGINS` in
+`/opt/ghostpool/.env` — the defaults in `packages/hosted/src/cli.ts` apply only when
+that is unset:
 
 ```
-Origin: https://ghostpool-himess.vercel.app  ->  access-control-allow-origin: https://ghostpool-himess.vercel.app
+Origin: https://savetogether-fhe.vercel.app  ->  access-control-allow-origin: https://savetogether-fhe.vercel.app
 Origin: https://evil.example                 ->  (no header)
 ```
+
+### A CORS error in the console is not evidence of a CORS problem
+
+Measured 2026-09-05, and it cost an hour. The browser said:
+
+> Access to fetch at `.../api/session/prepare` from origin
+> `https://savetogether-fhe.vercel.app` has been blocked by CORS policy: No
+> `Access-Control-Allow-Origin` header is present on the requested resource.
+
+The allowlist was correct and the **preflight was succeeding the whole time**. What
+had actually happened was that the RPC provider's monthly quota was exhausted, so
+`prepare` threw, and the top-level handler wrote its 500 **without the CORS headers**
+— `this.json(res, 500, …)` with the header argument omitted. A response the browser
+cannot read is reported as a CORS failure whatever its status was, so a server that
+was stating its real error in the body reached the console disguised as a
+misconfiguration, and pointed the reader at the one thing that was fine.
+
+**Check the server's own log before the allowlist.** `journalctl -u ghostpool-hosted`
+had the answer in plain text. And two shapes tell the cases apart from outside:
+
+```bash
+# preflight — if this returns the header, the allowlist is NOT your problem
+curl -si -X OPTIONS https://survivorsbyashborn.com/ghostpool/api/session/prepare \
+  -H 'Origin: https://savetogether-fhe.vercel.app' \
+  -H 'Access-Control-Request-Method: POST' | grep -i 'access-control-allow-origin'
+```
+
+The 500 path now carries the headers, so the next failure of this kind arrives in the
+console as what it is.
 
 The MCP route carries no CORS at all, on purpose. It is fetched by a chat
 client's servers rather than by a browser — which is also why `localhost` could
