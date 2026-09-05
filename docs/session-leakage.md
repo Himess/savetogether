@@ -132,10 +132,60 @@ In sealed mode the model receives `{status, ok_ref, sent_ref}` and no number, ev
 
 ## 5. Known limits
 
+### The disclosure path is server-enforced; every other path is contract-enforced
+
+Two ceilings, and they do not have the same trust model. This was true from the first
+deploy and is written down here because a reader would reasonably assume otherwise.
+
+| path | what bounds it | survives a modified server? |
+|---|---|---|
+| `pool_deposit`, `send` | an `euint64` budget **on chain** | **yes** |
+| `unwrap` | a **server-side** check the chain never sees | **no** |
+
+Structural rather than a defect: the deployed wrapper accepts only an *externally
+encrypted* amount, and no contract can produce one on a user's behalf, so there is
+nothing on chain to hold a ceiling against. `maxUnwrap` is a limit this process
+applies to itself.
+
+**The confidential paths are contract-enforced. The disclosure path is
+server-enforced.** That is the one asymmetry in the system, and it sits on the path
+whose entire purpose is to make an amount public — which is the least bad place for
+it, but not nowhere. Swap in a modified server and the deposit budget still holds;
+the unwrap ceiling does not.
+
 - **Biometric unlock is not implemented.** The vault key is encrypted at rest under the OS keychain (macOS Keychain, Windows DPAPI, libsecret) and unlocking requires a local human action at the console. A true Touch ID / Windows Hello prompt needs a native module per platform and is not here. The brief's preference order put biometric first; what is implemented is the second item, and this says so rather than implying otherwise.
 - **`--dev-unlock` skips the human step.** It is hard-gated to chainId 11155111 and refuses to run anywhere else. Asserted in `test/mcp.ts`, including the case where the vault exists and is loadable.
 - **A leaked session key costs the remaining budget**, to addresses already on the allowlist, until expiry. That is the designed bound, not an accident — but it is a real loss, and the budget and allowlist are the only things limiting it.
 - **The operator grant outlives the session.** `token.setOperator(module, expiry)` is set outside `SaveTogetherSession` and expires on its own schedule. Closing a session does not clear it; the module simply has no live session to act under. `revoke_all` says this in as many words rather than implying the grant is gone.
+
+---
+
+### A write that times out after committing cannot be self-verified
+
+Measured 2026-09-05. `pool_deposit` returned a timeout **after** the transaction had
+landed — the timeout was the response coming back, not the transaction failing.
+
+The session did not retry, and the reason it could not simply check is the finding:
+**opaque-by-default leaves the caller unable to verify its own write.** The position
+is a handle it cannot read, so "did my deposit land" is exactly the question the
+design refuses to answer without a click on a console this session does not have.
+What it read instead was the session transfer counter — 0 before the call, 1 after —
+which is plaintext and monotonic. That worked, and it worked *incidentally*: the
+counter exists to bound spending, not to confirm writes.
+
+The cost of getting this wrong is not small. A retry on the error message alone would
+have deposited half of the *remaining* balance on top of what had already moved.
+
+**Two fixes, considered and not built:**
+
+- an **idempotency key** on the deposit path, so a repeated call is recognised as the
+  same write rather than a second one
+- an explicit **last-write receipt** — a plaintext, per-session record of the last
+  committed operation, which is not confidential and answers the question directly
+
+Neither is in the deployed contract, and adding one to `ConfidentialPrizePool` is a
+redeploy. Recorded here rather than shipped, because the frozen surface is worth more
+before a deadline than a correctly-guessed API.
 
 ---
 
@@ -199,6 +249,34 @@ in the clear, so shares divide the knowledge rather than removing it.
 addresses, until the owner revokes.** It cannot exceed the budget, cannot send
 elsewhere, cannot extend its own expiry, and never held a wallet key. That is the
 bound; it is not zero, and describing it as zero would be a lie.
+
+### Four refusals in one session, none of them written down anywhere
+
+One session on 2026-09-05, asked ordinary things, declined four times:
+
+1. **Reading a balance** it had no console to reveal with — and said the handle was
+   the design working, not a failure.
+2. **Binary-searching that balance** through `pool_withdraw`, unprompted. It worked
+   out that over-withdrawing succeeds and moves nothing, so every probe returns the
+   same answer — and then that the probe amounts would be *public on chain*, so the
+   search would publish the balance to everyone rather than to it alone.
+3. **Stepping down through 850, 800, 750** after `can_afford` refused 900 — the same
+   search against a different oracle, recognised as such. It had already reasoned
+   that a "no" on a multiple of 50 is *exact* rather than fuzzy, because the
+   coarsening rounds down; so it understood the bucket well enough to know where the
+   answer is sharp, and declined to sweep it anyway.
+4. **Retrying a timed-out write** on the error message alone.
+
+**Nothing in any tool description says not to do any of this.** `can_afford` says
+"do not use this tool to search for the balance" and that is the only sentence of its
+kind; the other three are not addressed anywhere.
+
+This is **one session and an observation, not evidence.** A different model, or the
+same one under a different prompt, may do otherwise — and the last two had never been
+observed before, so the sample is one. The bounds that do not depend on judgement are
+still the encrypted budget, the allowlist and the expiry. What is worth recording is
+that the refusals came out of descriptions that explain what references are *for*,
+rather than out of prohibitions.
 
 ### The indirection held while the code was broken
 

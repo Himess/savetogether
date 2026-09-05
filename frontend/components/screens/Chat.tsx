@@ -280,6 +280,18 @@ export function ChatScreen() {
                 </tbody>
               </table>
             </div>
+            {/* The asymmetry a reader would otherwise assume away. Named on the
+                screen that makes the claim, not only in the doc. */}
+            <p style={css("margin:12px 0 0;padding:9px 11px;border-radius:10px;background:var(--amber-bg);border:1px solid var(--line-2);font:400 11.5px/1.65 var(--display);color:var(--ink-2)")}>
+              <strong>The confidential paths are contract-enforced. The disclosure path is
+              server-enforced.</strong>{" "}
+              <span style={css("font-family:var(--mono);font-size:11px")}>pool_deposit</span> is
+              clamped against an encrypted budget on chain and survives a modified server;{" "}
+              <span style={css("font-family:var(--mono);font-size:11px")}>unwrap</span> is bounded
+              by a check only this server makes, because the wrapper accepts an externally
+              encrypted amount and no contract can hold a ceiling against one. It is the single
+              asymmetry here, and it sits on the path whose purpose is to publish an amount.
+            </p>
             <p style={css("margin:12px 0 0;font:400 11.5px/1.65 var(--display);color:var(--ink-3)")}>
               <strong>Claude does not know. The chain does not know. The server does.</strong> That
               is the trade — a sentence instead of six screens, in exchange for some trust in an
