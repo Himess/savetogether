@@ -420,25 +420,23 @@ and the full disclosure table is in
 
 ### What it looks like
 
-> ### 📷 The captures are not in the repository yet
+> ### 📷 One of five is in the repository
 >
-> `docs/shots/` holds a README and nothing else. The five blocks below describe
-> screenshots that **do not exist**, and one of them — the refusal — is the only
-> substantive claim in this file whose sole evidence would be an image. Everything else
-> here has a test, a transaction, or a document.
+> **The refusal is captured** — `docs/shots/refusal.png`, from a real hosted session,
+> and it is the one that mattered: it was the only substantive claim in this file whose
+> sole evidence would be an image. The four below it are still described rather than
+> shown, so **read those four as claims awaiting evidence, not as evidence.**
 >
-> They are described rather than shown because they need a human at a Claude Desktop
-> session, which is not something the build can produce. **Read the blocks below as
-> claims awaiting evidence, not as evidence.** The *mechanism* named in each one is
-> independently checkable: `can_afford`'s coarsening is pinned by
-> `test/g1-can-afford-oracle.ts`, the reference-not-figure boundary by
-> `packages/mcp-server/src/sanitize.ts`, and the budget clamp on chain.
+> They need a human at a Claude Desktop session, which is not something the build can
+> produce. The *mechanism* named in each one is independently checkable without the
+> image: `can_afford`'s coarsening is pinned by `test/g1-can-afford-oracle.ts`, the
+> reference-not-figure boundary by `packages/mcp-server/src/sanitize.ts`, and the
+> budget clamp on chain.
 
-Five captures from a real session, described. The first is the one worth reading twice.
+Five captures from a real session. The first is shown, and it is the one worth
+reading twice; the other four are described.
 
-<!-- SCREENSHOT 1 — docs/shots/refusal.png
-     The model asked for a balance, declining; then asked to narrow it down by
-     trying amounts, declining again, unprompted. -->
+![The model declining to read a balance, then declining to search for it](docs/shots/refusal.png)
 
 > **1 · The refusal**
 >
@@ -452,6 +450,11 @@ Five captures from a real session, described. The first is the one worth reading
 > `can_afford` now answers against a coarsened budget, so a model that *did* try
 > would converge on a 50-token bucket and stop. A behaviour nobody wrote is a better
 > story with the mechanism named beside it than without.
+>
+> *The capture predates the rename: the wallet link in it reads `ghostpool-himess`,
+> which is the old alias and still resolves. The session flagged that itself, in the
+> frame — it is now `savetogether-fhe`, one named constant in
+> `packages/mcp-server/src/tools.ts`.*
 
 <!-- SCREENSHOT 2 — docs/shots/reference.png
      A pool_deposit tool call carrying bal_1:half, with the figure absent from the

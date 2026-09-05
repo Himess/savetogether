@@ -87,6 +87,86 @@ describe("MCP protocol", function () {
     expect(names).to.include("unwrap");
   });
 
+  /**
+   * E2. Discovery, which is a different failure from the transport working.
+   *
+   * A live hosted session could not complete `pool_deposit` with `bal_1:half` —
+   * the flagship flow — because tool search never returned `balance`. Every test
+   * above passed throughout: `tools/list` answered, the schema was valid, the
+   * transport was fine. The defect was in the DESCRIPTION, which is the only
+   * field a client's index sees; the `title` is not shipped to it.
+   *
+   * The cause was sharper than "the two are similar". `balance`'s description
+   * never contained the word BALANCE, and `remaining`'s never contained BUDGET.
+   * Both opened "Returns an opaque reference by default" and named no subject at
+   * all, so an index had nothing to separate them with and every phrasing a user
+   * would actually type matched neither. Reproduced in a real client before the
+   * fix: "how much do I have" returned no SaveTogether tool.
+   *
+   * These assertions are a proxy for a semantic index and say so. They cannot
+   * prove ranking — only a fresh client can, because a connected one caches the
+   * list. What they do prove is that the two descriptions name their own
+   * subjects and stop overlapping, which is the property that was missing.
+   */
+  describe("discovery — the descriptions name their own subject", () => {
+    const desc = async (name: string): Promise<string> => {
+      const { tools } = await client.listTools();
+      const t = tools.find((x) => x.name === name);
+      expect(t, name).to.not.equal(undefined);
+      return (t!.description ?? "").toLowerCase();
+    };
+
+    it("balance says it is the holder's balance, in the words a user would use", async () => {
+      const d = await desc("balance");
+      for (const w of ["balance", "holds", "wallet", "how much do i have"]) {
+        expect(d, `balance description is missing "${w}"`).to.include(w);
+      }
+    });
+
+    it("remaining says it is the session budget, and disclaims being a balance", async () => {
+      const d = await desc("remaining");
+      for (const w of ["budget", "session", "spend"]) {
+        expect(d, `remaining description is missing "${w}"`).to.include(w);
+      }
+      // The disclaimer is the half that stops the collision: without it the word
+      // "balance" appears in both and the index is back where it started.
+      expect(d).to.include("not an account balance");
+    });
+
+    it("each points at the other, so a wrong pick is recoverable", async () => {
+      expect(await desc("balance")).to.include("remaining");
+      expect(await desc("remaining")).to.include("balance");
+    });
+
+    it("the four phrasings a user types favour balance over remaining", async () => {
+      // A crude term-overlap stand-in for a semantic index. It is not the index,
+      // and a passing score here does not guarantee a ranking — but the version
+      // this replaced LOST all four, which is exactly what the live session hit.
+      const b = await desc("balance");
+      const rem = await desc("remaining");
+      // Presence alone cannot separate them and should not: `remaining` has to
+      // say "not an account balance" to do its job, which puts the word in both.
+      // What separates them is what separates them for a real index — how often a
+      // term appears and HOW EARLY. A term in the opening clause is the subject; a
+      // term in a closing disclaimer is not.
+      const score = (d: string, q: string): number =>
+        q.split(/\s+/).filter((w) => w.length > 2).reduce((acc, w) => {
+          const first = d.indexOf(w);
+          if (first < 0) return acc;
+          return acc + (d.split(w).length - 1) + 100 / (100 + first);
+        }, 0);
+
+      for (const q of ["balance", "my balance", "how much do i have", "wallet balance"]) {
+        expect(score(b, q), `"${q}" should favour balance`).to.be.greaterThan(score(rem, q));
+      }
+    });
+
+    it("neither opens with the sentence that made them interchangeable", async () => {
+      const opening = (d: string): string => d.slice(0, 48);
+      expect(opening(await desc("balance"))).to.not.equal(opening(await desc("remaining")));
+    });
+  });
+
   it("ships a usable JSON Schema with each tool", async () => {
     const { tools } = await client.listTools();
     for (const t of tools) {

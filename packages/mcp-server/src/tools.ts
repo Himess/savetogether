@@ -44,6 +44,17 @@ const ERC20_ABI = [
   "function symbol() view returns (string)",
 ];
 const MINTABLE_ABI = ["function mintPlain(address to, uint64 amount)"];
+
+/**
+ * Where a holder goes to read their own numbers.
+ *
+ * The one address this server hands a user, and it is not the MCP endpoint —
+ * `PUBLIC_URL` does not reach here. It was still `ghostpool-himess` after the
+ * product was renamed, and it surfaced in a real transcript rather than in any
+ * check, which is why it is a named constant now: one place, and greppable.
+ */
+const SITE = "https://savetogether-fhe.vercel.app";
+
 const WRAPPER_ABI = [
   "function wrap(address to, uint256 amount) returns (bytes32)",
   "function underlying() view returns (address)",
@@ -821,7 +832,7 @@ export class SaveTogetherTools {
           "I cannot see that number. Revealing one takes a deliberate click by you, and this " +
           "is a hosted session with nowhere to put that click — so the figure stays a reference " +
           "I can spend but not read. Your own balances are on the site, decrypted with your " +
-          "wallet: https://ghostpool-himess.vercel.app",
+          `wallet: ${SITE}`,
       };
     }
     const answer = await this.ctx.console.ask("reveal", question);

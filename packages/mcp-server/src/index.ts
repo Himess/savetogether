@@ -121,9 +121,15 @@ export function toolDefinitions(tools: SaveTogetherTools): ToolDef[] {
       name: "balance",
       title: "The holder's balance",
       description:
-        "Returns an opaque reference by default, not a number, and you will not have seen the " +
-        "amount. Set reveal true only when the user has asked for the actual figure — it makes " +
-        "them click a confirmation on the local console, every time.",
+        "HOW MUCH OF A TOKEN THIS ACCOUNT HOLDS — the holder's own wallet balance. Use this for " +
+        "\"my balance\", \"how much do I have\", \"what is in my wallet\", \"how much cUSDC do I " +
+        "own\". This is NOT the session spending budget: for what is left to spend, use " +
+        "remaining. Returns an opaque reference by default, not a number, and you will not have " +
+        "seen the amount. That reference is what pool_deposit, pool_withdraw and send accept as " +
+        "an amount, including proportionally — \"bal_1:half\", \"bal_1:percent=25\" — which is " +
+        "how a proportional deposit happens without the figure ever reaching you. Set reveal " +
+        "true only when the user has asked for the actual figure — it makes them click a " +
+        "confirmation on the local console, every time.",
       schema: objectSchema({
         token: { type: "string" },
         reveal: { type: "boolean", description: "ask the user to reveal the number to you" },
@@ -135,8 +141,13 @@ export function toolDefinitions(tools: SaveTogetherTools): ToolDef[] {
       name: "remaining",
       title: "Remaining session budget",
       description:
-        "Returns an opaque reference by default. Set reveal true to ask the user to confirm at " +
-        "the console before you see a number.",
+        "HOW MUCH OF THIS SESSION'S SPENDING BUDGET IS LEFT — the ceiling this session may never " +
+        "exceed, set when it was opened and reduced by every transfer. It is a limit on what an " +
+        "agent may move, NOT an account balance and NOT what the holder owns: for that, use " +
+        "balance. Use this for \"how much can this session still spend\", \"what is left of the " +
+        "budget\", \"how much authority do you have left\". Returns an opaque reference by " +
+        "default. Set reveal true to ask the user to confirm at the console before you see a " +
+        "number.",
       schema: objectSchema({
         token: { type: "string" },
         reveal: { type: "boolean" },
