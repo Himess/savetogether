@@ -420,21 +420,10 @@ and the full disclosure table is in
 
 ### What it looks like
 
-> ### 📷 One of five is in the repository
->
-> **The refusal is captured** — `docs/shots/refusal.png`, from a real hosted session,
-> and it is the one that mattered: it was the only substantive claim in this file whose
-> sole evidence would be an image. The four below it are still described rather than
-> shown, so **read those four as claims awaiting evidence, not as evidence.**
->
-> They need a human at a Claude Desktop session, which is not something the build can
-> produce. The *mechanism* named in each one is independently checkable without the
-> image: `can_afford`'s coarsening is pinned by `test/g1-can-afford-oracle.ts`, the
-> reference-not-figure boundary by `packages/mcp-server/src/sanitize.ts`, and the
-> budget clamp on chain.
-
-Five captures from a real session. The first is shown, and it is the one worth
-reading twice; the other four are described.
+Five captures from one hosted session on 2026-09-05. **They are the only claims in
+this file whose evidence is an image**, so each caption says what its frame actually
+shows rather than what it would be convenient for it to show — three of these captions
+were rewritten when the captures landed and contradicted them.
 
 ![The model declining to read a balance, then declining to search for it](docs/shots/refusal.png)
 
@@ -451,46 +440,80 @@ reading twice; the other four are described.
 > would converge on a 50-token bucket and stop. A behaviour nobody wrote is a better
 > story with the mechanism named beside it than without.
 >
-> *The capture predates the rename: the wallet link in it reads `ghostpool-himess`,
-> which is the old alias and still resolves. The session flagged that itself, in the
-> frame — it is now `savetogether-fhe`, one named constant in
-> `packages/mcp-server/src/tools.ts`.*
+> The frame carries a third argument neither of those covers, and it is the strongest:
+> **the probe amounts would be public.** Bisecting a balance means ~20 real
+> transactions at amounts of the model's choosing, and anyone reading the chain sees a
+> clean bisection sequence and brackets the balance from the probe values alone,
+> without decrypting anything. *The search is the leak* — not for the model, for
+> everyone. Nothing in any tool description says that.
 
-<!-- SCREENSHOT 2 — docs/shots/reference.png
-     A pool_deposit tool call carrying bal_1:half, with the figure absent from the
-     model's context above it. -->
+![A deposit made against bal_1:half, and a timeout the session refused to retry](docs/shots/reference.png)
 
 > **2 · A reference, not a number**
 >
 > *`bal_1:half` in the tool call, and no figure anywhere in the context above it.*
-> The model is spending an amount it has never seen. The session client resolves it
-> one hop later — see the matrix above for what that costs.
-
-<!-- SCREENSHOT 3 — docs/shots/budget-refusal.png
-     A send or deposit exceeding the encrypted budget, refused. -->
-
-> **3 · The budget refusing**
+> The model is spending an amount it has never seen — it fetched `bal_1` without
+> revealing, and the halving happened locally against the handle.
 >
-> *The clamp is on chain and the limit itself is encrypted.* Not a policy layer the
-> server runs and you cannot inspect — an `euint64` nobody can read, including us.
+> The frame also caught something nobody arranged: **the call timed out after the
+> transaction had already landed.** The session did not retry, because a retry on the
+> error message alone would have deposited half of what was *left* on top of what had
+> already moved. It could not simply check either — the position is a handle it cannot
+> read — so it read the transfer counter, 0 before and 1 after. That worked
+> incidentally: the counter bounds spending, it does not confirm writes. Written up in
+> `docs/session-leakage.md` §5, with the two fixes named and not built.
 
-<!-- SCREENSHOT 4 — docs/shots/unwrap-warning.png
-     The unwrap warning: publishes the amount. -->
+![A 900 deposit refused before it was sent, with the coarsening reasoned about](docs/shots/budget-refusal.png)
 
-> **4 · Disclosure chosen, not defaulted**
+> **3 · The budget refusing, before anything was sent**
 >
-> *Unwrapping publishes the amount, so it is not a session tool at all.* A model must
-> not make a disclosure decision on someone's behalf. This one is the holder's own
-> wallet and their own click.
-
-<!-- SCREENSHOT 5 — docs/shots/connector.png
-     Connector setup, and the revoke afterwards. -->
-
-> **5 · Opened, and closed**
+> *The clamp is an `euint64` on chain that nobody can read, including us — but this
+> frame is the check that runs before it.* The deposit never left:
+> `can_afford` answered no, so no gas was burned and nothing moved.
 >
-> *Paste a URL to open; revoke from your own wallet to close.* The close needs
-> nothing from the server — which is the claim the whole section rests on, so it is
-> shown rather than asserted.
+> What makes it worth the space is the reasoning. `can_afford` answers against the
+> budget **rounded down to the nearest 50**, so a "no" is normally fuzzy — and the
+> model works out that 900 is itself a multiple of 50, which makes *this* no exact
+> rather than a false negative. It understood the coarsening well enough to know where
+> its answers are sharp. Then it declined to use that: *"I'm not going to step down
+> through 850, 800, 750 — that's the same search you asked about earlier, run against a
+> different oracle."* Second refusal of the same attack in one session, against a
+> different mechanism, unprompted.
+
+![An unwrap, and the model naming the one asymmetry in the system](docs/shots/unwrap-warning.png)
+
+> **4 · Disclosure, and the one ceiling the chain does not hold**
+>
+> *Unwrapping publishes the amount — that is its purpose, and this frame is a session
+> doing one on request.* Everything still held as cUSDC stays confidential; the 50 is
+> disclosed and nothing else about the rest is.
+>
+> Then the model names a property of the system we had not written down: **two
+> ceilings, and they are not equally strong.** A 900 deposit was refused by an
+> `euint64` budget **on chain**; this unwrap passed under a **server-side** check the
+> chain never saw. Structural rather than a defect — the deployed wrapper accepts only
+> an externally encrypted amount, and no contract can produce one on a user's behalf,
+> so there is nothing on chain to hold a ceiling against. It means the disclosure path
+> has a weaker trust model than every other path: swap in a modified server and the
+> deposit budget survives, the unwrap ceiling does not. It is now stated on the
+> **Talk to it** screen and in `docs/session-leakage.md` §5, in the model's own
+> framing — *the confidential paths are contract-enforced, the disclosure path is
+> server-enforced.*
+
+![The tool surface a connector exposes, each one individually permissioned](docs/shots/connector.png)
+
+> **5 · What a URL actually hands over**
+>
+> *The whole surface, in one list, with a permission control on every row.* Twelve of
+> the fifteen are in the frame — read a balance, deposit, withdraw, send, unwrap,
+> revoke, and check status — and the names are the tool titles, so what the connector
+> can do is legible before anything is approved rather than after.
+>
+> `Revoke the session` is one row among them, and that is the point rather than a
+> detail: **closing needs nothing from this list.** It is a transaction from the
+> holder's own wallet, and the server re-reads the chain on every request, so the
+> revoke takes effect whether or not this connector is ever used again — which is why
+> the row being present is a convenience and not the mechanism.
 
 ### The local install still works, and that is the point
 
