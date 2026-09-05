@@ -214,6 +214,27 @@ export function Position() {
     }));
   }, [observations, current, ks]);
 
+  /**
+   * EF. This holder's balance against the pool's, as a plain fraction.
+   *
+   * The denominator is `totalWeight ÷ window` — balance-seconds over the window
+   * they were earned in, i.e. the pool's average aggregate balance for that draw.
+   * The numerator is this browser's own decrypted balance. Nobody else can form
+   * this fraction, which is the product in one line.
+   */
+  const share = useMemo(() => {
+    if (observations === null || current === undefined || current.totalWeight === 0n) return null;
+    const span = current.snapshotAt - current.periodStart;
+    if (span <= 0) return null;
+    const bal = observations.length ? observations[observations.length - 1]!.balance : 0n;
+    if (bal <= 0n) return null;
+    const fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+    return {
+      mine: fmt(Number(bal) / 1e6),
+      total: fmt(Number(current.totalWeight) / span / 1e6),
+    };
+  }, [observations, current]);
+
   const quoteOdds = useMemo(() => {
     if (observations === null || current === undefined || current.totalWeight === 0n) return null;
     const v = Number(quote);
@@ -356,6 +377,16 @@ export function Position() {
                       );
                     })}
                   </div>
+                )}
+                {/* EF. The fraction under the percentages. Both halves are already
+                    on this page: the balance is this browser's own decrypted
+                    figure, the aggregate is published at every reveal. */}
+                {share !== null && (
+                  <p style={css("margin:12px 0 0;padding:9px 11px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line-2);font:400 11.5px/1.6 var(--display);color:var(--ink-2)")}>
+                    Your <b style={css("font-weight:700;color:var(--ink)")}>{share.mine}</b> of{" "}
+                    <b style={css("font-weight:700;color:var(--ink)")}>{share.total}</b> — the
+                    numerator is a weight only you can read.
+                  </p>
                 )}
                 <p style={css("margin:10px 0 0;font:400 11px/1.6 var(--display);color:var(--ink-3)")}>
                   Odds run on <b style={css("font-weight:650")}>how much and for how long</b>, so a

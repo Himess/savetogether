@@ -9,6 +9,7 @@ import { DEPOSIT_BATCHER, EXPLORER, POOL, TOKEN, USDC, YIELD_SOURCE } from "@/li
 import { ERC20_ABI, ERC7984_ABI, POOL_ABI, YIELD_ABI } from "@/lib/abis";
 import { isAddress } from "viem";
 import { useOnSepolia } from "@/lib/chain";
+import { useDepositorCount } from "@/lib/depositors";
 import { useAction } from "@/lib/tx";
 import { TxStatus } from "@/components/TxStatus";
 import { TokenIcon } from "@/components/TokenIcon";
@@ -65,7 +66,7 @@ function seg(active: boolean): CSSProperties {
   };
 }
 
-function Metric({ label, value, unit }: { label: string; value: string; unit?: string }) {
+function Metric({ label, value, unit, sub }: { label: string; value: string; unit?: string; sub?: string }) {
   return (
     <div style={css("display:flex;flex-direction:column;gap:5px")}>
       <span style={css("font:650 10.5px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)")}>{label}</span>
@@ -73,6 +74,12 @@ function Metric({ label, value, unit }: { label: string; value: string; unit?: s
         {value}
         {unit !== undefined && <span style={css("font:600 14px var(--mono);color:var(--ink-3)")}> {unit}</span>}
       </span>
+      {/* EE. The qualifier travels with the number. A derived figure whose
+          derivation is 80 lines below the fold is a figure that will be quoted
+          without it. */}
+      {sub !== undefined && (
+        <span style={css("font:400 11px var(--display);color:var(--ink-3)")}>{sub}</span>
+      )}
     </div>
   );
 }
@@ -116,6 +123,9 @@ export function PoolScreen() {
   // DH. The address to settle on someone else's behalf. Empty is the resting
   // state, not an error — the control is an offer, not a required field.
   const [claimFor, setClaimFor] = useState("");
+  // EE. How many addresses have ever deposited. Public either way — the
+  // participant set is enumerable from the logs and the README says so.
+  const depositors = useDepositorCount();
 
   const enabled = !!address;
   // cUSDC is six decimals. Typing 200 must send 200_000_000, and the version of
@@ -281,12 +291,15 @@ export function PoolScreen() {
       status: string;
       result?: { snapshotAt: bigint; periodStart: bigint; status: number; totalWeight: bigint };
     }>;
+    // EE. The id travels with the row, because "as of draw #9" is the half of
+    // this figure that keeps it from being read as a live balance.
     const done = rows
-      .filter((r) => r.status === "success" && r.result && Number(r.result.status) === 2 && r.result.totalWeight > 0n)
-      .map((r) => r.result!)
+      .map((r, i) => ({ r, id: Math.max(1, Number(drawCount ?? 0n) - 7 + i) }))
+      .filter(({ r }) => r.status === "success" && r.result && Number(r.result.status) === 2 && r.result.totalWeight > 0n)
+      .map(({ r, id }) => ({ ...r.result!, id }))
       .sort((a, b) => Number(b.snapshotAt) - Number(a.snapshotAt));
     return done[0] ?? null;
-  }, [recentDraws]);
+  }, [recentDraws, drawCount]);
 
   /**
    * Balance-seconds per second, i.e. the pool's average aggregate balance.
@@ -297,14 +310,14 @@ export function PoolScreen() {
   const avgAggregate = useMemo(() => {
     const pick =
       d !== undefined && Number(d.status) === 2 && d.totalWeight > 0n
-        ? { totalWeight: d.totalWeight, snapshotAt: d.snapshotAt, periodStart: (d as unknown as { periodStart: bigint }).periodStart }
+        ? { totalWeight: d.totalWeight, snapshotAt: d.snapshotAt, periodStart: (d as unknown as { periodStart: bigint }).periodStart, id: round }
         : lastRevealed;
     if (pick === null || pick === undefined) return null;
     const window = Number(pick.snapshotAt) - Number(pick.periodStart);
     if (window <= 0) return null;
     const avg = Number(pick.totalWeight) / window;
-    return avg > 0 ? { avg, stale: pick !== undefined && lastRevealed !== null && (d === undefined || Number(d.status) !== 2) } : null;
-  }, [d, lastRevealed]);
+    return avg > 0 ? { avg, id: pick.id, stale: pick !== undefined && lastRevealed !== null && (d === undefined || Number(d.status) !== 2) } : null;
+  }, [d, lastRevealed, round]);
 
   /**
    * P1. Whether THIS address has been accrued for THIS draw.
@@ -601,12 +614,42 @@ export function PoolScreen() {
           <div style={css("display:flex;flex-wrap:wrap;gap:22px 44px;margin-top:28px")}>
             <Metric label="Round" value={round === 0 ? "—" : `#${round}`} />
             <Metric label="Grand prize" value={t0.data === undefined ? "—" : fmtUnits6(t0.data as bigint)} unit="cUSDC" />
+            {/* EE. Derived, and labelled as derived. totalWeight is balance-SECONDS,
+                so dividing by its own window gives the AVERAGE aggregate balance
+                across that window — not the balance right now, and not the closing
+                balance either. Calling it "in the pool, live" would be the same
+                overstatement the rest of this site spends its length avoiding. */}
+            {avgAggregate !== null && (
+              <Metric
+                label="In the pool"
+                value={(avgAggregate.avg / 1e6).toLocaleString("en-US", { maximumFractionDigits: 2 })}
+                unit="cUSDC"
+                sub={
+                  `average across draw #${avgAggregate.id}'s window` +
+                  (depositors === null ? "" : ` · ${depositors} address${depositors === 1 ? " has" : "es have"} deposited`)
+                }
+              />
+            )}
             {/* README:723 makes "every screen that shows it says so" an
                 obligation, and a 34px number with its correction 80 lines below
                 the fold satisfies the letter of that and not the point. The rate
                 is ours; Zama's Sepolia vault is idle-only. */}
             <Metric label="Funded by yield at" value={apy} unit="our rate, not Zama's" />
           </div>
+
+          {/* EE. The link that turns a statistic into part of the argument. The
+              aggregate is not published as a marketing figure; it is published so
+              a holder can divide their own weight by it, and it is the same number
+              row 4 solves against. Both facts belong next to it. */}
+          {avgAggregate !== null && (
+            <p style={css("margin:14px 0 0;max-width:70ch;font:400 11.5px/1.65 var(--display);color:var(--ink-3)")}>
+              Derived from <span style={css("font-family:var(--mono);font-size:11px")}>totalWeight ÷ window</span>, both published on chain at every
+              reveal — no wallet and no permit. This total is published at every draw:{" "}
+              <b style={css("font-weight:650")}>that is what makes your own share computable</b>, and
+              it is the same number <b style={css("font-weight:650")}>Try to break it</b>, row 4
+              solves against.
+            </p>
+          )}
 
           {/* Three prizes cannot be shown as one number, and the odds are the
               half worth showing: k is literally "one winner every k draws", and
