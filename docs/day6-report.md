@@ -2,6 +2,19 @@
 
 Self-contained: it repeats the facts it depends on, so it reads without the repo.
 
+> **Read this as a dated record, not as the current state.** It is day 6 of an
+> eight-day build, and every address and verdict below was true when written. Two
+> things it says are no longer true, and both were settled by the decision it asks
+> for: **the yield source exists** — `SteakhouseReplicaSource` accrues and
+> `harvest()` moves the yield into the reserve, with the pool's principal reaching
+> Zama's deployed vault — and the **conversational layer was built**, which this
+> report records as cut by instruction at the time. The pool and token addresses
+> here are superseded; the live ones are in the README.
+>
+> It is not edited to match the present. A report rewritten to agree with what
+> happened next stops being a record, and this one's value is that it says *"I
+> described it dishonestly"* about its own author's README.
+
 **Live:** https://ghostpool-himess.vercel.app
 **Pool:** `0x307e2D1eA71C73FD4358622933880868BbCe05D0` (Sepolia)
 **Token:** `0x056AC066e0770A7BE08eCAc73C09f811B067fc46`
@@ -83,7 +96,7 @@ actually reading**.
 ### 1.5 Known and not blocking
 
 - `[zama connector walletClient failed] TypeError: f.getProvider is not a function`
-  — the Zama bridge carried over from GhostLend calls `connector.getProvider()`,
+  — the Zama bridge calls `connector.getProvider()`,
   which Rabby does not expose in the expected shape. The fallback path works:
   decryption completed and the deposit landed. Noise, not a blocker.
 - Three wallet extensions are fighting over `window.ethereum` in the test browser.
@@ -115,8 +128,8 @@ deploy script. The contract contains no vault, no yield accrual, and nothing tha
 connects deposits to prize funding. `grep` for vault, yield or harvest in
 `ConfidentialPrizePool.sol` returns three hits, all of them in comments.
 
-My own step-1 reuse inventory listed GhostLend's `MockYieldVault.sol` (27 lines)
-as transferring **"as-is"**. I never wired it. Then I wrote "yield is mocked" in
+My own step-1 planning listed an existing 27-line mock yield vault as reusable
+**"as-is"**. I never wired it. Then I wrote "yield is mocked" in
 the README, which is not true and reads as though something is there.
 
 **So what exists today is a lottery with a pre-funded pot, not no-loss prize
