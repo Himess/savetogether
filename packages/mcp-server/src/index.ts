@@ -461,5 +461,9 @@ export { SaveTogetherTools } from "./tools";
 export type { ToolResult } from "./tools";
 export { Vault, SEPOLIA_CHAIN_ID } from "./vault";
 export { loadConfig, saveConfig, parseAmount, formatAmount } from "./config";
+// Exported so the round trip between the minter and the recogniser is testable
+// without a chain, a session or a wallet. It was not, and that is why a format
+// disagreement reached a live session instead of a test.
+export { REF_PREFIXES, refId, isRefId, isFigure } from "./refs";
 export type { SaveTogetherConfig, TokenEntry } from "./config";
 export { sanitiseChainText } from "./sanitize";

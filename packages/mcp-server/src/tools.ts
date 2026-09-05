@@ -36,6 +36,7 @@ import * as path from "node:path";
 import { formatAmount, parseAmount, type SaveTogetherConfig, type TokenEntry } from "./config";
 import { COARSE_BUCKET, coarsenBudget, sanitiseChainText, untrusted } from "./sanitize";
 import { Vault } from "./vault";
+import { isFigure, isRefId, refId } from "./refs.js";
 
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
@@ -194,9 +195,32 @@ export class SaveTogetherTools {
     return this.live;
   }
 
+  /**
+   * Reference ids, in the shape every surface says they are.
+   *
+   * This minted `bal_${Math.random().toString(36)}` — `bal_haauwfru` — while the
+   * tool descriptions, the schema hints, the error messages, the README and the
+   * pool_position text all say `bal_1`. The two never agreed, so the documented
+   * reference path into the pool was dead for every caller: a live session minted
+   * a reference and `pool_deposit` refused its own output.
+   *
+   * Sequential, per session, and that is not a downgrade. These name the CALLER'S
+   * OWN values inside the CALLER'S OWN session — `live.refs` is per-session state,
+   * so there is nothing here another party could reach by guessing. What the
+   * randomness was buying was unguessability against the holder themselves, which
+   * is not a threat; what it cost was every piece of documentation being false.
+   *
+   * A guessed-but-absent id is now a named error rather than a silent fall
+   * through to `parseAmount`, which is the part that mattered.
+   */
   private newRefId(kind: string): string {
-    return `${kind}_${Math.random().toString(36).slice(2, 10)}`;
+    const n = (this.refCounts.get(kind) ?? 0) + 1;
+    this.refCounts.set(kind, n);
+    return refId(kind, n);
   }
+
+  /** One counter per prefix, so bal_1 and pool_1 can both exist. */
+  private readonly refCounts = new Map<string, number>();
 
   /** Counts an unlock and remembers what it bought. */
   private recordUnlock(reason: UnlockReason): void {
@@ -496,19 +520,14 @@ export class SaveTogetherTools {
         return { ok: false, text: "Cancelled at the console. Nothing was sent." };
       }
       expr = exact(parseAmount(answer.value, t.decimals));
-    } else if (live.refs.has(spec.split(":")[0] ?? "")) {
-      const [id = "", op = ""] = spec.split(":");
-      const r = live.refs.get(id);
-      if (r === undefined) throw new Error(`unknown reference ${id}`);
-      const base = ref(r);
-      expr =
-        op === "half"
-          ? base.half()
-          : op.startsWith("percent")
-            ? base.percent(Number(op.split("=")[1] ?? "0"))
-            : base;
     } else {
-      expr = exact(parseAmount(spec, t.decimals));
+      // One resolver, shared with pool_deposit and pool_withdraw. This used to be
+      // a second copy of it, and that copy is the only reason send kept working
+      // while both pool paths were dead — it checked whether the session held the
+      // reference, while the shared parser checked whether the id LOOKED like one
+      // and disagreed with the minter. A defect one of three callers is immune to
+      // is a defect that hides.
+      expr = this.exprFor(this.amountSpec(spec), live, t.decimals);
     }
 
     // Warm the proof before anything else: it is twelve of the roughly thirty
@@ -932,7 +951,18 @@ export class SaveTogetherTools {
   // not a bug in a tool.
   // -------------------------------------------------------------------------
 
-  /** Syntax only, so a malformed amount is diagnosed before any chain lookup. */
+  /**
+   * Diagnosed before any chain lookup — but against the session, not a regex.
+   *
+   * This used to check that an id LOOKED like a reference: `/^[a-z]+_[0-9]+$/`.
+   * That is the check that broke the product, because it can disagree with the
+   * minter and did. An opaque identifier has no syntax worth validating; the only
+   * question worth asking is whether this session actually issued it, and the
+   * session knows. `send` already worked this way, which is the only reason
+   * `send` still worked while both pool paths were dead.
+   *
+   * It also makes the error useful: the ids you hold, named.
+   */
   private amountSpec(raw: unknown): string {
     if (typeof raw !== "string" || raw.trim() === "") {
       throw new Error(
@@ -941,8 +971,13 @@ export class SaveTogetherTools {
     }
     const spec = raw.trim();
     const [id = "", op = ""] = spec.split(":");
-    if (/^[0-9]+(\.[0-9]+)?$/.test(id)) return spec;
-    if (!/^[a-z]+_[0-9]+$/.test(id)) {
+    if (isFigure(id)) return spec;
+    // STRUCTURE ONLY — prefix, underscore, suffix. Deliberately not a format:
+    // the check this replaces pinned the suffix to `[0-9]+` while the minter
+    // emitted base-36, and every caller doing it the documented way was refused
+    // its own reference. Anything the minter can produce passes here, and
+    // whether it EXISTS is a question for the session, one step later.
+    if (!isRefId(id)) {
       throw new Error(
         `${id} is neither an amount nor a reference. References look like bal_1 and come from ` +
           `balance, remaining or pool_position.`,
@@ -957,7 +992,22 @@ export class SaveTogetherTools {
   /** Turns a validated spec into an expression. Needs the session for its refs. */
   private exprFor(spec: string, live: Live, decimals: number): AmountExpr {
     const [id = "", op = ""] = spec.split(":");
-    if (!live.refs.has(id)) return exact(parseAmount(spec, decimals));
+    // A plain figure, and nothing else, reaches parseAmount. This used to send
+    // anything it did not recognise as a reference, so a mistyped id was
+    // diagnosed as a malformed NUMBER — one indirection away from the truth.
+    if (!live.refs.has(id)) {
+      if (isFigure(spec)) return exact(parseAmount(spec, decimals));
+      // Structurally a reference, and this session never issued it. Naming the
+      // ones it did issue is the difference between a model retrying blind and a
+      // model retrying correctly.
+      const held = [...live.refs.keys()];
+      throw new Error(
+        `${id} is not a reference this session issued. ` +
+          (held.length === 0
+            ? "No references exist yet — call balance or pool_position first."
+            : `References you hold: ${held.join(", ")}.`),
+      );
+    }
     const r = live.refs.get(id);
     if (r === undefined) throw new Error(`unknown reference ${id}`);
     const base = ref(r);

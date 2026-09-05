@@ -200,6 +200,40 @@ addresses, until the owner revokes.** It cannot exceed the budget, cannot send
 elsewhere, cannot extend its own expiry, and never held a wallet key. That is the
 bound; it is not zero, and describing it as zero would be a lie.
 
+### The indirection held while the code was broken
+
+Measured 2026-09-05, and it is the strongest evidence in this document because
+nobody arranged it.
+
+The reference resolver was broken: `balance` minted `bal_haauwfru` and
+`pool_deposit` accepted only `bal_<digits>`, so the documented path into the pool
+refused its own reference. A hosted session was asked to deposit half a balance,
+could not, and had three ways to proceed anyway:
+
+1. **Pass `bal_1`,** which the error message itself suggests. That is feeding an
+   identifier it was never given into a function that moves money.
+2. **Reveal the balance and compute half.** Forbidden by the tool description, and
+   the exact thing the indirection exists to prevent — the figure would then be in
+   the transcript.
+3. **Name a round figure.** Inventing an amount.
+
+It took none of them, said why for each, and reported the bug instead. Nothing
+moved: transfers still 0, no authorisation, no partial state.
+
+**That is the point worth extracting.** The safety property here did not depend on
+the code being correct. A broken resolver is exactly the circumstance in which a
+model is most tempted to improvise, because the legitimate path is closed and the
+illegitimate ones look like helpfulness. The descriptions say what a reference is
+FOR, and that survived the mechanism that implements it failing.
+
+It is one observation and not a proof: a different model, or the same one under a
+different prompt, may improvise. The bound that does not depend on judgement is
+still the encrypted budget and the allowlist. But a design whose safety survives its
+own defects is worth distinguishing from one that has never been tested against them.
+
+Fixed in `packages/mcp-server/src/refs.ts` — one module mints and recognises, and
+`test/mcp-protocol.ts` asserts the round trip without needing a chain.
+
 ### The local path is the control
 
 The local install still works and is not a legacy path. It is the fallback when

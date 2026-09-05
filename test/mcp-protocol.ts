@@ -16,7 +16,14 @@
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createServer, type SaveTogetherConfig } from "@savetogether/mcp-server";
+import {
+  createServer,
+  isFigure,
+  isRefId,
+  refId,
+  REF_PREFIXES,
+  type SaveTogetherConfig,
+} from "@savetogether/mcp-server";
 import { expect } from "chai";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
@@ -108,6 +115,80 @@ describe("MCP protocol", function () {
    * list. What they do prove is that the two descriptions name their own
    * subjects and stop overlapping, which is the property that was missing.
    */
+  /**
+   * E3. The reference round trip, which nothing asserted.
+   *
+   * A live session found that `balance` mints `bal_haauwfru` and `pool_deposit`
+   * refuses it — "References look like bal_1 and come from balance." The minter
+   * emitted base-36; the recogniser accepted digits. They never agreed, so the
+   * documented path into the pool was dead for every caller, and `pool_withdraw`
+   * shared it, which is worse: that is the path out.
+   *
+   * `send` was immune for the wrong reason. It carried its own copy of the
+   * resolver that checked MEMBERSHIP rather than shape, so the one caller that
+   * did not share the parser was the one caller that worked — which is how a
+   * defect stays hidden. There is one resolver now.
+   *
+   * These assertions need no chain, no session and no wallet, which is the
+   * point: the bug was entirely in the string layer and could have been caught
+   * for nothing.
+   */
+  describe("reference ids round-trip between the minter and the recogniser", () => {
+    it("every id the minter can produce is recognised", () => {
+      for (const kind of REF_PREFIXES) {
+        for (const n of [1, 2, 9, 10, 99, 1000]) {
+          const id = refId(kind, n);
+          expect(isRefId(id), `${id} must be recognised`).to.equal(true);
+        }
+      }
+    });
+
+    it("the ids every description promises are the ids that are minted", () => {
+      // The documentation says bal_1 in eight places. This is the assertion that
+      // the documentation is true.
+      expect(refId("bal", 1)).to.equal("bal_1");
+      expect(refId("pool", 1)).to.equal("pool_1");
+      expect(refId("won", 2)).to.equal("won_2");
+    });
+
+    it("still recognises the base-36 shape it replaced", () => {
+      // Not nostalgia: the recogniser must not be able to disagree with a future
+      // minter either. Structure, never format.
+      for (const id of ["bal_haauwfru", "rem_9x2k", "pool_a1b2c3d4"]) {
+        expect(isRefId(id), id).to.equal(true);
+      }
+    });
+
+    it("rejects what is not a reference at all", () => {
+      for (const bad of ["lots", "half of it", "", "250", "bal", "_1", "BAL_1"]) {
+        expect(isRefId(bad), bad).to.equal(false);
+      }
+    });
+
+    it("a figure and a reference are never the same thing", () => {
+      for (const kind of REF_PREFIXES) {
+        expect(isFigure(refId(kind, 1)), kind).to.equal(false);
+      }
+      for (const f of ["250", "0.000001", "1.5"]) {
+        expect(isFigure(f), f).to.equal(true);
+        expect(isRefId(f), f).to.equal(false);
+      }
+    });
+
+    it("a structurally valid id this session never issued is named, not mis-diagnosed", async () => {
+      // The failure a model actually hits when it guesses. It used to fall
+      // through to parseAmount and come back as a malformed NUMBER — one
+      // indirection away from the truth.
+      const result = await client.callTool({
+        name: "pool_deposit",
+        arguments: { amount: "bal_7:half" },
+      });
+      expect(result.isError).to.equal(true);
+      const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+      expect(text).to.not.match(/decimal|not a number/i);
+    });
+  });
+
   describe("discovery — the descriptions name their own subject", () => {
     const desc = async (name: string): Promise<string> => {
       const { tools } = await client.listTools();
