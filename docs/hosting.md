@@ -165,6 +165,31 @@ itself, take the PID from `netstat -ano | grep ':3111.*LISTENING'` and stop it b
 id rather than trusting `pkill`, which does not reliably match node processes on
 Windows.
 
+## The MCP URL is served from the product's own domain
+
+The one address a user copies out of this product and pastes somewhere else read
+`survivorsbyashborn.com/ghostpool/mcp/<token>` — another project's domain and this
+project's old name, in its most visible string. It now reads:
+
+```
+https://savetogether-fhe.vercel.app/mcp/<token>
+```
+
+**Nothing about the server moved.** A `beforeFiles` rewrite in the frontend's
+`next.config.mjs` maps `/mcp/:path*` onto the origin, and `PUBLIC_URL` in
+`/opt/ghostpool/.env` is what the server stamps into the URL it issues. No DNS
+record, no certificate, no nginx change.
+
+A rewrite and not a redirect, so the chat client sees one URL and never learns the
+origin. The old path still answers, so **every URL already pasted into a chat client
+keeps working** — only newly issued ones carry the new host. Verified with a bogus
+token through both paths: identical status, identical body, 0.88s against 0.93s.
+
+The cost, stated: one more hop in front of calls that can take a minute, which is why
+nginx carries `proxy_read_timeout 300s`. If a long deposit is ever cut off through
+the app domain and not through the origin, this rewrite is the difference — and the
+fix is the subdomain below, which removes the hop.
+
 ## Still worth doing
 
 The endpoint sits under another project's domain because adding a subdomain needs
