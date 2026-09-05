@@ -23,7 +23,7 @@ the keeper. Not the pool.**
 [![Composed with](https://img.shields.io/badge/composed%20with-Zama's%20Confidential%20Vault-5c9bff?style=flat-square)](https://app.zama.org/earn)
 [![License](https://img.shields.io/badge/license-BSD--3--Clause--Clear-blue?style=flat-square)](./LICENSE)
 
-**[🌐 Live app](https://savetogether-fhe.vercel.app) · [💬 Talk to it](#-talking-to-it) · [📜 Contracts](#-deployed-sepolia) · [🧠 How the draw works](#-the-idea-and-the-one-thing-that-makes-it-hard)**
+**[🌐 Live app](https://savetogether-fhe.vercel.app) · [⚡ Try it in 2 minutes](#-try-it--about-two-minutes-four-signatures) · [💬 Talk to it](#-talking-to-it) · [📜 Contracts](#-deployed-sepolia) · [🧠 How the draw works](#-the-idea-and-the-one-thing-that-makes-it-hard)**
 
 </div>
 
@@ -534,12 +534,12 @@ that by not using it.
 1. Connect a wallet on Sepolia. **Any browser wallet** — MetaMask, Rabby, Brave,
    Coinbase, Zerion, OKX. If more than one is installed the app asks which; if one
    is, it just connects. Coinbase Smart Wallet works on a phone with a passkey and
-   no extension. WalletConnect is wired but off unless
-    is set — it is the one connector that needs an
+   no extension. WalletConnect is wired but off unless `NEXT_PUBLIC_WALLETCONNECT_ID`
+   is set — it is the one connector that needs an
    account somewhere else.
-2. Press **Get 1,000 · 3 txs**. This mints USDC, approves the wrapper, and wraps it
-   into cUSDC — three transactions, because the token this pool settles in has no
-   mint of its own.
+2. Press **Get 1,000 · 3 txs** — this is the **faucet**. It mints 1,000 test USDC,
+   approves the wrapper, and wraps it into cUSDC: three transactions, because the
+   token this pool settles in has no mint of its own. Press it again for more.
 3. Press **Approve the pool** once, then **Confirm confidential deposit**.
 4. Press **Decrypt my balances** and sign once. Your position is readable by you and
    by nobody else.
@@ -547,7 +547,7 @@ that by not using it.
 Two things you will not have to do, and both are the point: you never claim a prize,
 and you never learn whether you won by sending a transaction.
 
-### About the token
+### About the token, and the faucet
 
 **The pool takes any ERC-7984 token, and it settles in Zama's deployed cUSDC** —
 `0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639`, with its underlying USDC at
